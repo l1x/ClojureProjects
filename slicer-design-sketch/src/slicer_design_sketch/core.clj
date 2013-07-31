@@ -16,6 +16,9 @@
 (defn gl-to-pls           [gl])
 (defn legal-entity-to-mps [le])
 
+(def pseudo-driver-type identity)
+(defmulti pseudo-driver-to-proto-driver pseudo-driver-type)
+
 (def proto-driver-table
   (pdump (map (partial zipmap [:chan :pl :driver-name :prime :amount])
               [[1000 23 :subscription-rev :p1 79]
