@@ -170,7 +170,7 @@ BigInteger/ZERO
 BigInteger/ONE
 
 (defn big-sum
-  ([] 0)
+  ([] BigInteger/ZERO)
   ([^BigInteger x] x)
   ([^BigInteger x & more] (.add x (apply big-sum more) )))
 
@@ -233,32 +233,30 @@ BigInteger/ONE
 (big-ge BigInteger/ZERO BigInteger/ZERO)
 (big-ge BigInteger/ONE BigInteger/ONE)
 
+(defn big-abs [^BigInteger x] (if (big-lt x BigInteger/ZERO) (.negate x) x))
+(big-abs BigInteger/ZERO)
+(big-abs (.negate BigInteger/ZERO))
+(big-abs (.negate BigInteger/ONE))
+(big-abs BigInteger/ONE)
 
+(defn big-square [^BigInteger x] (.multiply x x))
 
-(defn big-abs [x] (if (< x 0) (- x) x))
+(defn big-improve [^BigInteger guess x]
+  (big-average guess (.divide x guess)))
 
-#_
-(defn square [x] (* x x))
+(defn big-good-enough? [^BigInteger guess x]
+  (and
+   (.big-le (big-square guess) x)
+   (.big-gt (big-square (big-inc guess)) x)))
 
-#_
-(defn improve [guess x]
-  (average guess (/ x guess)))
-
-#_
-(defn good-enough? [guess x]
-  (< (abs (- (square guess) x)) 0.001))
-
-#_
-(defn try-sqrt [guess x]
+(defn big-try-sqrt [^BigInteger guess x]
   (if (good-enough? guess x)
     guess
-    (try-sqrt (improve guess x) x)))
+    (recur (big-improve guess x) x)))
 
-#_
-(defn sqrt [x] (try-sqrt 1 x))
+(defn big-sqrt [^BigInteger x] (big-try-sqrt BigInteger/ONE x))
 
-#_
-(prn (sqrt 9))
+(prn (big-sqrt (BigInteger. 9)))
 
 
 (defn rand-bigint [#^BigInteger bign, #^Random rnd] 
