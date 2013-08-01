@@ -203,6 +203,38 @@ BigInteger/ONE
 (big-lt BigInteger/ZERO BigInteger/ZERO)
 (big-lt BigInteger/ONE BigInteger/ONE)
 
+(defn big-le [^BigInteger x y] (or (.equals x y) (big-lt x y)))
+
+(big-le (BigInteger. "17") (BigInteger. "42"))
+(big-le (BigInteger. "-17") (BigInteger. "42"))
+(big-le (BigInteger. "17") (BigInteger. "-42"))
+(big-le BigInteger/ONE BigInteger/ZERO)
+(big-le BigInteger/ZERO BigInteger/ONE)
+(big-le BigInteger/ZERO BigInteger/ZERO)
+(big-le BigInteger/ONE BigInteger/ONE)
+
+(defn big-gt [^BigInteger x y] (== 1 (.compareTo x y)))
+
+(big-gt (BigInteger. "17") (BigInteger. "42"))
+(big-gt (BigInteger. "-17") (BigInteger. "42"))
+(big-gt (BigInteger. "17") (BigInteger. "-42"))
+(big-gt BigInteger/ONE BigInteger/ZERO)
+(big-gt BigInteger/ZERO BigInteger/ONE)
+(big-gt BigInteger/ZERO BigInteger/ZERO)
+(big-gt BigInteger/ONE BigInteger/ONE)
+
+(defn big-ge [^BigInteger x y] (or (.equals x y) (big-gt x y)))
+
+(big-ge (BigInteger. "17") (BigInteger. "42"))
+(big-ge (BigInteger. "-17") (BigInteger. "42"))
+(big-ge (BigInteger. "17") (BigInteger. "-42"))
+(big-ge BigInteger/ONE BigInteger/ZERO)
+(big-ge BigInteger/ZERO BigInteger/ONE)
+(big-ge BigInteger/ZERO BigInteger/ZERO)
+(big-ge BigInteger/ONE BigInteger/ONE)
+
+
+
 (defn big-abs [x] (if (< x 0) (- x) x))
 
 #_
