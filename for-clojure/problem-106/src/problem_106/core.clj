@@ -113,9 +113,6 @@
 
 (pdump (take 5 (drop 1100 primes)))
 
-(defn trial-divide [target candidate]
-  {:rem (rem target candidate) :quot (quot target candidate)})
-
 (import '(java.util.concurrent Executors))
 
 (def ^:dynamic *v*)
@@ -153,12 +150,12 @@
  
 (pdump (test-stm 10 10 100))
 
+(set! *warn-on-reflection* true)
 
 (defn huge-random-number [digits] 
   (BigDecimal. (apply str (take digits (repeatedly #(rand-int 10)))))) 
 
 (pdump (huge-random-number 100)) 
-
 (import 'java.util.Random)
 (def rand0 (Random.))
 (pdump (BigInteger. 100 100 (Random.)))
@@ -175,39 +172,60 @@ BigInteger/ONE
 (defn big-sum
   ([] 0)
   ([^BigInteger x] x)
-  ([^BigInteger x & more] (.add x (apply sum more) )))
+  ([^BigInteger x & more] (.add x (apply big-sum more) )))
 
-(big-sum BigInteger/ONE BigInteger/ONE)
+(type (big-sum BigInteger/ONE BigInteger/ONE BigInteger/ONE))
 
 (defn big-inc [^BigInteger x] (.add x BigInteger/ONE))
 (defn big-dec [^BigInteger x] (.subtract x BigInteger/ONE))
 (big-inc BigInteger/ONE)
 (big-dec BigInteger/ONE)
+
 (.equals (BigInteger/ONE) (big-inc BigInteger/ZERO))
+(first (drop 100 (iterate big-inc BigInteger/ZERO)))
 
-(defn average
+(defn big-average
   ([] 0)
-  ([x] x)
-  ([x & more]
-     (/ (+ x (apply sum more)) (+ 1 (count more)))))
+  ([^BigInteger x] x)
+  ([^BigInteger x & more]
+     (.divide (.add x (apply big-sum more))
+              (BigInteger. (str (+ 1 (count more)))))))
 
-(defn abs [x] (if (< x 0) (- x) x))
+(big-average (BigInteger. "1000") (BigInteger. "500"))
 
+(defn big-lt [^BigInteger x y] (== -1 (.compareTo x y)))
+
+(big-lt (BigInteger. "17") (BigInteger. "42"))
+(big-lt (BigInteger. "-17") (BigInteger. "42"))
+(big-lt (BigInteger. "17") (BigInteger. "-42"))
+(big-lt BigInteger/ONE BigInteger/ZERO)
+(big-lt BigInteger/ZERO BigInteger/ONE)
+(big-lt BigInteger/ZERO BigInteger/ZERO)
+(big-lt BigInteger/ONE BigInteger/ONE)
+
+(defn big-abs [x] (if (< x 0) (- x) x))
+
+#_
 (defn square [x] (* x x))
 
+#_
 (defn improve [guess x]
   (average guess (/ x guess)))
 
+#_
 (defn good-enough? [guess x]
   (< (abs (- (square guess) x)) 0.001))
 
+#_
 (defn try-sqrt [guess x]
   (if (good-enough? guess x)
     guess
     (try-sqrt (improve guess x) x)))
 
+#_
 (defn sqrt [x] (try-sqrt 1 x))
 
+#_
 (prn (sqrt 9))
 
 
