@@ -134,8 +134,7 @@
         (.shutdown pool)
         (map #(.get %) ret))))
  
-(test-vars 10 1000000)
-
+(pdump (test-vars 10 1000000))
 
 (defn test-stm [nitems nthreads niters]
   (let [refs  (map ref (repeat nitems 0))
@@ -152,29 +151,75 @@
     (.shutdown pool)
     (map deref refs)))
  
-(test-stm 10 10 10000)
+(pdump (test-stm 10 10 100))
 
 
 (defn huge-random-number [digits] 
   (BigDecimal. (apply str (take digits (repeatedly #(rand-int 10)))))) 
 
-(huge-random-number 100) 
+(pdump (huge-random-number 100)) 
 
 (import 'java.util.Random)
-
 (def rand0 (Random.))
+(pdump (BigInteger. 100 100 (Random.)))
+(pdump (BigInteger. 100 (Random.)))
+(pdump (let [r (Random.)
+             n (BigInteger. 100 r)
+             d (BigInteger.  50 r)
+             ]
+         (.divideAndRemainder n d)))
 
-(let [xs (repeatedly 10000 (fn [] (.nextInt rand0 42)))
-      mn (apply min xs)
-      mx (apply max xs)]
-  [mn mx])
+BigInteger/ZERO
+BigInteger/ONE
 
-(BigInteger. 1000 80 (Random.))
+(defn big-sum
+  ([] 0)
+  ([^BigInteger x] x)
+  ([^BigInteger x & more] (.add x (apply sum more) )))
+
+(big-sum BigInteger/ONE BigInteger/ONE)
+
+(defn big-inc [^BigInteger x] (.add x BigInteger/ONE))
+(defn big-dec [^BigInteger x] (.subtract x BigInteger/ONE))
+(big-inc BigInteger/ONE)
+(big-dec BigInteger/ONE)
+(.equals (BigInteger/ONE) (big-inc BigInteger/ZERO))
+
+(defn average
+  ([] 0)
+  ([x] x)
+  ([x & more]
+     (/ (+ x (apply sum more)) (+ 1 (count more)))))
+
+(defn abs [x] (if (< x 0) (- x) x))
+
+(defn square [x] (* x x))
+
+(defn improve [guess x]
+  (average guess (/ x guess)))
+
+(defn good-enough? [guess x]
+  (< (abs (- (square guess) x)) 0.001))
+
+(defn try-sqrt [guess x]
+  (if (good-enough? guess x)
+    guess
+    (try-sqrt (improve guess x) x)))
+
+(defn sqrt [x] (try-sqrt 1 x))
+
+(prn (sqrt 9))
+
 
 (defn rand-bigint [#^BigInteger bign, #^Random rnd] 
   (let [bits (inc (.bitLength bign)) 
         bigr (BigInteger. bits rnd)] 
     (-> bign (.multiply bigr) (.shiftRight bits))))
+
+(let [xs (repeatedly 10000 (fn [] (.nextInt rand0 42)))
+      mn (apply min xs)
+      mx (apply max xs)]
+  [mn mx])
 
 
 
