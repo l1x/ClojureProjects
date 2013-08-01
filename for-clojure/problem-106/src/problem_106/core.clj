@@ -111,17 +111,75 @@
 
 (def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
 
-(pdump (take 5 (drop 1000 primes)))
+(pdump (take 5 (drop 1100 primes)))
 
-(def testo (fn [n] (letfn [(sieve [primes]
-                            (let [p (first primes)]
-                              (cons p (lazy-seq (sieve (filter #(not= 0 (mod % p))
-                                                               (rest primes)))))
-                              ))]
-                    (take n (sieve (cons 2 (iterate (partial + 2) 3)))))))
+(defn trial-divide [target candidate]
+  {:rem (rem target candidate) :quot (quot target candidate)})
 
-((fn [sent])
- "Have a nice day.")
+(import '(java.util.concurrent Executors))
+
+(def ^:dynamic *v*)
+ 
+(defn incv [n] (set! *v* (+ *v* n)))
+ 
+(defn test-vars [nthreads niters]
+  (let [pool (Executors/newFixedThreadPool nthreads)
+        tasks (map (fn [t]
+                     #(binding [*v* 0]
+                        (dotimes [n niters]
+                          (incv t))
+                        *v*))
+                   (range nthreads))]
+      (let [ret (.invokeAll pool tasks)]
+        (.shutdown pool)
+        (map #(.get %) ret))))
+ 
+(test-vars 10 1000000)
+
+
+(defn test-stm [nitems nthreads niters]
+  (let [refs  (map ref (repeat nitems 0))
+        pool  (Executors/newFixedThreadPool nthreads)
+        tasks (map (fn [t]
+                      (fn []
+                        (dotimes [n niters]
+                          (dosync
+                            (doseq [r refs]
+                              (alter r + 1 t))))))
+                   (range nthreads))]
+    (doseq [future (.invokeAll pool tasks)]
+      (.get future))
+    (.shutdown pool)
+    (map deref refs)))
+ 
+(test-stm 10 10 10000)
+
+
+(defn huge-random-number [digits] 
+  (BigDecimal. (apply str (take digits (repeatedly #(rand-int 10)))))) 
+
+(huge-random-number 100) 
+
+(import 'java.util.Random)
+
+(def rand0 (Random.))
+
+(let [xs (repeatedly 10000 (fn [] (.nextInt rand0 42)))
+      mn (apply min xs)
+      mx (apply max xs)]
+  [mn mx])
+
+(BigInteger. 1000 80 (Random.))
+
+(defn rand-bigint [#^BigInteger bign, #^Random rnd] 
+  (let [bits (inc (.bitLength bign)) 
+        bigr (BigInteger. bits rnd)] 
+    (-> bign (.multiply bigr) (.shiftRight bits))))
+
+
+
+
+
 
 ;; primes = [2, 3] ++ [ cand | cand <- [5, 7..],
 ;;                             all (\p -> notDvbl cand p)
