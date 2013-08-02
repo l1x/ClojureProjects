@@ -48,7 +48,7 @@
         bigr (BigInteger. bits rnd)] 
     (-> bign (.multiply bigr) (.shiftRight bits))))
 
-(defn huge-random-number [digits]
+(defn ^BigInteger big-rand [digits]
   (BigInteger. (apply str (take digits (repeatedly #(rand-int 10))))))
 
 

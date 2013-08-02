@@ -40,7 +40,7 @@
     (is (.equals (big-inc BigInteger/ZERO) (BigInteger/ONE)))
     (is (.equals (big-dec BigInteger/ONE)  (BigInteger/ZERO)))
     (let [r (Random.)
-          h (huge-random-number 100)]
+          h (big-rand 100)]
       (is (.equals (big-inc (big-dec h)) h))
       (is (.equals (big-dec (big-inc h)) h)))
     )
