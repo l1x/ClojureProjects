@@ -11,18 +11,30 @@
             [big-prime.utils :refer :all]
             [big-prime.core  :refer :all]))
 
+(deftest big-integer-interop-tests
+  
+  (testing "Interop with java.math.BigInteger"
+    (is (= (type BigInteger/ONE) (type (big-sum))))
+    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE))))
+    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE BigInteger/ONE)))))
 
+  (testing "big-inc and big-dec"
+    (is (.equals (big-inc BigInteger/ZERO) (BigInteger/ONE)))
+    (is (.equals (big-dec BigInteger/ONE)  (BigInteger/ZERO)))))
 
 (deftest big-prime-tests
-  (testing "Correct importing of java.util.Random"
+
+  (testing "Importing of java.util.Random"
     (let [r (Random.)]
       (is (= 0 (.nextInt r 1)))
       (is (= 0 (rand-int 1)))))
+
   (testing "Invertibility of big-sqrt and big-square"
     (let [i (pdump (huge-random-number 100))
           q (pdump (big-square i))
           s (pdump (big-sqrt q))]
       (is (.equals s i))))
+  
   )
 
 
