@@ -115,42 +115,52 @@
   ;; https://github.com/clojure/clojure/blob/master/test/clojure/test_clojure/sequences.clj
   ;;
 (deftest test-range
-  (are [x y] (= x y)
-       (range 0) ()                     ; exclusive end!
-       (range 1) '(0)
-       (range 5) '(0 1 2 3 4)
+  (let [t0 BigInteger/ZERO
+        t1 BigInteger/ONE
+        t2 (big-inc (BigInteger/ONE))
+        t3 (big-inc t2)
+        t4 (big-inc t3)
+        t5 (big-inc t4)
+        t6 (big-inc t5)
+        t7 (big-inc t6)
+        t8 (big-inc t7)
+        t9 (big-inc t8)]
+    (are [x y] (= x y)
+         (big-range t0) ()                     ; exclusive end!
+         (range 1) '(0)
+         (range 5) '(0 1 2 3 4)
 
-       (range -1) ()
-       (range -3) ()
+         (range -1) ()
+         (range -3) ()
 
-       (range 2.5) '(0 1 2)
-       (range 7/3) '(0 1 2)
+         (range 2.5) '(0 1 2)
+         (range 7/3) '(0 1 2)
 
-       (range 0 3) '(0 1 2)
-       (range 0 1) '(0)
-       (range 0 0) ()
-       (range 0 -3) ()
+         (range 0 3) '(0 1 2)
+         (range 0 1) '(0)
+         (range 0 0) ()
+         (range 0 -3) ()
 
-       (range 3 6) '(3 4 5)
-       (range 3 4) '(3)
-       (range 3 3) ()
-       (range 3 1) ()
-       (range 3 0) ()
-       (range 3 -2) ()
+         (range 3 6) '(3 4 5)
+         (range 3 4) '(3)
+         (range 3 3) ()
+         (range 3 1) ()
+         (range 3 0) ()
+         (range 3 -2) ()
 
-       (range -2 5) '(-2 -1 0 1 2 3 4)
-       (range -2 0) '(-2 -1)
-       (range -2 -1) '(-2)
-       (range -2 -2) ()
-       (range -2 -5) ()
+         (range -2 5) '(-2 -1 0 1 2 3 4)
+         (range -2 0) '(-2 -1)
+         (range -2 -1) '(-2)
+         (range -2 -2) ()
+         (range -2 -5) ()
 
-       (take 3 (range 9 3 0)) '(9 9 9)
-       (range 0 0 0) ()
-       (range 3 9 1) '(3 4 5 6 7 8)
-       (range 3 9 2) '(3 5 7)
-       (range 3 9 3) '(3 6)
-       (range 3 9 10) '(3)
-       (range 3 9 -1) () ))
+         (take 3 (range 9 3 0)) '(9 9 9)
+         (range 0 0 0) ()
+         (range 3 9 1) '(3 4 5 6 7 8)
+         (range 3 9 2) '(3 5 7)
+         (range 3 9 3) '(3 6)
+         (range 3 9 10) '(3)
+         (range 3 9 -1) () )))
 
        ;; current variance with actual behavior
        #_(take 3 (range 3 9 0)) '(3 3 3)

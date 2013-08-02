@@ -73,10 +73,9 @@
                                     ))
 
 (defn big-range
-  ([] (big-range BigInteger/ZERO))
+  ([] ((fn [j] (cons j (lazy-seq (recur (big-inc j))))) BigInteger/ZERO))
 
-  ([^BigInteger start]
-     (cons start (lazy-seq (big-range (big-inc start)))))
+  ([^BigInteger end] (big-range BigInteger/ZERO end))
 
   ([^BigInteger start ^BigInteger end]
      (if (big-gt end start)
@@ -84,9 +83,10 @@
        ()))
 
   ([^BigInteger start ^BigInteger end ^BigInteger step]
-     (let [op (if (big-pos? step) big-gt big-lt)])
-     (if (op end start)
-       (cons start (lazy-seq (big-range (.add start step) end)))
-       ()))
-
+     (if (.equals step BigInteger/ZERO)
+       ()
+       (let [op (if (big-pos? step) big-gt big-lt)]
+         (if (op end start)
+           (cons start (lazy-seq (big-range (.add start step) end)))
+           ()))))
   )
