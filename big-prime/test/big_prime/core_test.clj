@@ -20,9 +20,13 @@
 
   (testing "Invertibility of big-sqrt and big-square; also tests big-average, big-le, and private functions."
     (let [i (pdump (huge-random-number 100))
+          j (big-sqrt i)
           q (pdump (big-square i))
           s (pdump (big-sqrt q))]
-      (is (.equals s i))))
+      (is (.equals s i))
+      (is (big-le (big-square j) i))
+      (is (big-ge (big-square (big-inc j)) i))
+      ))
   
   )
 
