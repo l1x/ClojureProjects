@@ -150,7 +150,7 @@
  
 (pdump (test-stm 10 10 100))
 
-(set! *warn-on-reflection* true)
+#_(set! *warn-on-reflection* true)
 
 (defn huge-random-number [digits] 
   (BigDecimal. (apply str (take digits (repeatedly #(rand-int 10)))))) 
@@ -246,17 +246,17 @@ BigInteger/ONE
 
 (defn big-good-enough? [^BigInteger guess x]
   (and
-   (.big-le (big-square guess) x)
-   (.big-gt (big-square (big-inc guess)) x)))
+   (big-le (big-square guess) x)
+   (big-gt (big-square (big-inc guess)) x)))
 
 (defn big-try-sqrt [^BigInteger guess x]
-  (if (good-enough? guess x)
+  (if (big-good-enough? guess x)
     guess
     (recur (big-improve guess x) x)))
 
 (defn big-sqrt [^BigInteger x] (big-try-sqrt BigInteger/ONE x))
 
-(prn (big-sqrt (BigInteger. 9)))
+(prn (big-sqrt (BigInteger. "9")))
 
 
 (defn rand-bigint [#^BigInteger bign, #^Random rnd] 
