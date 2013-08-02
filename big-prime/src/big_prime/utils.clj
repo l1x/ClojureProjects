@@ -12,7 +12,5 @@
          (println "----------------")
          x#)))
 
-(defn bar
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, Bar!"))
+(defn list-defs []
+  (keys (ns-publics 'big-prime.core)))

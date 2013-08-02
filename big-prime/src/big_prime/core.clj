@@ -4,9 +4,6 @@
 
 (set! *warn-on-reflection* true)
 
-(defn huge-random-number [digits]
-  (BigDecimal. (apply str (take digits (repeatedly #(rand-int 10))))))
-
 (defn big-sum
   ([] BigInteger/ZERO)
   ([^BigInteger x] x)
@@ -50,5 +47,8 @@
   (let [bits (inc (.bitLength bign)) 
         bigr (BigInteger. bits rnd)] 
     (-> bign (.multiply bigr) (.shiftRight bits))))
+
+(defn huge-random-number [digits]
+  (BigInteger. (apply str (take digits (repeatedly #(rand-int 10))))))
 
 
