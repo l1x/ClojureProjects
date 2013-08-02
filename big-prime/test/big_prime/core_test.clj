@@ -78,15 +78,26 @@
       (is      (big-pos? BigInteger/ONE))
       (is (not (big-pos? BigInteger/ZERO)))
       (is (not (big-pos? bm1)))
+
       (is (not (big-neg? BigInteger/ONE)))
       (is (not (big-neg? BigInteger/ZERO)))
       (is      (big-neg? bm1))
+
       (is      (big-non-neg? BigInteger/ONE))
       (is      (big-non-neg? BigInteger/ZERO))
       (is (not (big-non-neg? bm1)))
+
       (is (not (big-non-pos? BigInteger/ONE)))
       (is      (big-non-pos? BigInteger/ZERO))
       (is      (big-non-pos? bm1))
+
+      (is (not (big-zero? BigInteger/ONE)))
+      (is      (big-zero? BigInteger/ZERO))
+      (is (not (big-zero? bm1)))
+
+      (is (=  1 (big-sign BigInteger/ONE)))
+      (is (=  0 (big-sign BigInteger/ZERO)))
+      (is (= -1 (big-sign bm1)))
 )
     )
   )
