@@ -27,7 +27,6 @@
       (is (big-le (big-square j) i))
       (is (big-ge (big-square (big-inc j)) i))
       ))
-  
   )
 
 (deftest big-integer-interop-tests
