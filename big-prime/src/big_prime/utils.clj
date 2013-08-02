@@ -3,7 +3,8 @@
             clojure.pprint))
 
 (defmacro pdump [x]
-  `(let [x# (try ~x (catch Exception e# (str "pdump caught exception: " (.getMessage e#))))]
+  `(let [x# (try ~x (catch Exception e#
+                      (str "pdump caught exception: " (.getMessage e#))))]
      (do (println "----------------")
          (clojure.pprint/pprint '~x)
          (println "~~>")
