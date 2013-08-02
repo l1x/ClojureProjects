@@ -13,7 +13,7 @@
 (defn big-dec [^BigInteger x] (.subtract x BigInteger/ONE))
 
 (defn big-average
-  ([] 0)
+  ([] BigInteger/ZERO)
   ([^BigInteger x] x)
   ([^BigInteger x ^BigInteger & more]
      (.divide (.add x (apply big-sum more))
