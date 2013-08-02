@@ -18,7 +18,7 @@
       (is (= 0 (.nextInt r 1)))
       (is (= 0 (rand-int 1)))))
 
-  (testing "Invertibility of big-sqrt and big-square"
+  (testing "Invertibility of big-sqrt and big-square; also tests big-average, big-le, and private functions."
     (let [i (pdump (huge-random-number 100))
           q (pdump (big-square i))
           s (pdump (big-sqrt q))]
@@ -46,6 +46,7 @@
     (is (= (str BigInteger/ZERO)          "0"))
     (is (= (str BigInteger/ONE)           "1"))
     (is (= (str (big-inc BigInteger/ONE)) "2"))
+    (is (= (str (BigInteger. "999999999999999")) "999999999999999"))
     )
   )
 

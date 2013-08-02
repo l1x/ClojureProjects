@@ -241,10 +241,10 @@ BigInteger/ONE
 
 (defn big-square [^BigInteger x] (.multiply x x))
 
-(defn big-improve [^BigInteger guess x]
+(defn- big-improve [^BigInteger guess x]
   (big-average guess (.divide x guess)))
 
-(defn big-good-enough? [^BigInteger guess x]
+(defn- big-good-enough? [^BigInteger guess x]
   (and
    (big-le (big-square guess) x)
    (big-gt (big-square (big-inc guess)) x)))
