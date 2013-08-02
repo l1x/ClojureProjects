@@ -19,7 +19,7 @@
       (is (= 0 (rand-int 1)))))
 
   (testing "Invertibility of big-sqrt and big-square; also tests big-average, big-le, and private functions."
-    (let [i (pdump (huge-random-number 100))
+    (let [i (pdump (big-rand 100))
           j (big-sqrt i)
           q (pdump (big-square i))
           s (pdump (big-sqrt q))]
@@ -61,9 +61,17 @@
     (is (= (str (big-integer -9999M)) "-9999"))
     (is (= (str (big-integer -9999999999999999)) "-9999999999999999"))
     (is (= (str (big-integer -9999999999999999N)) "-9999999999999999"))
-    (is (= (str (big-integer -9999999999999999M)) "-9999999999999999"))
-    )
-  )
+    (is (= (str (big-integer -9999999999999999M)) "-9999999999999999"))))
+
+(deftest big-integer-operations
+  (testing "big-range"
+    (is (.equals (big-integer 2000000000000000000)
+                 (first (big-range (big-integer 2000000000000000000)))))
+    (is (every? identity
+                (map (fn [^BigInteger x ^BigInteger y] (.equals x y))
+                     (pdump (big-range (big-integer 42) (big-integer 44)))
+                     (pdump (list (big-integer 42) (big-integer 43))))))
+    ))
 
 
 

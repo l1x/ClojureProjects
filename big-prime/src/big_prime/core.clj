@@ -51,11 +51,28 @@
 (defn ^BigInteger big-rand [digits]
   (BigInteger. (apply str (take digits (repeatedly #(rand-int 10))))))
 
+;; I could just live with "str" of everything, since "str" is
+;; idempotent on Strings, but we may want more interesting coercions
+;; later on.
 (defmulti big-integer type)
 (defmethod big-integer (type "") [string] (BigInteger. string))
 (defmethod big-integer :default  [thing]  (BigInteger. (str thing)))
 
 (defn big-range
-  ([] (cons BigInteger/ZERO (lazy-seq (big-range BigInteger/ONE))))
-  ([^BigInteger start] (cons start (lazy-seq (big-range (big-inc start)))))
+  ([]
+     (cons BigInteger/ZERO (lazy-seq (big-range BigInteger/ONE))))
+
+  ([^BigInteger start]
+     (cons start (lazy-seq (big-range (big-inc start)))))
+
+  ([^BigInteger start ^BigInteger end]
+     (if (big-gt end start)
+       (cons start (lazy-seq (big-range (big-inc start) end)))
+       ()))
+
+  ([^BigInteger start ^BigInteger end ^BigInteger step]
+     (if (big-gt end start)
+       (cons start (lazy-seq (big-range (.add start step) end)))
+       ()))
+
   )
