@@ -11,17 +11,6 @@
             [big-prime.utils :refer :all]
             [big-prime.core  :refer :all]))
 
-(deftest big-integer-interop-tests
-  
-  (testing "Interop with java.math.BigInteger"
-    (is (= (type BigInteger/ONE) (type (big-sum))))
-    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE))))
-    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE BigInteger/ONE)))))
-
-  (testing "big-inc and big-dec"
-    (is (.equals (big-inc BigInteger/ZERO) (BigInteger/ONE)))
-    (is (.equals (big-dec BigInteger/ONE)  (BigInteger/ZERO)))))
-
 (deftest big-prime-tests
 
   (testing "Importing of java.util.Random"
@@ -36,6 +25,33 @@
       (is (.equals s i))))
   
   )
+
+(deftest big-integer-interop-tests
+  
+  (testing "Interop with java.math.BigInteger"
+    (is (= (type BigInteger/ONE) (type (big-sum))))
+    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE))))
+    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE BigInteger/ONE)))))
+
+  (testing "big-inc and big-dec"
+    (is (.equals (big-inc BigInteger/ZERO) (BigInteger/ONE)))
+    (is (.equals (big-dec BigInteger/ONE)  (BigInteger/ZERO)))
+    (let [r (Random.)
+          h (huge-random-number 100)]
+      (is (.equals (big-inc (big-dec h)) h))
+      (is (.equals (big-dec (big-inc h)) h)))
+    )
+
+  (testing "String representations"
+    (is (= (str BigInteger/ZERO)          "0"))
+    (is (= (str BigInteger/ONE)           "1"))
+    (is (= (str (big-inc BigInteger/ONE)) "2"))
+    )
+  )
+
+
+
+
 
 
 
