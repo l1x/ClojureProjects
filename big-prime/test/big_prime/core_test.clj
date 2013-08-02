@@ -4,6 +4,8 @@
             [big-prime.core :refer :all]))
 
 (deftest big-prime-test
-  (testing ""
+  (testing "Correct importing of java.util.Random"
     (let [r (Random.)]
-      (is (= 0 (.nextInt r 1))))))
+      (is (= 0 (.nextInt r 1)))
+      (is (= 0 (rand-int 1)))
+      )))
