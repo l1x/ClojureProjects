@@ -61,7 +61,17 @@
     (is (= (str (big-integer -9999M)) "-9999"))
     (is (= (str (big-integer -9999999999999999)) "-9999999999999999"))
     (is (= (str (big-integer -9999999999999999N)) "-9999999999999999"))
-    (is (= (str (big-integer -9999999999999999M)) "-9999999999999999"))))
+    (is (= (str (big-integer -9999999999999999M)) "-9999999999999999")))
+
+  (testing "Idempotency"
+    (is (.equals (big-integer BigInteger/ZERO) BigInteger/ZERO))
+    (is (.equals (big-integer BigInteger/ONE)  BigInteger/ONE))
+    (let [r (Random.)
+          h (big-rand 100)]
+      (is (.equals (big-integer h) h))
+      (is (.equals (big-integer h) h))))
+  )
+
 
 (deftest big-integer-operations
 
@@ -97,11 +107,53 @@
 
       (is (=  1 (big-sign BigInteger/ONE)))
       (is (=  0 (big-sign BigInteger/ZERO)))
-      (is (= -1 (big-sign bm1)))
-)
-    )
+      (is (= -1 (big-sign bm1)))))
+
   )
 
+  ;; My iteration of 
+  ;; https://github.com/clojure/clojure/blob/master/test/clojure/test_clojure/sequences.clj
+  ;;
+(deftest test-range
+  (are [x y] (= x y)
+       (range 0) ()                     ; exclusive end!
+       (range 1) '(0)
+       (range 5) '(0 1 2 3 4)
+
+       (range -1) ()
+       (range -3) ()
+
+       (range 2.5) '(0 1 2)
+       (range 7/3) '(0 1 2)
+
+       (range 0 3) '(0 1 2)
+       (range 0 1) '(0)
+       (range 0 0) ()
+       (range 0 -3) ()
+
+       (range 3 6) '(3 4 5)
+       (range 3 4) '(3)
+       (range 3 3) ()
+       (range 3 1) ()
+       (range 3 0) ()
+       (range 3 -2) ()
+
+       (range -2 5) '(-2 -1 0 1 2 3 4)
+       (range -2 0) '(-2 -1)
+       (range -2 -1) '(-2)
+       (range -2 -2) ()
+       (range -2 -5) ()
+
+       (take 3 (range 9 3 0)) '(9 9 9)
+       (range 0 0 0) ()
+       (range 3 9 1) '(3 4 5 6 7 8)
+       (range 3 9 2) '(3 5 7)
+       (range 3 9 3) '(3 6)
+       (range 3 9 10) '(3)
+       (range 3 9 -1) () ))
+
+       ;; current variance with actual behavior
+       #_(take 3 (range 3 9 0)) '(3 3 3)
 
 
 

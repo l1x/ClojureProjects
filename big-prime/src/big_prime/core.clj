@@ -53,9 +53,12 @@
 
 ;; I could just live with "str" of everything, since "str" is
 ;; idempotent on Strings, but we may want more interesting coercions
-;; later on.
+;; later on; also it's not frugal to str and then unstr something
+;; that's already a big-integer, and we want big-integer idempotent on
+;; big-integers.
 (defmulti big-integer type)
 (defmethod big-integer (type "") [string] (BigInteger. string))
+(defmethod big-integer (type BigInteger/ZERO) [big-i] big-i)
 (defmethod big-integer :default  [thing]  (BigInteger. (str thing)))
 
 (defn big-pos?     [^BigInteger j] (big-gt  j BigInteger/ZERO))
@@ -81,7 +84,8 @@
        ()))
 
   ([^BigInteger start ^BigInteger end ^BigInteger step]
-     (if (big-gt end start)
+     (let [op (if (big-pos? step) big-gt big-lt)])
+     (if (op end start)
        (cons start (lazy-seq (big-range (.add start step) end)))
        ()))
 
