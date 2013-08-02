@@ -49,7 +49,19 @@
     (is (= (str BigInteger/ZERO)          "0"))
     (is (= (str BigInteger/ONE)           "1"))
     (is (= (str (big-inc BigInteger/ONE)) "2"))
-    (is (= (str (BigInteger. "999999999999999")) "999999999999999"))
+    (is (= (str (BigInteger. "999999999999999")) "999999999999999")))
+
+  (testing "Coercions"
+    (is (= (str (big-integer "9999")) "9999"))
+    (is (= (str (big-integer 9999)) "9999"))
+    (is (= (str (big-integer -9999)) "-9999"))
+    (is (= (str (big-integer 9999N)) "9999"))
+    (is (= (str (big-integer -9999N)) "-9999"))
+    (is (= (str (big-integer 9999M)) "9999"))
+    (is (= (str (big-integer -9999M)) "-9999"))
+    (is (= (str (big-integer -9999999999999999)) "-9999999999999999"))
+    (is (= (str (big-integer -9999999999999999N)) "-9999999999999999"))
+    (is (= (str (big-integer -9999999999999999M)) "-9999999999999999"))
     )
   )
 

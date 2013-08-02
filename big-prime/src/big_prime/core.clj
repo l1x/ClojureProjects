@@ -51,4 +51,11 @@
 (defn ^BigInteger big-rand [digits]
   (BigInteger. (apply str (take digits (repeatedly #(rand-int 10))))))
 
+(defmulti big-integer type)
+(defmethod big-integer (type "") [string] (BigInteger. string))
+(defmethod big-integer :default  [thing]  (BigInteger. (str thing)))
 
+(defn big-range
+  ([] (cons BigInteger/ZERO (lazy-seq (big-range BigInteger/ONE))))
+  ([^BigInteger start] (cons start (lazy-seq (big-range (big-inc start)))))
+  )
