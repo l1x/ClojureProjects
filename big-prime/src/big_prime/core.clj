@@ -58,9 +58,19 @@
 (defmethod big-integer (type "") [string] (BigInteger. string))
 (defmethod big-integer :default  [thing]  (BigInteger. (str thing)))
 
+(defn big-pos?     [^BigInteger j] (big-gt  j BigInteger/ZERO))
+(defn big-neg?     [^BigInteger j] (big-lt  j BigInteger/ZERO))
+(defn big-non-pos? [^BigInteger j] (big-le  j BigInteger/ZERO))
+(defn big-non-neg? [^BigInteger j] (big-ge  j BigInteger/ZERO))
+(defn big-zero?    [^BigInteger j] (.equals j BigInteger/ZERO))
+(defn big-sign     [^BigInteger j] (cond
+                                    (big-pos? j)  1
+                                    (big-neg? j) -1
+                                    :else         0
+                                    ))
+
 (defn big-range
-  ([]
-     (cons BigInteger/ZERO (lazy-seq (big-range BigInteger/ONE))))
+  ([] (big-range BigInteger/ZERO))
 
   ([^BigInteger start]
      (cons start (lazy-seq (big-range (big-inc start)))))

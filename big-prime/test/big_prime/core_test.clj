@@ -64,14 +64,32 @@
     (is (= (str (big-integer -9999999999999999M)) "-9999999999999999"))))
 
 (deftest big-integer-operations
+
   (testing "big-range"
     (is (.equals (big-integer 2000000000000000000)
                  (first (big-range (big-integer 2000000000000000000)))))
     (is (every? identity
                 (map (fn [^BigInteger x ^BigInteger y] (.equals x y))
                      (pdump (big-range (big-integer 42) (big-integer 44)))
-                     (pdump (list (big-integer 42) (big-integer 43))))))
-    ))
+                     (pdump (list (big-integer 42) (big-integer 43)))))))
+
+  (testing "big equivalence classes"
+    (let [bm1 (big-dec BigInteger/ZERO)]
+      (is      (big-pos? BigInteger/ONE))
+      (is (not (big-pos? BigInteger/ZERO)))
+      (is (not (big-pos? bm1)))
+      (is (not (big-neg? BigInteger/ONE)))
+      (is (not (big-neg? BigInteger/ZERO)))
+      (is      (big-neg? bm1))
+      (is      (big-non-neg? BigInteger/ONE))
+      (is      (big-non-neg? BigInteger/ZERO))
+      (is (not (big-non-neg? bm1)))
+      (is (not (big-non-pos? BigInteger/ONE)))
+      (is      (big-non-pos? BigInteger/ZERO))
+      (is      (big-non-pos? bm1))
+)
+    )
+  )
 
 
 
