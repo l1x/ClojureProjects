@@ -13,7 +13,7 @@
 
 (deftest big-prime-tests
 
-  (testing "Importing of java.util.Random"
+  (testing "java.util.Random"
     (let [r (Random.)]
       (is (= 0 (.nextInt r 1)))
       (is (= 0 (rand-int 1)))))
@@ -27,6 +27,34 @@
       (is (big-le (big-square j) i))
       (is (big-ge (big-square (big-inc j)) i))
       ))
+  )
+
+(deftest integer-operation-tests
+  (testing "sum"
+    (are [x y] (= x y)
+         0 (sum)
+         1 (sum 1)
+         2 (sum 1 1)
+         9 (apply sum (repeat 3 3))
+         10000000000000000000000000000000000000000000000000000000000000000 (sum 1
+          9999999999999999999999999999999999999999999999999999999999999999))
+    )
+  
+  (testing "abs"
+    (are [x y] (= x y)
+         0 (abs 0)
+         1 (abs -1)
+         1 (abs 1)
+         9999999999999999999999999999999999999999999999999999999999999999
+         (abs 9999999999999999999999999999999999999999999999999999999999999999)
+         9999999999999999999999999999999999999999999999999999999999999999
+         (abs -9999999999999999999999999999999999999999999999999999999999999999))
+    )
+  
+  (testing "exceptions"
+    (is (thrown? ArithmeticException (/ 1 0))))
+    (is (thrown? ArithmeticException (/ 0 0)))
+    (is (thrown? clojure.lang.ArityException (abs)))
   )
 
 (deftest big-integer-interop-tests
@@ -74,14 +102,6 @@
 
 
 (deftest big-integer-operations
-
-  (testing "big-range"
-    (is (.equals (big-integer 2000000000000000000)
-                 (first (big-range (big-integer 2000000000000000000)))))
-    (is (every? identity
-                (map (fn [^BigInteger x ^BigInteger y] (.equals x y))
-                     (pdump (big-range (big-integer 42) (big-integer 44)))
-                     (pdump (list (big-integer 42) (big-integer 43)))))))
 
   (testing "big equivalence classes"
     (let [bm1 (big-dec BigInteger/ZERO)]

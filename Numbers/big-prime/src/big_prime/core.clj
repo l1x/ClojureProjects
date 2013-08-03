@@ -4,6 +4,22 @@
 
 (set! *warn-on-reflection* true)
 
+(defn sum
+  ([] 0)
+  ([x] x)
+  ([x & more] (+ x (apply sum more))))
+
+(defn average
+  "Number-theoretic mean using `quot' instead of `/', which latter produces rationals"
+  ([] 0)
+  ([x] x)
+  ([x & more] (quot (+ x (apply sum more))
+                    (inc (count more)))))
+
+(defn abs
+  "Absolute value"
+  [x] (if (< x 0) (- x) x))
+
 (defn big-sum
   ([] BigInteger/ZERO)
   ([^BigInteger x] x)
@@ -72,7 +88,7 @@
                                     :else         0
                                     ))
 
-(defn big-range
+#_(defn big-range
   ([] ((fn [j] (cons j (lazy-seq (recur (big-inc j))))) BigInteger/ZERO))
 
   ([^BigInteger end] (big-range BigInteger/ZERO end))
