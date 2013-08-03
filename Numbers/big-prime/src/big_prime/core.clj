@@ -9,100 +9,127 @@
   ([x] x)
   ([x & more] (+ x (apply sum more))))
 
-(defn average
+(defn nt-average
   "Number-theoretic mean using `quot' instead of `/', which latter produces rationals"
   ([] 0)
   ([x] x)
-  ([x & more] (quot (+ x (apply sum more))
-                    (inc (count more)))))
+  ([x & more]
+     (quot (+ x (apply sum more))
+           (inc (count more)))))
 
 (defn abs
   "Absolute value"
-  [x] (if (< x 0) (- x) x))
+  [x]
+  (if (< x 0) (- x) x))
 
-(defn big-sum
+(defn square [x] (* x x))
+
+(defn- nt-improve
+  "Improve a guess of a square root by number-theoretic average with the quotient of the guess with the target: an adaptation of Newton's method to the integer domain."
+  [guess x]
+  #_(pdump guess)
+  #_(pdump (quot x guess))
+  #_(pdump (nt-average guess (quot x guess)))
+  (nt-average guess (quot x guess)))
+
+(defn- good-enough?
+  "A guess is good enough if its square is lte the target and the square of its increment is gt the target"
+  [guess x]
+  #_(pdump (square guess))
+  #_(pdump (<= (square guess) x))
+  #_(pdump (>  (square (inc guess)) x))
+  (and
+   (<= (square guess) x)
+   (>  (square (inc guess)) x)))
+
+(defn- nt-try-sqrt [guess x]
+  (if (good-enough? guess x)
+    guess
+    (recur (nt-improve guess x) x)))
+
+(defn nt-sqrt
+  "Number-theoretic square root (largest integer whose square is less than or equal to the target)"
+  [x]
+  (nt-try-sqrt 1 x))
+
+(defn- rand-digit [] (rand-int 10))
+
+(defn big-rand
+  [digits]
+  (bigint
+   (read-string 
+    (apply
+     str
+     (let [ds
+           (drop-while
+            #(== % 0) ;; drop leading zeros
+            (take digits (repeatedly rand-digit)))]
+       (if (empty? ds)
+         (list (rand-digit))
+         ds) ;; in case the drop-while returns empty (all zeros)
+       )))))
+
+(defn jbig-sum
   ([] BigInteger/ZERO)
   ([^BigInteger x] x)
-  ([^BigInteger x ^BigInteger & more] (.add x (apply big-sum more))))
+  ([^BigInteger x ^BigInteger & more] (.add x (apply jbig-sum more))))
 
-(defn big-inc [^BigInteger x] (.add x BigInteger/ONE))
-(defn big-dec [^BigInteger x] (.subtract x BigInteger/ONE))
+(defn jbig-inc [^BigInteger x] (.add x BigInteger/ONE))
+(defn jbig-dec [^BigInteger x] (.subtract x BigInteger/ONE))
 
-(defn big-average
+(defn jbig-average
   ([] BigInteger/ZERO)
   ([^BigInteger x] x)
   ([^BigInteger x ^BigInteger & more]
-     (.divide (.add x (apply big-sum more))
+     (.divide (.add x (apply jbig-sum more))
               (BigInteger. (str (+ 1 (count more)))))))
 
-(defn big-lt [^BigInteger x ^BigInteger y] (== -1 (.compareTo x y)))
-(defn big-le [^BigInteger x ^BigInteger y] (or (.equals x y) (big-lt x y)))
-(defn big-gt [^BigInteger x ^BigInteger y] (==  1 (.compareTo x y)))
-(defn big-ge [^BigInteger x ^BigInteger y] (or (.equals x y) (big-gt x y)))
+(defn jbig-lt [^BigInteger x ^BigInteger y] (== -1 (.compareTo x y)))
+(defn jbig-le [^BigInteger x ^BigInteger y] (or (.equals x y) (jbig-lt x y)))
+(defn jbig-gt [^BigInteger x ^BigInteger y] (==  1 (.compareTo x y)))
+(defn jbig-ge [^BigInteger x ^BigInteger y] (or (.equals x y) (jbig-gt x y)))
 
-(defn big-abs [^BigInteger x] (if (big-lt x BigInteger/ZERO) (.negate x) x))
+(defn jbig-abs [^BigInteger x] (if (jbig-lt x BigInteger/ZERO) (.negate x) x))
 
-(defn big-square [^BigInteger x] (.multiply x x))
+(defn jbig-square [^BigInteger x] (.multiply x x))
 
-(defn big-improve [^BigInteger guess ^BigInteger x]
-  (big-average guess (.divide x guess)))
+(defn jbig-improve [^BigInteger guess ^BigInteger x]
+  (jbig-average guess (.divide x guess)))
 
-(defn big-good-enough? [^BigInteger guess ^BigInteger x]
+(defn jbig-good-enough? [^BigInteger guess ^BigInteger x]
   (and
-   (big-le (big-square guess) x)
-   (big-gt (big-square (big-inc guess)) x)))
+   (jbig-le (jbig-square guess) x)
+   (jbig-gt (jbig-square (jbig-inc guess)) x)))
 
-(defn big-try-sqrt [^BigInteger guess ^BigInteger x]
-  (if (big-good-enough? guess x)
+(defn jbig-try-sqrt [^BigInteger guess ^BigInteger x]
+  (if (jbig-good-enough? guess x)
     guess
-    (recur (big-improve guess x) x)))
+    (recur (jbig-improve guess x) x)))
 
-(defn big-sqrt [^BigInteger x] (big-try-sqrt BigInteger/ONE x))
+(defn jbig-sqrt [^BigInteger x] (jbig-try-sqrt BigInteger/ONE x))
 
-(defn rand-bigint [^BigInteger bign ^Random rnd] 
-  (let [bits (inc (.bitLength bign)) 
-        bigr (BigInteger. bits rnd)] 
-    (-> bign (.multiply bigr) (.shiftRight bits))))
-
-(defn ^BigInteger big-rand [digits]
+(defn ^BigInteger jbig-rand [digits]
   (BigInteger. (apply str (take digits (repeatedly #(rand-int 10))))))
 
 ;; I could just live with "str" of everything, since "str" is
 ;; idempotent on Strings, but we may want more interesting coercions
 ;; later on; also it's not frugal to str and then unstr something
-;; that's already a big-integer, and we want big-integer idempotent on
-;; big-integers.
-(defmulti big-integer type)
-(defmethod big-integer (type "") [string] (BigInteger. string))
-(defmethod big-integer (type BigInteger/ZERO) [big-i] big-i)
-(defmethod big-integer :default  [thing]  (BigInteger. (str thing)))
+;; that's already a jbig-integer, and we want jbig-integer idempotent on
+;; jbig-integers.
+(defmulti jbig-integer type)
+(defmethod jbig-integer (type "") [string] (BigInteger. string))
+(defmethod jbig-integer (type BigInteger/ZERO) [jbig-i] jbig-i)
+(defmethod jbig-integer :default  [thing]  (BigInteger. (str thing)))
 
-(defn big-pos?     [^BigInteger j] (big-gt  j BigInteger/ZERO))
-(defn big-neg?     [^BigInteger j] (big-lt  j BigInteger/ZERO))
-(defn big-non-pos? [^BigInteger j] (big-le  j BigInteger/ZERO))
-(defn big-non-neg? [^BigInteger j] (big-ge  j BigInteger/ZERO))
-(defn big-zero?    [^BigInteger j] (.equals j BigInteger/ZERO))
-(defn big-sign     [^BigInteger j] (cond
-                                    (big-pos? j)  1
-                                    (big-neg? j) -1
-                                    :else         0
-                                    ))
+(defn jbig-pos?     [^BigInteger j] (jbig-gt  j BigInteger/ZERO))
+(defn jbig-neg?     [^BigInteger j] (jbig-lt  j BigInteger/ZERO))
+(defn jbig-non-pos? [^BigInteger j] (jbig-le  j BigInteger/ZERO))
+(defn jbig-non-neg? [^BigInteger j] (jbig-ge  j BigInteger/ZERO))
+(defn jbig-zero?    [^BigInteger j] (.equals j BigInteger/ZERO))
+(defn jbig-sign     [^BigInteger j] (cond
+                                     (jbig-pos? j)  1
+                                     (jbig-neg? j) -1
+                                     :else         0
+                                     ))
 
-#_(defn big-range
-  ([] ((fn [j] (cons j (lazy-seq (recur (big-inc j))))) BigInteger/ZERO))
 
-  ([^BigInteger end] (big-range BigInteger/ZERO end))
-
-  ([^BigInteger start ^BigInteger end]
-     (if (big-gt end start)
-       (cons start (lazy-seq (big-range (big-inc start) end)))
-       ()))
-
-  ([^BigInteger start ^BigInteger end ^BigInteger step]
-     (if (.equals step BigInteger/ZERO)
-       ()
-       (let [op (if (big-pos? step) big-gt big-lt)]
-         (if (op end start)
-           (cons start (lazy-seq (big-range (.add start step) end)))
-           ()))))
-  )

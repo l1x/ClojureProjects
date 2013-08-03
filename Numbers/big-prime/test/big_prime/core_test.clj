@@ -18,14 +18,19 @@
       (is (= 0 (.nextInt r 1)))
       (is (= 0 (rand-int 1)))))
 
-  (testing "Invertibility of big-sqrt and big-square; also tests big-average, big-le, and private functions."
-    (let [i (pdump (big-rand 100))
-          j (big-sqrt i)
-          q (pdump (big-square i))
-          s (pdump (big-sqrt q))]
-      (is (.equals s i))
-      (is (big-le (big-square j) i))
-      (is (big-ge (big-square (big-inc j)) i))
+  (testing "big-rand"
+    (is (= 1000 (count (repeatedly 1000 #(big-rand 1)))))
+    (is (= 1000 (count (repeatedly 1000 #(big-rand 1000)))))
+    )
+
+  (testing "BigInt number-theoretic square root"
+    (let [i (pdump (big-rand 20))
+          j (pdump (nt-sqrt i))
+          q (pdump (square i))
+          s (pdump (nt-sqrt q))]
+      (is (= s i))
+      (is (< (square j) i))
+      (is (>= (square (inc j)) i))
       ))
   )
 
@@ -49,144 +54,107 @@
          (abs 9999999999999999999999999999999999999999999999999999999999999999)
          9999999999999999999999999999999999999999999999999999999999999999
          (abs -9999999999999999999999999999999999999999999999999999999999999999))
+    (is (thrown? clojure.lang.ArityException (abs)))
+    (is (thrown? ClassCastException (abs "0")))
     )
   
+  (testing "square"
+    (are [x y] (= x y)
+         0 (square 0)
+         1 (square 1)
+         1 (square -1)
+         99999999999999999999999999999999999999999999999999999999999999980000000000000000000000000000000000000000000000000000000000000001
+         (square 9999999999999999999999999999999999999999999999999999999999999999))
+    (is (thrown? clojure.lang.ArityException (square)))
+    (is (thrown? ClassCastException (square "0")))
+    )
+
   (testing "exceptions"
-    (is (thrown? ArithmeticException (/ 1 0))))
-    (is (thrown? ArithmeticException (/ 0 0)))
-    (is (thrown? clojure.lang.ArityException (abs)))
+    (is (thrown? ArithmeticException (/ 1 0)))
+    (is (thrown? ArithmeticException (/ 0 0))))
   )
 
-(deftest big-integer-interop-tests
+(deftest jbig-integer-sqrt
+  (testing "Invertibility of jbig-sqrt and jbig-square; also tests jbig-average, jbig-le, and private functions."
+    (let [i (pdump (jbig-rand 100))
+          j (jbig-sqrt i)
+          q (pdump (jbig-square i))
+          s (pdump (jbig-sqrt q))]
+      (is (.equals s i))
+      (is (jbig-le (jbig-square j) i))
+      (is (jbig-ge (jbig-square (jbig-inc j)) i))
+      )))
+
+(deftest jbig-integer-interop-tests
   
   (testing "Interop with java.math.BigInteger"
-    (is (= (type BigInteger/ONE) (type (big-sum))))
-    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE))))
-    (is (= (type BigInteger/ONE) (type (big-sum BigInteger/ONE BigInteger/ONE)))))
+    (is (= (type BigInteger/ONE) (type (jbig-sum))))
+    (is (= (type BigInteger/ONE) (type (jbig-sum BigInteger/ONE))))
+    (is (= (type BigInteger/ONE) (type (jbig-sum BigInteger/ONE BigInteger/ONE)))))
 
-  (testing "big-inc and big-dec"
-    (is (.equals (big-inc BigInteger/ZERO) (BigInteger/ONE)))
-    (is (.equals (big-dec BigInteger/ONE)  (BigInteger/ZERO)))
+  (testing "jbig-inc and jbig-dec"
+    (is (.equals (jbig-inc BigInteger/ZERO) (BigInteger/ONE)))
+    (is (.equals (jbig-dec BigInteger/ONE)  (BigInteger/ZERO)))
     (let [r (Random.)
-          h (big-rand 100)]
-      (is (.equals (big-inc (big-dec h)) h))
-      (is (.equals (big-dec (big-inc h)) h)))
+          h (jbig-rand 100)]
+      (is (.equals (jbig-inc (jbig-dec h)) h))
+      (is (.equals (jbig-dec (jbig-inc h)) h)))
     )
 
   (testing "String representations"
     (is (= (str BigInteger/ZERO)          "0"))
     (is (= (str BigInteger/ONE)           "1"))
-    (is (= (str (big-inc BigInteger/ONE)) "2"))
+    (is (= (str (jbig-inc BigInteger/ONE)) "2"))
     (is (= (str (BigInteger. "999999999999999")) "999999999999999")))
 
   (testing "Coercions"
-    (is (= (str (big-integer "9999")) "9999"))
-    (is (= (str (big-integer 9999)) "9999"))
-    (is (= (str (big-integer -9999)) "-9999"))
-    (is (= (str (big-integer 9999N)) "9999"))
-    (is (= (str (big-integer -9999N)) "-9999"))
-    (is (= (str (big-integer 9999M)) "9999"))
-    (is (= (str (big-integer -9999M)) "-9999"))
-    (is (= (str (big-integer -9999999999999999)) "-9999999999999999"))
-    (is (= (str (big-integer -9999999999999999N)) "-9999999999999999"))
-    (is (= (str (big-integer -9999999999999999M)) "-9999999999999999")))
+    (is (= (str (jbig-integer "9999")) "9999"))
+    (is (= (str (jbig-integer 9999)) "9999"))
+    (is (= (str (jbig-integer -9999)) "-9999"))
+    (is (= (str (jbig-integer 9999N)) "9999"))
+    (is (= (str (jbig-integer -9999N)) "-9999"))
+    (is (= (str (jbig-integer 9999M)) "9999"))
+    (is (= (str (jbig-integer -9999M)) "-9999"))
+    (is (= (str (jbig-integer -9999999999999999)) "-9999999999999999"))
+    (is (= (str (jbig-integer -9999999999999999N)) "-9999999999999999"))
+    (is (= (str (jbig-integer -9999999999999999M)) "-9999999999999999")))
 
   (testing "Idempotency"
-    (is (.equals (big-integer BigInteger/ZERO) BigInteger/ZERO))
-    (is (.equals (big-integer BigInteger/ONE)  BigInteger/ONE))
+    (is (.equals (jbig-integer BigInteger/ZERO) BigInteger/ZERO))
+    (is (.equals (jbig-integer BigInteger/ONE)  BigInteger/ONE))
     (let [r (Random.)
-          h (big-rand 100)]
-      (is (.equals (big-integer h) h))
-      (is (.equals (big-integer h) h))))
+          h (jbig-rand 100)]
+      (is (.equals (jbig-integer h) h))
+      (is (.equals (jbig-integer h) h))))
   )
 
 
-(deftest big-integer-operations
+(deftest jbig-integer-operations
 
   (testing "big equivalence classes"
-    (let [bm1 (big-dec BigInteger/ZERO)]
-      (is      (big-pos? BigInteger/ONE))
-      (is (not (big-pos? BigInteger/ZERO)))
-      (is (not (big-pos? bm1)))
+    (let [bm1 (jbig-dec BigInteger/ZERO)]
+      (is      (jbig-pos? BigInteger/ONE))
+      (is (not (jbig-pos? BigInteger/ZERO)))
+      (is (not (jbig-pos? bm1)))
 
-      (is (not (big-neg? BigInteger/ONE)))
-      (is (not (big-neg? BigInteger/ZERO)))
-      (is      (big-neg? bm1))
+      (is (not (jbig-neg? BigInteger/ONE)))
+      (is (not (jbig-neg? BigInteger/ZERO)))
+      (is      (jbig-neg? bm1))
 
-      (is      (big-non-neg? BigInteger/ONE))
-      (is      (big-non-neg? BigInteger/ZERO))
-      (is (not (big-non-neg? bm1)))
+      (is      (jbig-non-neg? BigInteger/ONE))
+      (is      (jbig-non-neg? BigInteger/ZERO))
+      (is (not (jbig-non-neg? bm1)))
 
-      (is (not (big-non-pos? BigInteger/ONE)))
-      (is      (big-non-pos? BigInteger/ZERO))
-      (is      (big-non-pos? bm1))
+      (is (not (jbig-non-pos? BigInteger/ONE)))
+      (is      (jbig-non-pos? BigInteger/ZERO))
+      (is      (jbig-non-pos? bm1))
 
-      (is (not (big-zero? BigInteger/ONE)))
-      (is      (big-zero? BigInteger/ZERO))
-      (is (not (big-zero? bm1)))
+      (is (not (jbig-zero? BigInteger/ONE)))
+      (is      (jbig-zero? BigInteger/ZERO))
+      (is (not (jbig-zero? bm1)))
 
-      (is (=  1 (big-sign BigInteger/ONE)))
-      (is (=  0 (big-sign BigInteger/ZERO)))
-      (is (= -1 (big-sign bm1)))))
+      (is (=  1 (jbig-sign BigInteger/ONE)))
+      (is (=  0 (jbig-sign BigInteger/ZERO)))
+      (is (= -1 (jbig-sign bm1)))))
 
   )
-
-  ;; My iteration of 
-  ;; https://github.com/clojure/clojure/blob/master/test/clojure/test_clojure/sequences.clj
-  ;;
-(deftest test-range
-  (let [t0 BigInteger/ZERO
-        t1 BigInteger/ONE
-        t2 (big-inc (BigInteger/ONE))
-        t3 (big-inc t2)
-        t4 (big-inc t3)
-        t5 (big-inc t4)
-        t6 (big-inc t5)
-        t7 (big-inc t6)
-        t8 (big-inc t7)
-        t9 (big-inc t8)]
-    (are [x y] (= x y)
-         (range 0) ()                     ; exclusive end!
-         (range 1) '(0)
-         (range 5) '(0 1 2 3 4)
-
-         (range -1) ()
-         (range -3) ()
-
-         (range 2.5) '(0 1 2)
-         (range 7/3) '(0 1 2)
-
-         (range 0 3) '(0 1 2)
-         (range 0 1) '(0)
-         (range 0 0) ()
-         (range 0 -3) ()
-
-         (range 3 6) '(3 4 5)
-         (range 3 4) '(3)
-         (range 3 3) ()
-         (range 3 1) ()
-         (range 3 0) ()
-         (range 3 -2) ()
-
-         (range -2 5) '(-2 -1 0 1 2 3 4)
-         (range -2 0) '(-2 -1)
-         (range -2 -1) '(-2)
-         (range -2 -2) ()
-         (range -2 -5) ()
-
-         (take 3 (range 9 3 0)) '(9 9 9)
-         (range 0 0 0) ()
-         (range 3 9 1) '(3 4 5 6 7 8)
-         (range 3 9 2) '(3 5 7)
-         (range 3 9 3) '(3 6)
-         (range 3 9 10) '(3)
-         (range 3 9 -1) () )))
-
-       ;; current variance with actual behavior
-       #_(take 3 (range 3 9 0)) '(3 3 3)
-
-
-
-
-
-
