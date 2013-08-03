@@ -1,6 +1,10 @@
 (ns big-prime.core
   (:import java.util.Random)
-  (:use [big-prime.utils]))
+  (:use [big-prime.utils]
+        [clojure.core.contracts :as contracts]
+        ))
+
+;;; TODO: Build up the contracts in here. See nt-power for an example.
 
 (set! *warn-on-reflection* true)
 
@@ -66,6 +70,23 @@
          (list (rand-digit))
          ds) ;; in case the drop-while returns empty (all zeros)
        )))))
+
+(defn nt-power [n m]
+  (letfn [(helper [n m acc]
+             (cond
+              (== m 0) 1
+              (== m 1) acc
+              :else (recur n (dec m) (* n acc))))]
+    (helper n m 1)))
+
+(contracts/provide
+ (nt-power
+  "Constraints for number-theoretic power function"
+  [n m] [(number? n) (not (neg? n))
+         (number? m) (not (neg? m))
+         =>
+         number?
+         pos?]))
 
 (defn make-partition-book-ends [end p]
   (let [q (quot end p)
