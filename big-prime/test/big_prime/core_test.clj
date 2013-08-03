@@ -126,7 +126,7 @@
         t8 (big-inc t7)
         t9 (big-inc t8)]
     (are [x y] (= x y)
-         (big-range t0) ()                     ; exclusive end!
+         (range 0) ()                     ; exclusive end!
          (range 1) '(0)
          (range 5) '(0 1 2 3 4)
 
