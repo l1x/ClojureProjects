@@ -23,15 +23,18 @@
     (is (= 1000 (count (repeatedly 1000 #(big-rand 1000)))))
     )
 
-  (testing "BigInt number-theoretic square root"
-    (let [i (pdump (big-rand 20))
-          j (pdump (nt-sqrt i))
-          q (pdump (square i))
-          s (pdump (nt-sqrt q))]
-      (is (= s i))
-      (is (< (square j) i))
-      (is (>= (square (inc j)) i))
-      ))
+  (-> (testing "BigInt number-theoretic square root"
+        (let [i (pdump (big-rand 100))
+              j (nt-sqrt i)
+              q (square i)
+              s (nt-sqrt q)]
+          (is (= s i))
+          (is (< (square j) i))
+          (is (>= (square (inc j)) i))
+          ))
+      time
+      pdump
+      )
   )
 
 (deftest integer-operation-tests
@@ -75,15 +78,19 @@
   )
 
 (deftest jbig-integer-sqrt
-  (testing "Invertibility of jbig-sqrt and jbig-square; also tests jbig-average, jbig-le, and private functions."
-    (let [i (pdump (jbig-rand 100))
-          j (jbig-sqrt i)
-          q (pdump (jbig-square i))
-          s (pdump (jbig-sqrt q))]
-      (is (.equals s i))
-      (is (jbig-le (jbig-square j) i))
-      (is (jbig-ge (jbig-square (jbig-inc j)) i))
-      )))
+  (->
+   (testing "Invertibility of jbig-sqrt and jbig-square; also tests jbig-average, jbig-le, and private functions."
+     (let [i (pdump (jbig-rand 100))
+           j (jbig-sqrt i)
+           q (jbig-square i)
+           s (jbig-sqrt q)]
+       (is (.equals s i))
+       (is (jbig-le (jbig-square j) i))
+       (is (jbig-ge (jbig-square (jbig-inc j)) i))
+       ))
+   time
+   pdump
+   ))
 
 (deftest jbig-integer-interop-tests
   
