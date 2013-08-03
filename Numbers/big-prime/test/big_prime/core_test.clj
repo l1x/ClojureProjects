@@ -57,14 +57,21 @@
   )
 
 (deftest integer-operation-tests
+
+  (testing "nt-power"
+    (are [x y] (== x y)
+         10 (nt-power 10 1)
+         1  (nt-power 10 0)
+         (reduce * (repeat 40 10N)) (nt-power 10 40)
+         ))
+
   (testing "sum"
     (are [x y] (== x y)
          0 (sum)
          1 (sum 1)
          2 (sum 1 1)
          9 (apply sum (repeat 3 3))
-         10000000000000000000000000000000000000000000000000000000000000000 (sum 1
-          9999999999999999999999999999999999999999999999999999999999999999))
+         (nt-power 10 64) (sum 1 (dec (nt-power 10 64))))
     )
   
   (testing "abs"
@@ -72,10 +79,10 @@
          0 (abs 0)
          1 (abs -1)
          1 (abs 1)
-         9999999999999999999999999999999999999999999999999999999999999999
-         (abs 9999999999999999999999999999999999999999999999999999999999999999)
-         9999999999999999999999999999999999999999999999999999999999999999
-         (abs -9999999999999999999999999999999999999999999999999999999999999999))
+         (dec (nt-power 10 64))
+         (abs (dec (nt-power 10 64)))
+         (dec (nt-power 10 64))
+         (abs (- (dec (nt-power 10 64)))))
     (is (thrown? clojure.lang.ArityException (abs)))
     (is (thrown? ClassCastException (abs "0")))
     )
@@ -86,7 +93,7 @@
          1 (square 1)
          1 (square -1)
          99999999999999999999999999999999999999999999999999999999999999980000000000000000000000000000000000000000000000000000000000000001
-         (square 9999999999999999999999999999999999999999999999999999999999999999))
+         (square (dec (nt-power 10 64))))
     (is (thrown? clojure.lang.ArityException (square)))
     (is (thrown? ClassCastException (square "0")))
     )

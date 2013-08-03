@@ -74,10 +74,10 @@
 (defn nt-power [n m]
   (letfn [(helper [n m acc]
              (cond
-              (== m 0) 1
+              (== m 0) 1N
               (== m 1) acc
               :else (recur n (dec m) (* n acc))))]
-    (helper n m 1)))
+    (helper (bigint n) m (bigint n))))
 
 (contracts/provide
  (nt-power
@@ -93,6 +93,4 @@
         r (mod  end p)]
     (for [i (range p)]
       [(* i q) (+ (if (== i (dec p)) r 0)
-                  (* (inc i) q))])
-    )
-  )
+                  (* (inc i) q))])))
