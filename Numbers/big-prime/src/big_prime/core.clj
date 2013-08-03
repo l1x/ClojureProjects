@@ -67,8 +67,11 @@
          ds) ;; in case the drop-while returns empty (all zeros)
        )))))
 
-(defn make-partition-book-ends [x])
-
-
-
-
+(defn make-partition-book-ends [end p]
+  (let [q (quot end p)
+        r (mod  end p)]
+    (for [i (range p)]
+      [(* i q) (+ (if (== i (dec p)) r 0)
+                  (* (inc i) q))])
+    )
+  )

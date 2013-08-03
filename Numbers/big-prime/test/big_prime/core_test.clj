@@ -15,35 +15,50 @@
 
   (testing "java.util.Random"
     (let [r (Random.)]
-      (is (= 0 (.nextInt r 1)))
-      (is (= 0 (rand-int 1)))))
+      (is (== 0 (.nextInt r 1)))
+      (is (== 0 (rand-int 1)))))
 
   (testing "big-rand"
-    (is (= 1000 (count (repeatedly 1000 #(big-rand 1)))))
-    (is (= 1000 (count (repeatedly 1000 #(big-rand 1000)))))
+    (is (== 1000 (count (repeatedly 1000 #(big-rand 1)))))
+    (is (== 1000 (count (repeatedly 1000 #(big-rand 100)))))
     )
 
   (-> (testing "BigInt number-theoretic square root"
         (let [i (pdump (big-rand 100))
-              j (nt-sqrt i)
+              j (pdump (nt-sqrt i))
               q (square i)
               s (nt-sqrt q)]
-          (is (= s i))
+          (is (== s i))
           (is (< (square j) i))
           (is (>= (square (inc j)) i))
           ))
       time
-      pdump
       )
 
   (testing "Partitioning big range into P buckets"
-    )
+    (are [x y] (= x y)
+         (make-partition-book-ends 100 10)
+         '([0 10] [10 20] [20 30] [30 40] [40 50]
+             [50 60] [60 70] [70 80] [80 90] [90 100])
 
+         (make-partition-book-ends 101 10)
+         '([0 10] [10 20] [20 30] [30 40] [40 50]
+             [50 60] [60 70] [70 80] [80 90] [90 101])
+
+         (make-partition-book-ends 109 10)
+         '([0 10] [10 20] [20 30] [30 40] [40 50]
+             [50 60] [60 70] [70 80] [80 90] [90 109])
+
+         (make-partition-book-ends 110 10)
+         '([0 11] [11 22] [22 33] [33 44] [44 55]
+             [55 66] [66 77] [77 88] [88 99] [99 110]))
+    (is (== 0) 0)
+    )
   )
 
 (deftest integer-operation-tests
   (testing "sum"
-    (are [x y] (= x y)
+    (are [x y] (== x y)
          0 (sum)
          1 (sum 1)
          2 (sum 1 1)
@@ -53,7 +68,7 @@
     )
   
   (testing "abs"
-    (are [x y] (= x y)
+    (are [x y] (== x y)
          0 (abs 0)
          1 (abs -1)
          1 (abs 1)
@@ -66,7 +81,7 @@
     )
   
   (testing "square"
-    (are [x y] (= x y)
+    (are [x y] (== x y)
          0 (square 0)
          1 (square 1)
          1 (square -1)
