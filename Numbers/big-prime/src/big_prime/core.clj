@@ -158,14 +158,16 @@
 (defn factors [n p]
   (let [t (bigint n)]
     (let [divisors (find-divisors t p)
-          exponents (map (partial exponent-of-divisor t) divisors)
-          ]
-      [t (map vector divisors exponents)]
+          finals (if (== 1 (count divisors))
+                   divisors
+                   (if (== t (last divisors))
+                     (butlast divisors)
+                     divisors))]
+      [t (frequencies finals)]
       )))
 
 (defn check-factorization [[target factors]]
-  (let [build (map (fn [[factor power]] (nt-power factor power))
-                   factors)
+  (let [build (map (fn [[factor power]] (nt-power factor power)) factors)
         total (apply product build)]
     [target total (= target total) factors build])
   )

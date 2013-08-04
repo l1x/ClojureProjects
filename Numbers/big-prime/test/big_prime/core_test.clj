@@ -54,12 +54,13 @@
              [55 66] [66 77] [77 88] [88 99] [99 110])))
 
   (testing "factors"
-    #_(is (= (factors 10000  4) [10000N '([2N 4] [5N 4])]))
-    #_(is (= (factors 82763  1) [82763N '([82763N 1])]))
-    #_(is (= (factors 82763  4) [82763N '([82763N 1])]))
-    #_(is (= (factors 82763 16) [82763N '([82763N 1])]))
-    #_(is (= (factors 82763 64) [82763N '([82763N 1])]))
-    #_(is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
+    (is (= (factors 10000  4) [10000N {2N 4, 5N 4}]))
+    (is (= (factors 10001  4) [10001N {73 1, 137 1}]))
+    (is (= (factors 82763  1) [82763N {82763N 1}]))
+    (is (= (factors 82763  4) [82763N {82763N 1}]))
+    (is (= (factors 82763 16) [82763N {82763N 1}]))
+    (is (= (factors 82763 64) [82763N {82763N 1}]))
+    (is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
 
     (is (= (simple-factors (* 55511N 283N 59N))  [59N 283N 55511N]))
     (is (= (simple-factors 477841685N)           [5  1367  69911 ]))
