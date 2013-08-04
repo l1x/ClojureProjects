@@ -84,19 +84,27 @@
     (is (= (factors 82763 16) [82763N '([82763N 1])]))
     (is (= (factors 82763 64) [82763N '([82763N 1])]))
     (is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
+
+    (is (= (simple-factors 477841685N) '(69911 1367 5)))
+    (is (= (simple-factors (* 55511N 283N 59N)) '(55511N 283N 59N)))
+
     ;; Fuzz-test:
+
     (is (every? (plucker 3)
                 (repeatedly
                  10
                  (fn [] (check-factorization
                         (factors
                          (big-rand 5) (inc (rand-int 10))))))))
+
     (is (every? (plucker 3)
                 (repeatedly
                  10
                  (fn [] (check-factorization
                         (factors-parallel
-                         (big-rand 5) 4))))))    )
+                         (big-rand 5) 4))))))
+
+    )
   )
 
 (deftest integer-operation-tests

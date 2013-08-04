@@ -8,6 +8,18 @@
 
 (set! *warn-on-reflection* true)
 
+;;; Fast, trivial, sequential trial-division
+
+(defn simple-factors
+  "Return a list of factors of N."
+  ([n] (simple-factors n 2 ()))
+  ([n k acc]
+     (if (== 1 n)      
+       acc
+       (if (== 0 (rem n k))
+         (recur (quot n k) k (cons k acc))
+         (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
+
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
 
@@ -133,6 +145,27 @@
 (defn exponent-of-divisor [target divisor]
   (count (tally-of-divisor target divisor)))
 
+(defn find-divisors [n p]
+  (let [sn (inc n)
+        ds (generate-trial-divisor-partitions sn p)
+        target  (if (even? n) (quot n 2) n)
+        maybe-2 (if (even? n) '(2N) ())
+        ]
+    (sieve
+     (filter #(not= 1 %)
+             (concat maybe-2
+                     (mapcat (fn [partn]
+                               (try-divisors target partn))
+                             ds))))))
+
+(defn factors [n p]
+  (let [t (bigint n)]
+    (let [divisors (find-divisors t p)
+          exponents (map (partial exponent-of-divisor t) divisors)
+          ]
+      [t (map vector divisors exponents)]
+      )))
+
 (defn find-divisors-parallel [n p]
   (let [sn (inc n)
         ds (generate-trial-divisor-partitions sn p)
@@ -155,30 +188,11 @@
       [t (map vector divisors exponents)]
       )))
 
-(defn find-divisors [n p]
-  (let [sn (inc n)
-        ds (generate-trial-divisor-partitions sn p)
-        target  (if (even? n) (quot n 2) n)
-        maybe-2 (if (even? n) '(2N) ())
-        ]
-    (sieve
-     (filter #(not= 1 %)
-             (concat maybe-2
-                     (mapcat (fn [partn]
-                               (try-divisors target partn))
-                             ds))))))
-
-(defn factors [n p]
-  (let [t (bigint n)]
-    (let [divisors (find-divisors t p)
-          exponents (map (partial exponent-of-divisor t) divisors)
-          ]
-      [t (map vector divisors exponents)]
-      )))
-
 (defn check-factorization [[target factors]]
   (let [build (map (fn [[factor power]] (nt-power factor power))
                    factors)
         total (apply product build)]
     [target total (= target total) factors build])
   )
+
+
