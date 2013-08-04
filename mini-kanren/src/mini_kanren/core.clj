@@ -20,5 +20,5 @@
 ;;; |_|  |_\__,_|_|_||_|
                     
 (defn -main []
-  (test/run-all-tests #"mini-kanren.core"))
+  (test/run-all-tests #"mini-kanren.core-test"))
 
