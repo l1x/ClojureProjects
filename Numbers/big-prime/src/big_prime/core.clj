@@ -124,15 +124,15 @@
       [(* i q) (+ (if (== i (dec p)) r 0)
                   (* (inc i) q))])))
 
-(defn try-divisors-2
+(defn try-divisors
   ([n start end]
      (if (even? start)
        (case start
-         (0 2) (try-divisors-2 n 3 end [])
-         (try-divisors-2 n (inc start) end []))
+         (0 2) (try-divisors n 3 end [])
+         (try-divisors n (inc start) end []))
        (if (== 1 start)
-         (try-divisors-2 n 3 end [])
-         (try-divisors-2 n start end []))))
+         (try-divisors n 3 end [])
+         (try-divisors n start end []))))
   ([n k end acc]
      (if (or (== 1 n) (> k end))
        acc
@@ -145,14 +145,14 @@
     (recur (quot n k) k (conj acc k))
     [n acc]))
 
-(defn find-divisors-2 [n p]
+(defn find-divisors [n p]
   (let [sn (inc n)
         ds (make-partition-book-ends sn p)
         [target maybe-2] (divide-out n 2 [])]
     (concat
      maybe-2
      (mapcat (fn [[start end]]
-               (try-divisors-2 target start end))
+               (try-divisors target start end))
              ds))))
 
 (defn factors [n p]
