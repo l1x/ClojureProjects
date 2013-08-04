@@ -52,7 +52,7 @@
 (defn nt-sqrt
   "Number-theoretic square root (largest integer whose square is less than or equal to the target)"
   [x]
-  (nt-try-sqrt 1 x))
+  (nt-try-sqrt 1 (bigint x)))
 
 (defn- rand-digit [] (rand-int 10))
 
@@ -106,3 +106,10 @@
 
 (defn try-divisors [n divisors]
   (filter (fn [d] (== 0 (mod n d))) divisors))
+
+(defn find-divisors [n p]
+  (let [sn (inc (nt-sqrt n))
+        ds (generate-trial-divisor-partitions sn p)]
+    (mapcat (fn [partn]
+              (try-divisors n partn))
+            ds)))
