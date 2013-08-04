@@ -133,6 +133,28 @@
 (defn exponent-of-divisor [target divisor]
   (count (tally-of-divisor target divisor)))
 
+(defn find-divisors-parallel [n p]
+  (let [sn (inc n)
+        ds (generate-trial-divisor-partitions sn p)
+        target  (if (even? n) (quot n 2) n)
+        maybe-2 (if (even? n) '(2N) ())
+        ]
+    (sieve
+     (filter #(not= 1 %)
+             (concat maybe-2
+                     (apply concat
+                            (pmap (fn [partn]
+                                      (try-divisors target partn))
+                                    ds)))))))
+
+(defn factors-parallel [n p]
+  (let [t (bigint n)]
+    (let [divisors (find-divisors-parallel t p)
+          exponents (map (partial exponent-of-divisor t) divisors)
+          ]
+      [t (map vector divisors exponents)]
+      )))
+
 (defn find-divisors [n p]
   (let [sn (inc n)
         ds (generate-trial-divisor-partitions sn p)

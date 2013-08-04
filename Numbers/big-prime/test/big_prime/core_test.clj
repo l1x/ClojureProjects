@@ -89,10 +89,14 @@
                 (repeatedly
                  10
                  (fn [] (check-factorization
-                        (factors (big-rand 5) (inc (rand-int 10))))))
-                ))
-    )
-
+                        (factors
+                         (big-rand 5) (inc (rand-int 10))))))))
+    (is (every? (plucker 3)
+                (repeatedly
+                 10
+                 (fn [] (check-factorization
+                        (factors-parallel
+                         (big-rand 5) 4))))))    )
   )
 
 (deftest integer-operation-tests
