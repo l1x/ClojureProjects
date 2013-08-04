@@ -20,6 +20,17 @@
          (recur (quot n k) k (conj acc k))
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
 
+#_(defn sieve [xs]
+  (if (empty? xs)
+    ()
+    (let [x (first xs)]
+      (cons x
+            (lazy-seq (sieve
+                       (filter #(not= 0 (mod % x))
+                               (rest xs))))))))
+
+#_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
+
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
 
@@ -113,38 +124,6 @@
       [(* i q) (+ (if (== i (dec p)) r 0)
                   (* (inc i) q))])))
 
-(defn generate-trial-divisors [[start end]]
-  (filter odd? (range (bigint start) (bigint end))))
-
-(defn generate-trial-divisor-partitions [end p]
-  (map generate-trial-divisors
-       (make-partition-book-ends end p)))
-
-(defn try-divisors [n divisors]
-  (filter (fn [d] (== 0 (mod n d))) divisors))
-
-(defn sieve [xs]
-  (if (empty? xs)
-    ()
-    (let [x (first xs)]
-      (cons x
-            (lazy-seq (sieve
-                       (filter #(not= 0 (mod % x))
-                               (rest xs))))))))
-
-#_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
-
-(defn tally-of-divisor [target divisor]
-  (let [q (quot target divisor)
-        r (mod  target divisor)]
-    (if (== r 0)
-      (cons 1 (lazy-seq (tally-of-divisor q divisor)))
-      ()
-      )))
-
-(defn exponent-of-divisor [target divisor]
-  (count (tally-of-divisor target divisor)))
-
 (defn try-divisors-2
   ([n start end]
      (if (even? start)
@@ -169,53 +148,16 @@
 (defn find-divisors-2 [n p]
   (let [sn (inc n)
         ds (make-partition-book-ends sn p)
-        cast-out-2s (divide-out n 2 [])
-        target  (cast-out-2s 0)
-        maybe-2 (cast-out-2s 1)]
+        [target maybe-2] (divide-out n 2 [])]
     (concat
      maybe-2
      (mapcat (fn [[start end]]
                (try-divisors-2 target start end))
              ds))))
 
-(defn find-divisors [n p]
-  (let [sn (inc n)
-        ds (generate-trial-divisor-partitions sn p)
-        target  (if (even? n) (quot n 2) n)
-        maybe-2 (if (even? n) '(2N) ())
-        ]
-    (sieve
-     (filter #(not= 1 %)
-             (concat maybe-2
-                     (mapcat (fn [partn]
-                               (try-divisors target partn))
-                             ds))))))
-
 (defn factors [n p]
   (let [t (bigint n)]
     (let [divisors (find-divisors t p)
-          exponents (map (partial exponent-of-divisor t) divisors)
-          ]
-      [t (map vector divisors exponents)]
-      )))
-
-(defn find-divisors-parallel [n p]
-  (let [sn (inc n)
-        ds (generate-trial-divisor-partitions sn p)
-        target  (if (even? n) (quot n 2) n)
-        maybe-2 (if (even? n) '(2N) ())
-        ]
-    (sieve
-     (filter #(not= 1 %)
-             (concat maybe-2
-                     (apply concat
-                            (pmap (fn [partn]
-                                      (try-divisors target partn))
-                                    ds)))))))
-
-(defn factors-parallel [n p]
-  (let [t (bigint n)]
-    (let [divisors (find-divisors-parallel t p)
           exponents (map (partial exponent-of-divisor t) divisors)
           ]
       [t (map vector divisors exponents)]
