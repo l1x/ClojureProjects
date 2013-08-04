@@ -75,12 +75,24 @@
            (try-divisors
             100
             (generate-trial-divisors [0 (inc (nt-sqrt 100))]))))
-    
     )
 
   (testing "factors"
-    (is (= (factors 10000 4)
-           [10000N '([2N 4] [5N 4])])))
+    (is (= (factors 10000  4) [10000N '([2N 4] [5N 4])]))
+    (is (= (factors 82763  1) [82763N '([82763N 1])]))
+    (is (= (factors 82763  4) [82763N '([82763N 1])]))
+    (is (= (factors 82763 16) [82763N '([82763N 1])]))
+    (is (= (factors 82763 64) [82763N '([82763N 1])]))
+    (is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
+    ;; Fuzz-test:
+    (is (every? (plucker 3)
+                (repeatedly
+                 10
+                 (fn [] (check-factorization
+                        (factors (big-rand 5) (inc (rand-int 10))))))
+                ))
+    )
+
   )
 
 (deftest integer-operation-tests

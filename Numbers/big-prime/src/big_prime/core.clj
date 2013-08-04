@@ -134,7 +134,7 @@
   (count (tally-of-divisor target divisor)))
 
 (defn find-divisors [n p]
-  (let [sn (inc n) ;(inc (nt-sqrt n))
+  (let [sn (inc n)
         ds (generate-trial-divisor-partitions sn p)
         target  (if (even? n) (quot n 2) n)
         maybe-2 (if (even? n) '(2N) ())
