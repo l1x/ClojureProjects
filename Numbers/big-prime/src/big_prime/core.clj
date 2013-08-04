@@ -20,15 +20,6 @@
          (recur (quot n k) k (conj acc k))
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
 
-(defn try-divisors-2
-  ([n start end] (try-divisors-2 n start end []))
-  ([n k end acc]
-     (if (or (== 1 n) (> k end))
-       acc
-       (if (== 0 (rem n k))
-         (recur (quot n k) k end (conj acc k))
-         (recur n (if (== k 2) (inc k) (+ 2 k)) end acc)))))
-
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
 
@@ -153,6 +144,39 @@
 
 (defn exponent-of-divisor [target divisor]
   (count (tally-of-divisor target divisor)))
+
+(defn try-divisors-2
+  ([n start end]
+     (if (even? start)
+       (case start
+         (0 2) (try-divisors-2 n 3 end [])
+         (try-divisors-2 n (inc start) end []))
+       (if (== 1 start)
+         (try-divisors-2 n 3 end [])
+         (try-divisors-2 n start end []))))
+  ([n k end acc]
+     (if (or (== 1 n) (> k end))
+       acc
+       (if (== 0 (rem n k))
+         (recur (quot n k) k end (conj acc k))
+         (recur n (+ 2 k) end acc)))))
+
+(defn divide-out [n k acc]
+  (if (== 0 (rem n k))
+    (recur (quot n k) k (conj acc k))
+    [n acc]))
+
+(defn find-divisors-2 [n p]
+  (let [sn (inc n)
+        ds (make-partition-book-ends sn p)
+        cast-out-2s (divide-out n 2 [])
+        target  (cast-out-2s 0)
+        maybe-2 (cast-out-2s 1)]
+    (concat
+     maybe-2
+     (mapcat (fn [[start end]]
+               (try-divisors-2 target start end))
+             ds))))
 
 (defn find-divisors [n p]
   (let [sn (inc n)

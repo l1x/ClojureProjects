@@ -85,9 +85,14 @@
     (is (= (factors 82763 64) [82763N '([82763N 1])]))
     (is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
 
-    (is (= (simple-factors 477841685N) [5 1367 69911]))
-    (is (= (simple-factors (* 55511N 283N 59N)) [59N 283N 55511N]))
-    (is (= (try-divisors-2 477841685N 31 100000) [1367N 69911N]))
+    (is (= (simple-factors (* 55511N 283N 59N))  [59N 283N 55511N]))
+    (is (= (simple-factors 477841685N)           [5  1367  69911 ]))
+    (is (= (try-divisors-2 477841685N 31 100000) [   1367N 69911N]))
+    (is (= (try-divisors-2 477841685N  1 100000) [5N 1367N 69911N]))
+    (is (= (try-divisors-2 477841685N  5 100000) [5N 1367N 69911N]))
+
+    (is (= (divide-out 10000N 2N []) [625 [2 2 2 2]]))
+    (is (= (divide-out 10001N 2N []) [10001 []]))
 
     ;; Fuzz-test:
 
