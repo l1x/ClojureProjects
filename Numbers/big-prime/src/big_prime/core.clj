@@ -20,6 +20,14 @@
          (recur (quot n k) k (conj acc k))
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
 
+(defn try-divisors-2
+  ([n start end] (try-divisors-2 n start end []))
+  ([n k end acc]
+     (if (or (== 1 n) (> k end))
+       acc
+       (if (== 0 (rem n k))
+         (recur (quot n k) k end (conj acc k))
+         (recur n (if (== k 2) (inc k) (+ 2 k)) end acc)))))
 
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
