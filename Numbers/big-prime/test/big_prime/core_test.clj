@@ -85,8 +85,8 @@
     (is (= (factors 82763 64) [82763N '([82763N 1])]))
     (is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
 
-    (is (= (simple-factors 477841685N) '(69911 1367 5)))
-    (is (= (simple-factors (* 55511N 283N 59N)) '(55511N 283N 59N)))
+    (is (= (simple-factors 477841685N) [5 1367 69911]))
+    (is (= (simple-factors (* 55511N 283N 59N)) [59N 283N 55511N] ))
 
     ;; Fuzz-test:
 

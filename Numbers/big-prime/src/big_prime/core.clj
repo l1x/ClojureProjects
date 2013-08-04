@@ -12,13 +12,14 @@
 
 (defn simple-factors
   "Return a list of factors of N."
-  ([n] (simple-factors n 2 ()))
+  ([n] (simple-factors n 2 []))
   ([n k acc]
      (if (== 1 n)      
        acc
        (if (== 0 (rem n k))
-         (recur (quot n k) k (cons k acc))
+         (recur (quot n k) k (conj acc k))
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
+
 
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
