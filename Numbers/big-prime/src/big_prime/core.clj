@@ -99,3 +99,10 @@
 
 (defn generate-trial-divisors [[start end]]
   (filter odd? (range (bigint start) (bigint end))))
+
+(defn generate-trial-divisor-partitions [end p]
+  (map generate-trial-divisors
+       (make-partition-book-ends end p)))
+
+(defn try-divisors [n divisors]
+  (filter (fn [d] (== 0 (mod n d))) divisors))

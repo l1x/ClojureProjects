@@ -55,7 +55,7 @@
 
   (testing "Generating trial divisors"
     (is (= (map generate-trial-divisors (make-partition-book-ends 100 10))
-           '((1N 3N 5N 7N 9N)
+           '(( 1N  3N  5N  7N  9N)
              (11N 13N 15N 17N 19N)
              (21N 23N 25N 27N 29N)
              (31N 33N 35N 37N 39N)
@@ -64,7 +64,18 @@
              (61N 63N 65N 67N 69N)
              (71N 73N 75N 77N 79N)
              (81N 83N 85N 87N 89N)
-             (91N 93N 95N 97N 99N))))    )
+             (91N 93N 95N 97N 99N)))))
+
+  (testing "Trial-Divisors collection"
+    (is (= (map generate-trial-divisors (make-partition-book-ends 100 10))
+           (generate-trial-divisor-partitions 100 10))))
+
+  (testing "Try divisors"
+    (is (= '(1N 5N)
+           (try-divisors
+            100
+            (generate-trial-divisors [0 (inc (nt-sqrt 100))]))))
+    )
   )
 
 (deftest integer-operation-tests
