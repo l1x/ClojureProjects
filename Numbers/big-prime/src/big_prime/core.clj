@@ -109,7 +109,11 @@
 
 (defn find-divisors [n p]
   (let [sn (inc (nt-sqrt n))
-        ds (generate-trial-divisor-partitions sn p)]
-    (mapcat (fn [partn]
-              (try-divisors n partn))
-            ds)))
+        ds (generate-trial-divisor-partitions sn p)
+        target  (if (even? n) (quot n 2) n)
+        maybe-2 (if (even? n) '(2N) ())
+        ]
+    (concat maybe-2
+            (mapcat (fn [partn]
+                      (try-divisors target partn))
+                    ds))))
