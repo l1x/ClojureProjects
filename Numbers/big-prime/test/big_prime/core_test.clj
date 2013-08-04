@@ -51,9 +51,20 @@
 
          (make-partition-book-ends 110 10)
          '([0 11] [11 22] [22 33] [33 44] [44 55]
-             [55 66] [66 77] [77 88] [88 99] [99 110]))
-    (is (== 0) 0)
-    )
+             [55 66] [66 77] [77 88] [88 99] [99 110])))
+
+  (testing "Generating trial divisors"
+    (is (= (map generate-trial-divisors (make-partition-book-ends 100 10))
+           '((1N 3N 5N 7N 9N)
+             (11N 13N 15N 17N 19N)
+             (21N 23N 25N 27N 29N)
+             (31N 33N 35N 37N 39N)
+             (41N 43N 45N 47N 49N)
+             (51N 53N 55N 57N 59N)
+             (61N 63N 65N 67N 69N)
+             (71N 73N 75N 77N 79N)
+             (81N 83N 85N 87N 89N)
+             (91N 93N 95N 97N 99N))))    )
   )
 
 (deftest integer-operation-tests
@@ -79,10 +90,8 @@
          0 (abs 0)
          1 (abs -1)
          1 (abs 1)
-         (dec (nt-power 10 64))
-         (abs (dec (nt-power 10 64)))
-         (dec (nt-power 10 64))
-         (abs (- (dec (nt-power 10 64)))))
+         (dec (nt-power 10 64)) (abs    (dec (nt-power 10 64)))
+         (dec (nt-power 10 64)) (abs (- (dec (nt-power 10 64)))))
     (is (thrown? clojure.lang.ArityException (abs)))
     (is (thrown? ClassCastException (abs "0")))
     )

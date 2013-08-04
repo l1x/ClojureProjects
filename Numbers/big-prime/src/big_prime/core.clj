@@ -72,6 +72,7 @@
        )))))
 
 (defn nt-power [n m]
+  ;; Also consider: (reduce * 1N (repeat m n))
   (letfn [(helper [n m acc]
              (cond
               (== m 0) 1N
@@ -89,8 +90,12 @@
          pos?]))
 
 (defn make-partition-book-ends [end p]
-  (let [q (quot end p)
-        r (mod  end p)]
+  (let [e (bigint end)
+        q (quot e p)
+        r (mod  e p)]
     (for [i (range p)]
       [(* i q) (+ (if (== i (dec p)) r 0)
                   (* (inc i) q))])))
+
+(defn generate-trial-divisors [[start end]]
+  (filter odd? (range (bigint start) (bigint end))))
