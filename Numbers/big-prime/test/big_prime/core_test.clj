@@ -75,7 +75,12 @@
            (try-divisors
             100
             (generate-trial-divisors [0 (inc (nt-sqrt 100))]))))
+    
     )
+
+  (testing "factors"
+    (is (= (factors 10000 4)
+           [10000N '([2N 4] [5N 4])])))
   )
 
 (deftest integer-operation-tests

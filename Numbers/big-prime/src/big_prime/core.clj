@@ -11,11 +11,15 @@
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
 
-(defn sum
+(defn sum 
   ([] 0)
   ([x] x)
-  ([x & more]
-     (+ x (apply sum more))))
+  ([x & more] (reduce + x more)))
+
+(defn product
+  ([] 1)
+  ([x] x)
+  ([x & more] (reduce * x more)))
 
 (defn nt-average
   "Number-theoretic mean using `quot' instead of `/', which latter produces rationals"
@@ -107,13 +111,52 @@
 (defn try-divisors [n divisors]
   (filter (fn [d] (== 0 (mod n d))) divisors))
 
+(defn sieve [xs]
+  (if (empty? xs)
+    ()
+    (let [x (first xs)]
+      (cons x
+            (lazy-seq (sieve
+                       (filter #(not= 0 (mod % x))
+                               (rest xs))))))))
+
+#_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
+
+(defn tally-of-divisor [target divisor]
+  (let [q (quot target divisor)
+        r (mod  target divisor)]
+    (if (== r 0)
+      (cons 1 (lazy-seq (tally-of-divisor q divisor)))
+      ()
+      )))
+
+(defn exponent-of-divisor [target divisor]
+  (count (tally-of-divisor target divisor)))
+
 (defn find-divisors [n p]
   (let [sn (inc (nt-sqrt n))
         ds (generate-trial-divisor-partitions sn p)
         target  (if (even? n) (quot n 2) n)
         maybe-2 (if (even? n) '(2N) ())
         ]
-    (concat maybe-2
-            (mapcat (fn [partn]
-                      (try-divisors target partn))
-                    ds))))
+    (sieve
+     (filter #(not= 1 %)
+             (concat maybe-2
+                     (mapcat (fn [partn]
+                               (try-divisors target partn))
+                             ds))))))
+
+(defn factors [n p]
+  (let [t (bigint n)]
+    (let [divisors (find-divisors t p)
+          exponents (map (partial exponent-of-divisor t) divisors)
+          ]
+      [t (map vector divisors exponents)]
+      )))
+
+(defn check-factorization [[target factors]]
+  (let [build (map (fn [[factor power]] (nt-power factor power))
+                   factors)
+        total (apply product build)]
+    [target total (= target total) factors build])
+  )
