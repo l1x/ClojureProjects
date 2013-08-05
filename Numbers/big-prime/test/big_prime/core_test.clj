@@ -73,14 +73,14 @@
 
     ;; Fuzz-test:
 
-    #_(is (every? (plucker 3)
+    #_(is (every? (plucker 2)
                 (repeatedly
                  10
                  (fn [] (check-factorization
                         (factors
                          (big-rand 5) (inc (rand-int 10))))))))
 
-    #_(is (every? (plucker 3)
+    #_(is (every? (plucker 2)
                 (repeatedly
                  10
                  (fn [] (check-factorization

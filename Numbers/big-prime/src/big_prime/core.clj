@@ -20,15 +20,6 @@
          (recur (quot n k) k (conj acc k))
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
 
-#_(defn sieve [xs]
-  (if (empty? xs)
-    ()
-    (let [x (first xs)]
-      (cons x
-            (lazy-seq (sieve
-                       (filter #(not= 0 (mod % x))
-                               (rest xs))))))))
-
 #_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
 
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
@@ -155,15 +146,28 @@
                (try-divisors target start end))
              ds))))
 
+(defn sieve [xs]
+  (if (empty? xs)
+    ()
+    (let [x (first xs)]
+      (cons x
+            (lazy-seq (sieve
+                       (filter #(not= 0 (mod % x))
+                               (rest xs))))))))
+
 (defn factors [n p]
   (let [t (bigint n)]
     (let [divisors (find-divisors t p)
           finals (if (== 1 (count divisors))
-                   divisors
+                   divisors             ; Found a prime
                    (if (== t (last divisors))
-                     (butlast divisors)
-                     divisors))]
-      [t (frequencies finals)]
+                     (butlast divisors) ; Number itself is counted
+                     divisors))         ; Unless it was depleted
+          candidates (frequencies finals)
+          sieved     (sieve (keys candidates))
+          saved      (reduce #(into %1 {%2 (candidates %2)}) {} sieved)
+          ]
+      [t saved]
       )))
 
 (defn check-factorization [[target factors]]
