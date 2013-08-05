@@ -8,6 +8,20 @@
 
 (set! *warn-on-reflection* true)
 
+;;; Fast, trivial, sequential trial-division
+
+(defn simple-factors
+  "Return a list of factors of N."
+  ([n] (simple-factors n 2 []))
+  ([n k acc]
+     (if (== 1 n)      
+       acc
+       (if (== 0 (rem n k))
+         (recur (quot n k) k (conj acc k))
+         (recur n (if (== k 2) (inc k) (+ 2 k)) acc)))))
+
+#_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
+
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
 ;;; improve perf. TODO: Use Criterium library to profile.
 
@@ -101,15 +115,36 @@
       [(* i q) (+ (if (== i (dec p)) r 0)
                   (* (inc i) q))])))
 
-(defn generate-trial-divisors [[start end]]
-  (filter odd? (range (bigint start) (bigint end))))
+(defn try-divisors
+  ([n start end]
+     (if (even? start)
+       (case start
+         (0 2) (try-divisors n 3 end [])
+         (try-divisors n (inc start) end []))
+       (if (== 1 start)
+         (try-divisors n 3 end [])
+         (try-divisors n start end []))))
+  ([n k end acc]
+     (if (or (== 1 n) (>= k end))
+       acc
+       (if (== 0 (rem n k))
+         (recur (quot n k) k end (conj acc k))
+         (recur n (+ 2 k) end acc)))))
 
-(defn generate-trial-divisor-partitions [end p]
-  (map generate-trial-divisors
-       (make-partition-book-ends end p)))
+(defn divide-out [n k acc]
+  (if (== 0 (rem n k))
+    (recur (quot n k) k (conj acc k))
+    [n acc]))
 
-(defn try-divisors [n divisors]
-  (filter (fn [d] (== 0 (mod n d))) divisors))
+(defn find-divisors [n p]
+  (let [sn (inc n)
+        ds (make-partition-book-ends sn p)
+        [target maybe-2] (divide-out n 2 [])]
+    (concat
+     maybe-2
+     (mapcat (fn [[start end]]
+              (try-divisors target start end))
+             ds))))
 
 (defn sieve [xs]
   (if (empty? xs)
@@ -120,43 +155,25 @@
                        (filter #(not= 0 (mod % x))
                                (rest xs))))))))
 
-#_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
-
-(defn tally-of-divisor [target divisor]
-  (let [q (quot target divisor)
-        r (mod  target divisor)]
-    (if (== r 0)
-      (cons 1 (lazy-seq (tally-of-divisor q divisor)))
-      ()
-      )))
-
-(defn exponent-of-divisor [target divisor]
-  (count (tally-of-divisor target divisor)))
-
-(defn find-divisors [n p]
-  (let [sn (inc n)
-        ds (generate-trial-divisor-partitions sn p)
-        target  (if (even? n) (quot n 2) n)
-        maybe-2 (if (even? n) '(2N) ())
-        ]
-    (sieve
-     (filter #(not= 1 %)
-             (concat maybe-2
-                     (mapcat (fn [partn]
-                               (try-divisors target partn))
-                             ds))))))
-
 (defn factors [n p]
   (let [t (bigint n)]
     (let [divisors (find-divisors t p)
-          exponents (map (partial exponent-of-divisor t) divisors)
+          finals (if (== 1 (count divisors))
+                    divisors             ; Found a prime
+                    (if (== t (last divisors))
+                      (butlast divisors) ; Number itself is counted
+                      divisors))         ; Unless it was depleted
+          candidates (frequencies finals)
+          sieved     (sieve (keys candidates))
+          saved      (reduce #(into %1 {%2 (candidates %2)}) {} sieved)
           ]
-      [t (map vector divisors exponents)]
+      [t saved]
       )))
 
 (defn check-factorization [[target factors]]
-  (let [build (map (fn [[factor power]] (nt-power factor power))
-                   factors)
+  (let [build (map (fn [[factor power]] (nt-power factor power)) factors)
         total (apply product build)]
     [target total (= target total) factors build])
   )
+
+

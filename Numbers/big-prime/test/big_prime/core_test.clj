@@ -53,46 +53,34 @@
          '([0 11] [11 22] [22 33] [33 44] [44 55]
              [55 66] [66 77] [77 88] [88 99] [99 110])))
 
-  (testing "Generating trial divisors"
-    (is (= (map generate-trial-divisors (make-partition-book-ends 100 10))
-           '(( 1N  3N  5N  7N  9N)
-             (11N 13N 15N 17N 19N)
-             (21N 23N 25N 27N 29N)
-             (31N 33N 35N 37N 39N)
-             (41N 43N 45N 47N 49N)
-             (51N 53N 55N 57N 59N)
-             (61N 63N 65N 67N 69N)
-             (71N 73N 75N 77N 79N)
-             (81N 83N 85N 87N 89N)
-             (91N 93N 95N 97N 99N)))))
-
-  (testing "Trial-Divisors collection"
-    (is (= (map generate-trial-divisors (make-partition-book-ends 100 10))
-           (generate-trial-divisor-partitions 100 10))))
-
-  (testing "Try divisors"
-    (is (= '(1N 5N)
-           (try-divisors
-            100
-            (generate-trial-divisors [0 (inc (nt-sqrt 100))]))))
-    )
-
   (testing "factors"
-    (is (= (factors 10000  4) [10000N '([2N 4] [5N 4])]))
-    (is (= (factors 82763  1) [82763N '([82763N 1])]))
-    (is (= (factors 82763  4) [82763N '([82763N 1])]))
-    (is (= (factors 82763 16) [82763N '([82763N 1])]))
-    (is (= (factors 82763 64) [82763N '([82763N 1])]))
+    (is (= (factors 10000  4) [10000N {2N 4, 5N 4}]))
+    (is (= (factors 10001  4) [10001N {73 1, 137 1}]))
+    (is (= (factors 82763  1) [82763N {82763N 1}]))
+    (is (= (factors 82763  4) [82763N {82763N 1}]))
+    (is (= (factors 82763 16) [82763N {82763N 1}]))
+    (is (= (factors 82763 64) [82763N {82763N 1}]))
     (is (thrown? ArithmeticException "Divide by zero" (factors 82763 0)))
-    ;; Fuzz-test:
-    (is (every? (plucker 3)
-                (repeatedly
-                 10
-                 (fn [] (check-factorization
-                        (factors (big-rand 5) (inc (rand-int 10))))))
-                ))
-    )
 
+    (is (= (simple-factors (* 55511N 283N 59N))  [59N 283N 55511N]))
+    (is (= (simple-factors 477841685N)           [5  1367  69911 ]))
+    (is (= (try-divisors 477841685N 31 100000) [   1367N 69911N]))
+    (is (= (try-divisors 477841685N  1 100000) [5N 1367N 69911N]))
+    (is (= (try-divisors 477841685N  5 100000) [5N 1367N 69911N]))
+
+    (is (= (divide-out 10000N 2N []) [625 [2 2 2 2]]))
+    (is (= (divide-out 10001N 2N []) [10001 []]))
+
+    ;; Fuzz-test:
+
+    (is (every? (plucker 2)
+                (repeatedly
+                 100
+                 (fn [] (check-factorization
+                        (factors
+                         (big-rand 5) (inc (rand-int 10))))))))
+
+    )
   )
 
 (deftest integer-operation-tests
