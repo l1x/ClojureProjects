@@ -75,7 +75,7 @@
 
     (is (every? (plucker 2)
                 (repeatedly
-                 10
+                 100
                  (fn [] (check-factorization
                         (factors
                          (big-rand 5) (inc (rand-int 10))))))))
