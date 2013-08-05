@@ -5,8 +5,6 @@
         [clojure.core.contracts :as contracts]
         ))
 
-;;; TODO: Build up the contracts in here. See nt-power for an example.
-
 (set! *warn-on-reflection* true)
 
 ;;; Fast, trivial, sequential trial-division
@@ -40,6 +38,9 @@
          (list (rand-digit))
          ds)        ; in case the drop-while returns empty (all zeros)
        )))))
+
+;;; TODO: Build up the contracts in here. See nt-power for an example.
+;;; TODO: move nt-power to sqrt; rename sqrt to nt (for number-theoretic)
 
 (defn nt-power [n m]
   ;; Also consider: (reduce * 1N (repeat m n))
