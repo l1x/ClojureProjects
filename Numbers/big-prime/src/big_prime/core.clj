@@ -125,7 +125,7 @@
          (try-divisors n 3 end [])
          (try-divisors n start end []))))
   ([n k end acc]
-     (if (or (== 1 n) (> k end))
+     (if (or (== 1 n) (>= k end))
        acc
        (if (== 0 (rem n k))
          (recur (quot n k) k end (conj acc k))
@@ -143,7 +143,7 @@
     (concat
      maybe-2
      (mapcat (fn [[start end]]
-               (try-divisors target start end))
+              (try-divisors target start end))
              ds))))
 
 (defn sieve [xs]
@@ -159,10 +159,10 @@
   (let [t (bigint n)]
     (let [divisors (find-divisors t p)
           finals (if (== 1 (count divisors))
-                   divisors             ; Found a prime
-                   (if (== t (last divisors))
-                     (butlast divisors) ; Number itself is counted
-                     divisors))         ; Unless it was depleted
+                    divisors             ; Found a prime
+                    (if (== t (last divisors))
+                      (butlast divisors) ; Number itself is counted
+                      divisors))         ; Unless it was depleted
           candidates (frequencies finals)
           sieved     (sieve (keys candidates))
           saved      (reduce #(into %1 {%2 (candidates %2)}) {} sieved)
