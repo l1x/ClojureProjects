@@ -9,7 +9,9 @@
   (:import java.util.Random)
   (:require [clojure.test    :refer :all]
             [big-prime.utils :refer :all]
-            [big-prime.core  :refer :all]))
+            [big-prime.core  :refer :all]
+            [big-prime.sqrt  :refer :all]
+            ))
 
 (deftest big-prime-tests
 
@@ -64,6 +66,30 @@
 
     (is (= (simple-factors (* 55511N 283N 59N))  [59N 283N 55511N]))
     (is (= (simple-factors 477841685N)           [5  1367  69911 ]))
+    (is (= (simple-factors 81)                   [3 3 3 3]))
+    (is (= (simple-factors 168)                  [2 2 2 3 7]))
+    (is (= (simple-factors 4444444444)           [2 2 11 41 271 9091]))
+
+ ;; *   % java Factors 4444444444444463
+ ;; *   The prime factorization of 4444444444444463 is: 4444444444444463
+ ;; * 
+ ;; *   % java Factors 10000001400000049
+ ;; *   The prime factorization of 10000001400000049 is: 100000007 100000007 
+ ;; *
+ ;; *   % java Factors 1000000014000000049
+ ;; *   The prime factorization of 1000000014000000049 is: 1000000007 1000000007
+ ;; *
+ ;; *   % java Factors 9201111169755555649
+ ;; *   The prime factorization of 9201111169755555649 is: 3033333343 3033333343 
+ ;; *
+ ;; *   Can use these for timing tests - biggest 3, 6, 9, 12, 15, and 18 digit primes
+ ;; *   % java Factors 997
+ ;; *   % java Factors 999983
+ ;; *   % java Factors 999999937
+ ;; *   % java Factors 999999999989
+ ;; *   % java Factors 999999999999989
+ ;; *   % java Factors 999999999999999989
+
     (is (= (try-divisors 477841685N 31 100000) [   1367N 69911N]))
     (is (= (try-divisors 477841685N  1 100000) [5N 1367N 69911N]))
     (is (= (try-divisors 477841685N  5 100000) [5N 1367N 69911N]))
