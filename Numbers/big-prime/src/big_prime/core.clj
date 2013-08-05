@@ -1,6 +1,7 @@
 (ns big-prime.core
   (:import java.util.Random)
   (:use [big-prime.utils]
+        [big-prime.sqrt :as nt]
         [clojure.core.contracts :as contracts]
         ))
 
@@ -22,19 +23,6 @@
          ))))
 
 #_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
-
-;;; It's unclear whether ^clojure.lang.BigInt type hints actually
-;;; improve perf. TODO: Use Criterium library to profile.
-
-(defn sum 
-  ([] 0)
-  ([x] x)
-  ([x & more] (reduce + x more)))
-
-(defn product
-  ([] 1)
-  ([x] x)
-  ([x & more] (reduce * x more)))
 
 (defn- rand-digit [] (rand-int 10))
 
@@ -136,7 +124,7 @@
 
 (defn check-factorization [[target factors]]
   (let [build (map (fn [[factor power]] (nt-power factor power)) factors)
-        total (apply product build)]
+        total (apply nt/product build)]
     [target total (= target total) factors build])
   )
 

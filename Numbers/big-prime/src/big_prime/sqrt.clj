@@ -1,5 +1,16 @@
-(ns big-prime.sqrt
-  (:require [big-prime.core :refer [sum]]))
+(ns big-prime.sqrt)
+;;; It's unclear whether ^clojure.lang.BigInt type hints actually
+;;; improve perf. TODO: Use Criterium library to profile.
+
+(defn sum 
+  ([] 0)
+  ([x] x)
+  ([x & more] (reduce + x more)))
+
+(defn product
+  ([] 1)
+  ([x] x)
+  ([x & more] (reduce * x more)))
 
 (defn nt-average
   "Number-theoretic mean using `quot' instead of `/', which latter produces rationals"
