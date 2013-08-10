@@ -9,13 +9,17 @@
 
 ;;; Fast, trivial, sequential trial-division
 
+(defn divides?
+  "Tests whether k divides n; the order of the arguments is in the sense of an infix operator: read (divides? k n) as \"k divides? n\"."
+  [k n] (== 0 (rem n k)))
+
 (defn simple-factors
   "Return a list of factors of N."
   ([n] (simple-factors n 2 []))
   ([n k acc]
      (if (> (* k k) n)
        (if (> n 1) (conj acc n) acc)
-       (if (== 0 (rem n k))
+       (if (divides? k n)
          (recur (quot n k) k (conj acc k))
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)
          ))))
@@ -26,20 +30,21 @@
      (if (even? start)
        (case start
          ;; At the very beginning of a search with the small evens:
-         (0 2) (try-divisors n 3 end [])
+         (0 2) (try-divisors n 3 end [] n)
          ;; In some sequence of trials that happens to begin with an
          ;; even number:
-         (try-divisors n (inc start) end []))
+         (try-divisors n (inc start) end [] n))
        ;; "start" is an odd number:
        (if (== 1 start)
-         (try-divisors n 3 end [])
-         (try-divisors n start end []))))
-  ([n k end acc]
-     (if (or (== 1 n) (>= k end))
-       acc
-       (if (== 0 (rem n k))
-         (recur (quot n k) k end (conj acc k))
-         (recur n (+ 2 k) end acc)))))
+         (try-divisors n 3 end [] n)
+         (try-divisors n start end [] n))))
+  ([n k end acc original]
+     (cond
+      (== 1 n)   acc
+      (>= k end) acc
+      :else (if (== 0 (rem n k))
+              (recur (quot n k)      k  end (conj acc k) original)
+              (recur       n    (+ 2 k) end       acc    original)))))
 
 (contracts/provide
  (try-divisors
@@ -80,7 +85,7 @@
     [n acc]))
 
 (defn find-divisors [n p]
-  (let [sn (inc n)
+  (let [sn (inc n #_(nt/nt-sqrt n))
         ds (make-partition-book-ends sn p)
         [target maybe-2] (divide-out n 2 [])]
     (concat
