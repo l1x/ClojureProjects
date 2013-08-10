@@ -33,6 +33,9 @@
           (is (== s i))
           (is (< (square j) i))
           (is (>= (square (inc j)) i))
+          (is (thrown? AssertionError "Pre-condition failure" (nt-power 2 -3)))
+          (is (thrown? AssertionError "Pre-condition failure" (nt-power 2 3.14)))
+          (is (thrown? AssertionError "Pre-condition failure" (nt-power "2" 3.14)))
           ))
       time
       )

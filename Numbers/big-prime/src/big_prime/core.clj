@@ -20,6 +20,33 @@
          (recur n (if (== k 2) (inc k) (+ 2 k)) acc)
          ))))
 
+(defn try-divisors
+  "From book-end trial-divisors, produce a sequence of actual divisors of n. The book-ends may have any values less than or equal to the target, and the left book-end must be less than or equal to the right book-end."
+  ([n start end]
+     (if (even? start)
+       (case start
+         ;; At the very beginning of a search with the small evens:
+         (0 2) (try-divisors n 3 end [])
+         ;; In some sequence of trials that happens to begin with an
+         ;; even number:
+         (try-divisors n (inc start) end []))
+       ;; "start" is an odd number:
+       (if (== 1 start)
+         (try-divisors n 3 end [])
+         (try-divisors n start end []))))
+  ([n k end acc]
+     (if (or (== 1 n) (>= k end))
+       acc
+       (if (== 0 (rem n k))
+         (recur (quot n k) k end (conj acc k))
+         (recur n (+ 2 k) end acc)))))
+
+(contracts/provide
+ (try-divisors
+  "Constraints for book-ended trial division"
+  [n start end & etc] [(<= start end)]
+  ))
+
 #_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
 
 (defn- rand-digit [] (rand-int 10))
@@ -39,27 +66,6 @@
          ds)        ; in case the drop-while returns empty (all zeros)
        )))))
 
-;;; TODO: Build up the contracts in here. See nt-power for an example.
-;;; TODO: move nt-power to sqrt; rename sqrt to nt (for number-theoretic)
-
-(defn nt-power [n m]
-  ;; Also consider: (reduce * 1N (repeat m n))
-  (letfn [(helper [n m acc]
-             (cond
-              (== m 0) 1N
-              (== m 1) acc
-              :else (recur n (dec m) (* n acc))))]
-    (helper (bigint n) m (bigint n))))
-
-(contracts/provide
- (nt-power
-  "Constraints for number-theoretic power function"
-  [n m] [(number? n) (not (neg? n))
-         (number? m) (not (neg? m))
-         =>
-         number?
-         pos?]))
-
 (defn make-partition-book-ends [end p]
   (let [e (bigint end)
         q (quot e p)
@@ -67,22 +73,6 @@
     (for [i (range p)]
       [(* i q) (+ (if (== i (dec p)) r 0)
                   (* (inc i) q))])))
-
-(defn try-divisors
-  ([n start end]
-     (if (even? start)
-       (case start
-         (0 2) (try-divisors n 3 end [])
-         (try-divisors n (inc start) end []))
-       (if (== 1 start)
-         (try-divisors n 3 end [])
-         (try-divisors n start end []))))
-  ([n k end acc]
-     (if (or (== 1 n) (>= k end))
-       acc
-       (if (== 0 (rem n k))
-         (recur (quot n k) k end (conj acc k))
-         (recur n (+ 2 k) end acc)))))
 
 (defn divide-out [n k acc]
   (if (== 0 (rem n k))

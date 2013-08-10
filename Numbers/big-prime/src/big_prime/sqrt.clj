@@ -1,6 +1,10 @@
-(ns big-prime.sqrt)
+(ns big-prime.sqrt
+  (:use [clojure.core.contracts :as contracts]))
+
 ;;; It's unclear whether ^clojure.lang.BigInt type hints actually
-;;; improve perf. TODO: Use Criterium library to profile.
+;;; improve perf.
+;;; TODO: Use Criterium library to profile.
+;;; TODO: Rename as number-theoretic functions.
 
 (defn sum 
   ([] 0)
@@ -48,4 +52,26 @@
   "Number-theoretic square root (largest integer whose square is less than or equal to the target)"
   [x]
   (nt-try-sqrt 1 (bigint x)))
+
+;;; TODO: Build up the contracts in here. See nt-power for an example.
+;;; TODO: move nt-power to sqrt; rename sqrt to nt (for number-theoretic)
+
+(defn nt-power [n m]
+  ;; Also consider: (reduce * 1N (repeat m n))
+  (letfn [(helper [n m acc]
+             (cond
+              (== m 0) 1N
+              (== m 1) acc
+              :else (recur n (dec m) (* n acc))))]
+    (helper (bigint n) m (bigint n))))
+
+(contracts/provide
+ (nt-power
+  "Constraints for number-theoretic power function"
+  [n m] [(integer? m)
+         (not (neg? m))
+         (number? n)
+         =>
+         number?
+         (if (pos? n) (pos? %) true)]))
 
