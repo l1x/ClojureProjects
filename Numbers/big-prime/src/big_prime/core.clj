@@ -3,6 +3,7 @@
   (:use [big-prime.utils]
         [big-prime.sqrt :as nt]
         [clojure.core.contracts :as contracts]
+        [clojure.set :only [difference]]
         ))
 
 (set! *warn-on-reflection* true)
