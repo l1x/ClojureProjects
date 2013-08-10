@@ -33,6 +33,9 @@
           (is (== s i))
           (is (< (square j) i))
           (is (>= (square (inc j)) i))
+          (is (thrown? AssertionError "Pre-condition failure" (nt-power 2 -3)))
+          (is (thrown? AssertionError "Pre-condition failure" (nt-power 2 3.14)))
+          (is (thrown? AssertionError "Pre-condition failure" (nt-power "2" 3.14)))
           ))
       time
       )
@@ -90,24 +93,21 @@
  ;; *   % java Factors 999999999999989
  ;; *   % java Factors 999999999999999989
 
-    (is (= (try-divisors 477841685N 31 100000) [   1367N 69911N]))
-    (is (= (try-divisors 477841685N  1 100000) [5N 1367N 69911N]))
-    (is (= (try-divisors 477841685N  5 100000) [5N 1367N 69911N]))
+    (is (= (sieve (try-divisors 477841685N 31 100000)) [   1367N 69911N]))
+    (is (= (sieve (try-divisors 477841685N  1 100000)) [5N 1367N 69911N]))
+    (is (= (sieve (try-divisors 477841685N  5 100000)) [5N 1367N 69911N]))
 
     (is (= (divide-out 10000N 2N []) [625 [2 2 2 2]]))
     (is (= (divide-out 10001N 2N []) [10001 []]))
 
-    ;; Fuzz-test:
 
+    ;; Fuzz-test:
     (is (every? (plucker 2)
                 (repeatedly
                  100
                  (fn [] (check-factorization
                         (factors
-                         (big-rand 5) (inc (rand-int 10))))))))
-
-    )
-  )
+                         (big-rand 9) (inc (rand-int 10))))))))))
 
 (deftest integer-operation-tests
 

@@ -23,3 +23,7 @@ rxjava/expt1/maven_repository/local/rxjava-clojure/0.9.1-SNAPSHOT/maven-metadata
 *.pom
 
 rxjava/expt1/maven_repository/local/rxjava-clojure/maven-metadata.xml
+
+*.dependencies
+
+big-prime/.lein-repl-history
