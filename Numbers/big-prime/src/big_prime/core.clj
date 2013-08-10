@@ -63,16 +63,21 @@
       [(* i q) (+ (if (== i (dec p)) r 0)
                   (* (inc i) q))])))
 
-(defn divide-out [n k acc]
+(defn divide-out
+  "Repeatedly divide n by k until it is no longer possible. Produce a vector containing n / k^p, where p is the number of times k divides n; and p copies of k in a subvector."
+  [n k acc]
   (if (divides? k n)
     (recur (quot n k) k (conj acc k))
     [n acc]))
 
-(defn find-divisors [n p]
+(defn find-divisors
+  "Find integer divisors of the positive integer n using p potentially parallel threads. Parallel-mapper-flag is treated as a soft Boolean -- any non-nil, non-false value will be \"true\" (current experiments suggest that speed does not depend on the parallel-mapper-flag)."
+  [n p & parallel-mapper-flag]
   (let [sqrt-n           (inc (nt/nt-sqrt n))
         ds               (make-partition-book-ends sqrt-n p)
         [target maybe-2] (divide-out n 2 [])
-        found (map   (fn [[start end]] (try-divisors target start end))   ds)]
+        found            ((if parallel-mapper-flag pmap map)
+                          (fn [[start end]] (try-divisors target start end))   ds)]
     (concat
      maybe-2
      (apply concat found)
@@ -87,9 +92,11 @@
                        (filter (partial does-not-divide? x)
                                (rest xs))))))))
 
-(defn factors [n p]
+(defn factors
+  "Factor the integer n using p potentially parallel threads. Parallel-mapper-flag is treated as a soft Boolean -- any non-nil, non-false value will be \"true\" (current experiments suggest that speed does not depend on the parallel-mapper-flag)."
+  [n p & parallel-mapper-flag]
   (let [t (bigint n)]
-    (let [divisors (find-divisors t p)
+    (let [divisors (find-divisors t p parallel-mapper-flag)
           residuals  (filter
                       #(not= 1 %)
                       (reductions

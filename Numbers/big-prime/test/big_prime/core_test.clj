@@ -93,6 +93,9 @@
  ;; *   % java Factors 999999999999989
  ;; *   % java Factors 999999999999999989
 
+    ;; Timing shows that "factors" is about twice as fast as
+    ;; "simple-factors" on my mac book pro 17" 2008 model
+
     (is (= (sieve (try-divisors 477841685N 31 100000)) [   1367N 69911N]))
     (is (= (sieve (try-divisors 477841685N  1 100000)) [5N 1367N 69911N]))
     (is (= (sieve (try-divisors 477841685N  5 100000)) [5N 1367N 69911N]))
