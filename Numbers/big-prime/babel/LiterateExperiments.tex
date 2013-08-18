@@ -1,4 +1,4 @@
-% Created 2013-08-17 Sat 21:07
+% Created 2013-08-18 Sun 06:42
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -30,22 +30,25 @@
 
 \begin{abstract}
 Fast, parallel factoring of integers is the ``Hello, world!''
-of hackers and of good guys.
+of good hackers and of bad guys.
 
 The problem looks like this: given a big integer $n\in\mathbb{N}$ such
  that \[n = p q\] where $p$ and $q$
-are big primes, find $p$ and $q$.  RSA uses numbers like $n$ as public encryption
+are big primes, find $p$ and $q$.
+
+RSA uses numbers like $n$ as public encryption
 keys. Anyone can encrypt you a message using $n$.
 Decrypting is easy only if you know $p$ and $q$.
 
 Because RSA and most of 
 internet security depends on the assumption that factoring is
-hard, this problem is of critical interest. Whoever can
+hard, this problem is critical. Whoever can
 `break' RSA by factoring keys will `own the world' for a short time,
-until internet security is reformulated in some new way. The biggest
-key factored so far is
+until internet security is reformulated in some new way.
 \end{abstract}
 
+
+The biggest RSA key factored as of \textit{<2013-08-18 Sun>} is
 \begin{figure}[H]
 \label{biggest-factored-rsa-key}
 \begin{verbatim}
