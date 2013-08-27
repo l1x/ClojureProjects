@@ -313,7 +313,7 @@
 (let [exploded (-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
                    (.mapMany (comp from-seq string-explode)))
       ;; Must define this container outside the mapMany and the function
-      ;; that napMany applies.
+      ;; that mapMany applies.
       last-container (ref [])]
   (-> exploded
       (.mapMany (fn [x]
