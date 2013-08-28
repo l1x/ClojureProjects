@@ -405,17 +405,21 @@
 ;;; Note that user-supplied symbols must be fully qualified for the
 ;;; Clojail sandbox.
 
+(defn run-jailed-queries
+  [source queries]
+  (let [sb (sandbox secure-tester)
+        es (read-string source)
+        qs (map read-string queries)
+        ]
+    (sb `(-> ~es ~@qs subscribe-collectors pdump ))))
+
 (let [source "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
       queries ["(.mapMany (comp expt1.core/from-seq expt1.core/string-explode))"
                "expt1.core/distinct-until-changed"
               ]
       ]
-  (let [e-source (read-string source)
-        sb       (sandbox secure-tester)
-        qs       (map read-string queries)]
-    (sb `(-> ~e-source ~@qs subscribe-collectors pdump))
-    )
-  )
+  (run-jailed-queries source queries))
+
 
 ;;;  ___              _                             
 ;;; / __|_  _ _ _  __| |_  _ _ ___ _ _  ___ _  _ ___
