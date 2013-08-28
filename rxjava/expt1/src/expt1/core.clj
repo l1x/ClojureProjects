@@ -40,6 +40,11 @@
             clojure.pprint
             [clojure.reflect        :as r      ]
             )
+  (:use     [clojail.core           :only [sandbox]]
+            [clojail.testers        :only [blacklist-symbols
+                                           blacklist-objects
+                                           secure-tester
+                                           ]])
   (:refer-clojure :exclude [distinct])
   (:import [rx Observable subscriptions.Subscriptions])
   )
@@ -71,7 +76,7 @@
 
 (defn- or-default [val default] (if val (first val) default))
 
-(defn- subscribe-collectors [obl & optional-wait-time]
+(defn subscribe-collectors [obl & optional-wait-time]
   (let [wait-time (or-default optional-wait-time 1000)
         ;; Keep a sequence of all values sent:
         onNextCollector      (agent    [])
@@ -379,6 +384,34 @@
      subscribe-collectors
      pdump
      )
+
+;;;  ___               _          _
+;;; | _ \___ _ __  ___| |_ ___ __| |
+;;; |   / -_) '  \/ _ \  _/ -_) _` |
+;;; |_|_\___|_|_|_\___/\__\___\__,_|
+;;;    ___               _
+;;;   / _ \ _  _ ___ _ _(_)___ ___
+;;;  | (_) | || / -_) '_| / -_|_-<
+;;;   \__\_\\_,_\___|_| |_\___/__/
+
+;;; Be sure to set a .java.policy file in the appropriate directory
+;;; (HOME if you are running this as an ordinary user). Here is a very
+;;; liberal policy file
+;;; grant {
+;;;   permission java.security.AllPermission;
+;;; };
+
+(let [source "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
+      queries ["(.mapMany (comp expt1.core/from-seq expt1.core/string-explode))"
+               "expt1.core/distinct-until-changed"
+              ]
+      ]
+  (let [e-source (read-string source)
+        sb       (sandbox secure-tester)
+        qs       (map read-string queries)]
+    (sb `(-> ~e-source ~@qs subscribe-collectors pdump))
+    )
+  )
 
 ;;;  ___              _                             
 ;;; / __|_  _ _ _  __| |_  _ _ ___ _ _  ___ _  _ ___
