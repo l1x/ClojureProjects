@@ -396,10 +396,14 @@
 
 ;;; Be sure to set a .java.policy file in the appropriate directory
 ;;; (HOME if you are running this as an ordinary user). Here is a very
-;;; liberal policy file
+;;; liberal policy file:
+;;;
 ;;; grant {
 ;;;   permission java.security.AllPermission;
 ;;; };
+;;;
+;;; Note that user-supplied symbols must be fully qualified for the
+;;; Clojail sandbox.
 
 (let [source "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
       queries ["(.mapMany (comp expt1.core/from-seq expt1.core/string-explode))"
