@@ -13,6 +13,7 @@
                  ;; [com.netflix.rxjava/rxjava-core    "0.9.1-SNAPSHOT"]
                  ;; [com.netflix.rxjava/rxjava-clojure "0.9.1-SNAPSHOT"]
                  [com.netflix.rxjava/rxjava-clojure "0.9.0"]
+                 [clojail                           "1.0.6"]
                  ]
   :repositories {"local" ~(str (.toURI (java.io.File. "maven_repository")))}
   :main expt1.core)
