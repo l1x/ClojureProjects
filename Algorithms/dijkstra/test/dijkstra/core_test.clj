@@ -1,6 +1,7 @@
 (ns dijkstra.core-test
-  (:require [clojure.test :refer :all]
-            [dijkstra.core :refer :all])
+  (:require [clojure.test    :refer :all]
+            [dijkstra.core   :refer :all]
+            [clojure.java.io :as io])
   (:import  [dijkstra.core DirectedGraph UndirectedGraph]))
 
 (deftest a-test
@@ -49,4 +50,16 @@
 (deftest traverse-test
   (is (= (seq-graph-dfs c-graph :1) [:1 :3 :4 :2]))
   (is (= (seq-graph-bfs c-graph :1) [:1 :2 :3 :4])))
+
+(defn ^:private with-bfg-1 [op]
+  (with-open [rdr (io/reader "./data/wiki-Vote.txt")]
+    (op (line-seq rdr))))
+
+
+(deftest bfg-test
+  (is (== 103693 (with-bfg-1 count)))
+
+  )
+
+
 

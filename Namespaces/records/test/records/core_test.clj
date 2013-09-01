@@ -10,5 +10,5 @@
     (is (= (hello) "hello"))
     (is (= (#'records.core/secret) "secret"))
     (is (= (@#'records.core/secret) "secret"))
-    (is (= [42] (add (records.core/my-vector. []) 42)))))
+    (is (= [42] (add (my-vector. []) 42)))))
 

@@ -92,19 +92,9 @@
         first
         (nth 2))))
 
-(defn seq-graph-dfs [g s]
-  ((fn rec-dfs [explored frontier]
-     (lazy-seq
-       (if (empty? frontier)
-         nil
-         (let [v (peek frontier)
-               neighbors (g v)]
-           (cons v (rec-dfs
-                     (into explored neighbors)
-                     (into (pop frontier) (remove explored neighbors))))))))
-   #{s} [s]))
+;;; http://hueypetersen.com/posts/2013/06/25/graph-traversal-with-clojure/
 
-(defn seq-graph-bfs [g s]
+(defn- seq-graph-traverse [g s strategy]
   ((fn rec-bfs [explored frontier]
      (lazy-seq
        (if (empty? frontier)
@@ -114,4 +104,10 @@
            (cons v (rec-bfs
                      (into explored neighbors)
                      (into (pop frontier) (remove explored neighbors))))))))
-   #{s} (conj (clojure.lang.PersistentQueue/EMPTY) s)))
+   #{s} strategy))
+
+(defn seq-graph-bfs [g s]
+  (seq-graph-traverse g s (conj (clojure.lang.PersistentQueue/EMPTY) s)))
+
+(defn seq-graph-dfs [g s]
+  (seq-graph-traverse g s (conj [] s)))

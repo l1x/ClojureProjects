@@ -10,3 +10,4 @@
 (defrecord my-vector [coll]
   my-sequence
   (add [_ item] (conj coll item)))
+
