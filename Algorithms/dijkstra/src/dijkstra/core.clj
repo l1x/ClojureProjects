@@ -1,5 +1,7 @@
 (ns dijkstra.core)
 
+;;; confer http://hueypetersen.com/posts/2013/07/09/dijkstra-as-a-sequence/?utm_source=dlvr.it&utm_medium=twitter
+
 (defprotocol IGraph
   (vertices  [ g         ])
   (neighbors [ g v       ])
@@ -47,7 +49,13 @@
      (lazy-seq
       (if (empty? frontier)
         nil
-        (let [[v [total-cost predecessor]] (apply min-key (comp first second) frontier)
+        (let [;; "frontier" has the form
+              ;; '{' ( <vertex-keyword> '[' <cost> <predecessor> ']' ) ... '}'
+              ;; therefore "v" is a keyword, "total-cost" is a number,
+              ;; and "predecessor" a keyword.
+              [v [total-cost predecessor]] (apply min-key (comp first second) frontier)
+              ;; path will be a vector of vertices; [] is the default
+              ;; of the lookup of predecessor in the explored map
               path                         (conj (explored predecessor []) v)
               explored                     (assoc explored v path)
               unexplored-neighbors         (remove explored (neighbors g v))
@@ -58,6 +66,6 @@
                                                        new-frontier)]
           (cons [v total-cost path]
                 (explore explored frontier))))))
-   {}                                   ; explored
-   { start [0] }))                      ; frontier
+   {}                                   ; first val of explored
+   { start [0] }))                      ; first val of frontier
 
