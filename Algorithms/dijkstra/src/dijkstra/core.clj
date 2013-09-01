@@ -1,4 +1,5 @@
-(ns dijkstra.core)
+(ns dijkstra.core
+  (:require [clojure.data.priority-map :as pmap]))
 
 ;;; confer http://hueypetersen.com/posts/2013/07/09/dijkstra-as-a-sequence/?utm_source=dlvr.it&utm_medium=twitter
 
@@ -44,28 +45,52 @@
 ;;;
 ;;; { :v [1 :s] }
 
-(defn shortest-paths [g start]
+(defn shortest-paths-linear [g start]
   ((fn explore [explored frontier]
      (lazy-seq
       (if (empty? frontier)
         nil
         (let [;; "frontier" has the form
-              ;; '{' ( <vertex-keyword> '[' <cost> <predecessor> ']' ) ... '}'
-              ;; therefore "v" is a keyword, "total-cost" is a number,
-              ;; and "predecessor" a keyword.
+              ;; '{' ( <vertex> '[' <cost> <predecessor> ']' ) ... '}'
               [v [total-cost predecessor]] (apply min-key (comp first second) frontier)
               ;; path will be a vector of vertices; [] is the default
               ;; of the lookup of predecessor in the explored map
-              path                         (conj (explored predecessor []) v)
-              explored                     (assoc explored v path)
-              unexplored-neighbors         (remove explored (neighbors g v))
-              new-frontier                 (into {} (for [n unexplored-neighbors]
-                                                      [n [(+ total-cost (cost g v n)) v]]))
-              frontier                     (merge-with (partial min-key first)
-                                                       (dissoc frontier v)
-                                                       new-frontier)]
+              path         (conj (explored predecessor []) v)
+              explored     (assoc explored v path)
+              unexplored   (remove explored (neighbors g v))
+              new-frontier (into {} (for [n unexplored]
+                                      [n [(+ total-cost (cost g v n)) v]]))
+              frontier     (merge-with (partial min-key first)
+                                       (dissoc frontier v)
+                                       new-frontier)]
           (cons [v total-cost path]
                 (explore explored frontier))))))
    {}                                   ; first val of explored
    { start [0] }))                      ; first val of frontier
+
+(defn shortest-paths-log-linear [g start]
+  ((fn explore [explored frontier]
+     (lazy-seq
+      (when-let [[v [total-cost predecessor]] (peek frontier)]
+        (let [path         (conj (explored predecessor []) v)
+              explored     (assoc explored v path)
+              unexplored   (remove explored (neighbors g v))
+              new-frontier (into {} (for [n unexplored]
+                                      [n [(+ total-cost (cost g v n)) v]]))
+              frontier     (merge-with (partial min-key first)
+                                       (pop frontier)
+                                       new-frontier)]
+          (cons [v total-cost path]
+                (explore explored frontier))))))
+   {}                                   ; first val of explored
+   (pmap/priority-map start [0]) ))
+
+(defn shortest-path [g start dest]
+  (let [not-destination? (fn [[vertex _]]
+                           (not= vertex dest))]
+    (-> (shortest-paths-log-linear g start)
+        (->> (drop-while not-destination?))
+        first
+        (nth 2))))
+
 
