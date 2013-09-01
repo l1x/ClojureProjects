@@ -86,11 +86,32 @@
    (pmap/priority-map start [0]) ))
 
 (defn shortest-path [g start dest]
-  (let [not-destination? (fn [[vertex _]]
-                           (not= vertex dest))]
+  (let [not-destination? (fn [[vertex _]] (not= vertex dest))]
     (-> (shortest-paths-log-linear g start)
         (->> (drop-while not-destination?))
         first
         (nth 2))))
 
+(defn seq-graph-dfs [g s]
+  ((fn rec-dfs [explored frontier]
+     (lazy-seq
+       (if (empty? frontier)
+         nil
+         (let [v (peek frontier)
+               neighbors (g v)]
+           (cons v (rec-dfs
+                     (into explored neighbors)
+                     (into (pop frontier) (remove explored neighbors))))))))
+   #{s} [s]))
 
+(defn seq-graph-bfs [g s]
+  ((fn rec-bfs [explored frontier]
+     (lazy-seq
+       (if (empty? frontier)
+         nil
+         (let [v (peek frontier)
+               neighbors (g v)]
+           (cons v (rec-bfs
+                     (into explored neighbors)
+                     (into (pop frontier) (remove explored neighbors))))))))
+   #{s} (conj (clojure.lang.PersistentQueue/EMPTY) s)))

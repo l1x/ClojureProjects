@@ -37,3 +37,16 @@
   (is (= (shortest-path b-graph 1 4) [1 2 3 4]))
 )
 
+;;; Find BFG's here: http://snap.stanford.edu/data/
+
+(def ^:private c-graph
+  { :1 [:2 :3],
+    :2 [:4],
+    :3 [:4],
+    :4 []
+   })
+
+(deftest traverse-test
+  (is (= (seq-graph-dfs c-graph :1) [:1 :3 :4 :2]))
+  (is (= (seq-graph-bfs c-graph :1) [:1 :2 :3 :4])))
+
