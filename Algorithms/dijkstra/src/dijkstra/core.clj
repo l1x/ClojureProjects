@@ -30,43 +30,80 @@
         (assoc-in [v1 v2] c)
         (DirectedGraph.))))
 
-;;; Frontier has the form of a map of pairs. Each key in the map is
-;;; the name of a neighboring vertex. Each value in the map is a pair
-;;; (a 2-vector) of a cost and the predecessor vertex name. For
-;;; instance, a frontier like this
-;;;
-;;; { :v [1 :s] :w [4 :s] }
-;;;
-;;; means we have two successor vertices named :v and :w that connect
-;;; to :s by costs 1 and 4, respectively. To get the successor vertex
-;;; with the minimum cost, apply min-key of (comp first second) on a
-;;; frontier structure. Min-key produces a vertex with its cost pair,
-;;; so it's a one-hop segment of a path, i.e., something like
-;;;
-;;; { :v [1 :s] }
-
 (defn shortest-paths-linear [g start]
+  ;; Apply a function named "explore" to some initial arguments.
+  ;; Explore takes two structures, "explored" and "frontier," and
+  ;; produces a lazy sequence of triples of destination vertex, total
+  ;; cost, and path (sequence of vertices).
+  ;; 
+  ;; "Explored" is a map of vertices and the sequence of vertices that
+  ;; led up to them.
+  ;;
+  ;; "Frontier" is a map of successors to cost-predecessor pairs. For
+  ;; instance, a frontier like this
+  ;;
+  ;; { :v [1 :s] :w [4 :s] }
+  ;;
+  ;; reads as "to :v from :s by an edge of cost 1, and to :w from :s
+  ;; by an edge of cost 4."
+  ;;
+  ;; "Explored" begins as the empty map, and "frontier" begins as the
+  ;; map from "start" with a degenerat pair of cost zero (0) and no
+  ;; predecessor.
   ((fn explore [explored frontier]
      (lazy-seq
       (if (empty? frontier)
         nil
         (let [;; "frontier" has the form
-              ;; '{' ( <vertex> '[' <cost> <predecessor> ']' ) ... '}'
-              [v [total-cost predecessor]] (apply min-key (comp first second) frontier)
-              ;; path will be a vector of vertices; [] is the default
-              ;; of the lookup of predecessor in the explored map
+              ;; '{' <item>:( <succ> '[' <cost> <predec> ']' ) ... '}'
+              ;; Min-key finds the item in the frontier with the
+              ;; minimum cost, and the next line destructures the item
+              ;; into a successor v, the cost-so-far, and v's
+              ;; min-cost predecessor.
+              [v [total-cost predecessor]]
+              (apply min-key (comp first second) frontier)
+              ;; "Explored" is a map of vertices and the the sequence
+              ;; of vertices that led up to them. Using "explored" as
+              ;; a function, look up the possibly-empty path already
+              ;; computed TO the predecessor found above and add the
+              ;; current successor vertex, v, to that path.
               path         (conj (explored predecessor []) v)
+              ;; Update "explored" by adding the successor v and the
+              ;; path that led up to it.
               explored     (assoc explored v path)
+              ;; Now, move forward to another node. Treat v as a
+              ;; provisional predecessor (it has been the successor up
+              ;; to this point). Using "explore" as a predicate this
+              ;; time, remove from the "neighbors" of v -- that is,
+              ;; its successors -- every node that's already been
+              ;; visited. That gives us the sequence of unexplored
+              ;; nodes with predecessor v.
               unexplored   (remove explored (neighbors g v))
+              ;; Make a fresh provisional frontier from a
+              ;; comprehension; for each unexplored, create a
+              ;; key-value pair and 'push' it into a fresh map; the
+              ;; key is the unexplored node and the value is a pair of
+              ;; cost and predecessor v. Every item in this
+              ;; provisional frontier has predecessor v, that is, v in
+              ;; the predecessor position of each cost-node pair.
               new-frontier (into {} (for [n unexplored]
                                       [n [(+ total-cost (cost g v n)) v]]))
+              ;; The old frontier includes v itself in successor
+              ;; position; that's how we found v, by picking it out of
+              ;; the old frontier. Take v out of the old frontier and
+              ;; merge the resulting structure with the new
+              ;; provisional frontier, keeping the minimum-cost
+              ;; alternative in the case of ties. This merging insures
+              ;; that every node in the graph is eventually explored
+              ;; because we don't lose the unexplored nodes in the old
+              ;; frontier.
               frontier     (merge-with (partial min-key first)
                                        (dissoc frontier v)
                                        new-frontier)]
           (cons [v total-cost path]
                 (explore explored frontier))))))
-   {}                                   ; first val of explored
-   { start [0] }))                      ; first val of frontier
+   {}                                   ; initial val of explored
+   { start [0] }))                      ; initial val of frontier
 
 (defn shortest-paths-log-linear [g start]
   ((fn explore [explored frontier]
@@ -94,20 +131,32 @@
 
 ;;; http://hueypetersen.com/posts/2013/06/25/graph-traversal-with-clojure/
 
-(defn- seq-graph-traverse [g s strategy]
-  ((fn rec-bfs [explored frontier]
-     (lazy-seq
-       (if (empty? frontier)
-         nil
-         (let [v (peek frontier)
-               neighbors (g v)]
-           (cons v (rec-bfs
+(defn- seq-graph-traverse [g s strategy visitor]
+  (if (not (g s)) '()
+      ((fn rec-bfs [explored frontier]
+         (lazy-seq
+          (if (empty? frontier)
+            nil
+            (let [v         (peek frontier)
+                  neighbors (g v)]
+              (cons (visitor v)
+                    (rec-bfs
                      (into explored neighbors)
                      (into (pop frontier) (remove explored neighbors))))))))
-   #{s} strategy))
+       #{s} strategy)))
 
-(defn seq-graph-bfs [g s]
-  (seq-graph-traverse g s (conj (clojure.lang.PersistentQueue/EMPTY) s)))
+(defn seq-graph-bfs [g s & optional-visitor]
+  (let [visitor (if optional-visitor (first optional-visitor) identity)]
+    (seq-graph-traverse
+     g
+     s
+     (conj (clojure.lang.PersistentQueue/EMPTY) s)
+     visitor)))
 
-(defn seq-graph-dfs [g s]
-  (seq-graph-traverse g s (conj [] s)))
+(defn seq-graph-dfs [g s & optional-visitor]
+  (let [visitor (if optional-visitor (first optional-visitor) identity)]
+    (seq-graph-traverse
+     g
+     s
+     (conj [] s)
+     visitor)))
