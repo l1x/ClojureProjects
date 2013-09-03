@@ -1,6 +1,7 @@
 (ns dijkstra.core-test
   (:require [clojure.test    :refer :all]
             [dijkstra.core   :refer :all]
+            [midje.sweet     :refer :all]
             [clojure.java.io :as io])
   (:import  [dijkstra.core DirectedGraph UndirectedGraph]))
 
@@ -39,6 +40,18 @@
 
   (is (= (shortest-path b-graph 1 4) [1 2 3 4]))
 )
+
+(facts "about shortest paths:"
+       (fact "Linear-time shortest-path search starting at :s produces shortest paths to all other nodes."
+             (shortest-paths-linear a-graph :s) =>
+             [[:s 0 [:s]]
+              [:v 1 [:s :v]]
+              [:w 3 [:s :v :w]]
+              [:t 6 [:s :v :w :t]]])
+       (fact "Log-linear-time shortest-path search starting at :s produces the same results as linear-time shortest paths."
+             (shortest-paths-log-linear a-graph :s) =>
+             (shortest-paths-linear     a-graph :s))
+       )
 
 ;;; Find BFG's here: http://snap.stanford.edu/data/
 
