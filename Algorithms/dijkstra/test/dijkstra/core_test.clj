@@ -2,8 +2,11 @@
   (:require [clojure.test    :refer :all]
             [dijkstra.core   :refer :all]
             [midje.sweet     :refer :all]
+            [criterium.core  :as crit]
             [clojure.java.io :as io])
   (:import  [dijkstra.core DirectedGraph UndirectedGraph]))
+
+#_(crit/bench (Thread/sleep 1000))
 
 (deftest a-test
   (testing "test itself."
@@ -117,5 +120,31 @@
       (DirectedGraph. (graph-from-pairs bfg-1-pairs))
       30 2014))
 
+;;; Results of a criterium run:
 
+;;; dijkstra.core-test> (crit/bench (doall (shortest-paths-log-linear g 30)))
+;;; WARNING: JVM argument TieredStopAtLevel=1 is active, and may lead to unexpected results as JIT C2 compiler may not be active. See http://www.slideshare.net/CharlesNutter/javaone-2012-jvm-jit-for-dummies.
+;;; Evaluation count : 240 in 60 samples of 4 calls.
+;;;              Execution time mean : 267.182736 ms
+;;;     Execution time std-deviation : 1.976548 ms
+;;;    Execution time lower quantile : 265.749136 ms ( 2.5%)
+;;;    Execution time upper quantile : 268.267255 ms (97.5%)
+;;;                    Overhead used : 114.433129 ns
+;;; 
+;;; Found 1 outliers in 60 samples (1.6667 %)
+;;; 	low-severe	 1 (1.6667 %)
+;;;  Variance from outliers : 1.6389 % Variance is slightly inflated by outliers
 
+;;; dijkstra.core-test> (crit/bench (doall (shortest-paths-linear g 30)))
+;;; WARNING: JVM argument TieredStopAtLevel=1 is active, and may lead to unexpected results as JIT C2 compiler may not be active. See http://www.slideshare.net/CharlesNutter/javaone-2012-jvm-jit-for-dummies.
+;;; Evaluation count : 60 in 60 samples of 1 calls.
+;;;              Execution time mean : 1.644806 sec
+;;;     Execution time std-deviation : 22.473758 ms
+;;;    Execution time lower quantile : 1.629214 sec ( 2.5%)
+;;;    Execution time upper quantile : 1.716874 sec (97.5%)
+;;;                    Overhead used : 114.433129 ns
+;;; 
+;;; Found 10 outliers in 60 samples (16.6667 %)
+;;; 	low-severe	 3 (5.0000 %)
+;;; 	low-mild	 7 (11.6667 %)
+;;;  Variance from outliers : 1.6389 % Variance is slightly inflated by outliers
