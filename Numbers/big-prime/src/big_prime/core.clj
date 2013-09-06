@@ -118,7 +118,7 @@
         total (apply nt/product build)]
     [target total (= target total) factors build]))
 
-#_(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
+(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
 
 (defn- rand-digit [] (rand-int 10))
 

@@ -6,7 +6,7 @@
 ;;; http://onclojure.com/2009/03/05/a-monad-tutorial-for-clojure-programmers-part-1/
 
 (deftest a-test
-  (testing "m-bind"
+  (testing "m-bind on maybe"
     (is (=
 
          (with-monad
@@ -49,22 +49,26 @@
                                           b nil]
                                       (* a b)))
       "Non-monadic computation throws NullPointerException")
-
-  (is (= (domonad sequence-m
-                  [a (range 5)
-                   b (range a)]
-                  (* a b))
-         (for [a (range 5)
-               b (range a)]
-           (* a b)))
-      "Monadic sequence equals for comprehension")
-
-  (let [maybe-in-sequence-m (maybe-t-2 sequence-m)]
-    )
-
-  (is (thrown? ArithmeticException (/ 1 0)))
-
-  (is (thrown-with-msg? ArithmeticException #"Divide by zero" (/ 1 0)))
-
   )
+
+(deftest exception-throwing-test
+  (testing "exceptions are thrown"
+    (is (thrown? ArithmeticException (/ 1 0)))
+    (is (thrown-with-msg? ArithmeticException #"Divide by zero" (/ 1 0)))
+    ))
+
+(deftest comprehension-test
+  (testing "sequence monad and comprehension"
+    (is (= (domonad sequence-m
+                    [a (range 5)
+                     b (range a)]
+                    (* a b))
+           (for [a (range 5)
+                 b (range a)]
+             (* a b)))
+        "Monadic sequence equals for comprehension")))
+
+(deftest if-not-monad-test
+)
+
 
