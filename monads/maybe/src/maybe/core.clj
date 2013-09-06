@@ -25,19 +25,16 @@
           m-plus   (with-monad m m-plus)
           ]))
 
-(defmonad if-not-m
-  [m-result (fn [[value test]] [value test])
-   m-bind   (fn [[value test] f]
-              (if-not (test value)
-                (pdump [(f value) test])
-                (pdump [value     test])))
-   m-zero   [nil identity]
+(defmonad if-not-error-m
+  [m-result (fn [value] value)
+   m-bind   (fn [value f]
+              (if-not (:error value)
+                (f value) 
+                value))
+   m-zero   {:error "unspecified error"}
+   m-plus   (fn [& mvs]
+              (first (drop-while :error mvs)))
+   
    ])
 
-(domonad if-not-m
-         [a2 [42                            :error]
-          a3 [(quot (first a2) 2)           :error]
-          a5 [{:error "not divisible by 5"} :error]
-          a7 [(quot (first a5) 7)           :error]
-          ]
-         a7)
+
