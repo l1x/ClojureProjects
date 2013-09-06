@@ -26,17 +26,18 @@
           ]))
 
 (defmonad if-not-m
-  [m-result (fn [[value test transform]] [value test transform])
-   m-bind   (fn [[value test transform] f]
+  [m-result (fn [[value test]] [value test])
+   m-bind   (fn [[value test] f]
               (if-not (test value)
-                (pdump [(transform value) test transform])
-                (pdump [value             test transform])))
+                (pdump [(f value) test])
+                (pdump [value     test])))
+   m-zero   [nil identity]
    ])
 
 (domonad if-not-m
-         [a2 [42 :error #(quot % 2)]
-          a3 [(first a2) :error #(quot % 3)]
-          a5 [(first a3) :error (fn [_] {:error "not divisible by 5"})]
-          a7 [(first a5) :error #(quot % 7)]
+         [a2 [42                            :error]
+          a3 [(quot (first a2) 2)           :error]
+          a5 [{:error "not divisible by 5"} :error]
+          a7 [(quot (first a5) 7)           :error]
           ]
          a7)
