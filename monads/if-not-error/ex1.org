@@ -1,0 +1,266 @@
+#+TITLE: Fluent, Composable Error Handling
+#+AUTHOR: Brian Beckman
+#+LATEX_HEADER: \usepackage{tikz}
+#+LATEX_HEADER: \usepackage{tikz}
+#+LATEX_HEADER: \usepackage{tikz-cd}
+#+LATEX_HEADER: \usetikzlibrary{matrix,arrows,positioning,scopes,chains}
+#+LATEX_HEADER: \tikzset{node distance=2cm, auto}
+#+BEGIN_COMMENT
+The following line generates a benign error
+#+LATEX_HEADER: \usepackage{amsmath, amsthm, amssymb}
+#+END_COMMENT
+#+STYLE: <link rel="stylesheet" type="text/css" href="styles/default.css" />
+#+BEGIN_COMMENT
+  TODO: Integrate BibTeX
+#+END_COMMENT
+
+* Introduction
+  
+  Consider a program composed of a sequence of /serially dependent/
+  computations, any of which produces either a value to feed to the
+  next computation or an error value. If any component in the sequence
+  produces an error value, that value should be the result of the
+  entire sequence and all computations following the erroring
+  computation should be abandoned.
+
+  The desired behavior is similar to that of the Maybe
+  monad,[fn::http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad]
+  the difference being that /Maybe/ just produce /Nothing/ if anything
+  goes wrong. The consumer of the computation doesn't know what stage
+  of the pipeline failed nor any details at all about the error.
+  /Maybe/ suppresses all that. Such a situation is not tolerable in
+  the real world. Consider the example of a database retrieval
+  followed by a few web-service calls followed by a filter and
+  transformation followed by a logging call followed by output to UI
+  components. If something goes wrong in this sequence of
+  computations, we need to know exactly where and as much detail as
+  we can get about the failure. But we certainly don't want any
+  computations downstream of the failure to be attempted.
+
+
+* Code
+
+#+BEGIN_SRC text :exports none :mkdirp yes :tangle ./ex1/.gitignore
+/target
+/lib
+/classes
+/checkouts
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+.lein-deps-sum
+.lein-failures
+.lein-plugins
+.lein-repl-history
+#+END_SRC
+
+#+BEGIN_SRC markdown :exports none :mkdirp yes :tangle ./ex1/README.md
+# ex1
+A Clojure library designed to do SOMETHING. 
+## Usage
+TODO
+## License
+Copyright © 2013 TODO
+#+END_SRC
+
+#+BEGIN_SRC clojure :noweb yes :mkdirp yes :tangle ./ex1/project.clj :exports none
+  <<project-file>>
+#+END_SRC
+
+#+NAME: project-file
+#+BEGIN_SRC clojure :tangle no
+(defproject ex1 "0.1.0-SNAPSHOT"
+  :description "Project Fortune's Excel Processor"
+  :url "http://example.com/TODO"
+  :license {:name "TODO"
+            :url "TODO"}
+  :dependencies [[org.clojure/clojure     "1.5.1"]
+                 [org.clojure/algo.monads "0.1.4"]
+                 [org.clojure/data.zip    "0.1.1"]
+                 [dk.ative/docjure        "1.6.0"]
+                ]
+  :repl-options {:init-ns ex1.core})
+#+END_SRC
+
+#+BEGIN_SRC markdown :exports none :mkdirp yes :tangle ./ex1/doc/intro.md
+# Introduction to ex1
+TODO: The project documentation is the .org file that produced 
+this output, but it still pays to read
+http://jacobian.org/writing/great-documentation/what-to-write/
+#+END_SRC
+
+#+name: top-level-load-block
+#+BEGIN_SRC clojure :exports none :mkdirp yes :tangle ./ex1/src/ex1/core.clj :padline no :results silent :noweb yes
+<<main-namespace>>
+<<main-monad>>
+#+END_SRC
+
+#+name: main-namespace
+#+BEGIN_SRC clojure :results silent 
+(ns ex1.core
+  (:use clojure.algo.monads))
+#+END_SRC
+
+#+name: main-monad
+#+BEGIN_SRC clojure :results silent 
+(defmonad if-not-error-m
+  [m-result (fn [value] value)
+   m-bind   (fn [value f]
+              (if-not (:error value)
+                (f value) 
+                value))
+   m-zero   {:error "unspecified error"}
+   m-plus   (fn [& mvs]
+              (first (drop-while :error mvs)))
+   
+   ])
+#+END_SRC
+
+#+BEGIN_SRC clojure  :exports none :mkdirp yes :tangle ./ex1/test/ex1/core_test.clj :padline no :results silent :noweb yes
+<<main-test-namespace>>
+<<test-monads>>
+#+END_SRC
+
+#+name: main-test-namespace
+#+BEGIN_SRC clojure :results silent 
+(ns ex1.core-test
+  (:require [clojure.test        :refer :all]
+            [ex1.core            :refer :all]
+            [clojure.algo.monads :refer :all]))
+#+END_SRC
+
+#+name: test-monads
+#+BEGIN_SRC clojure :results silent 
+(deftest exception-throwing-test
+  (testing "exceptions are thrown"
+    (is (thrown? ArithmeticException (/ 1 0)))
+    (is (thrown-with-msg? ArithmeticException #"Divide by zero" (/ 1 0)))
+    ))
+
+(deftest comprehension-test
+  (testing "sequence monad and comprehension"
+    (is (= (domonad sequence-m
+                    [a (range 5)
+                     b (range a)]
+                    (* a b))
+           (for [a (range 5)
+                 b (range a)]
+             (* a b)))
+        "Monadic sequence equals for comprehension")))
+
+(defn- divisible? [n k]
+  (= 0 (rem n k)))
+
+(def ^:private not-divisible?
+  (complement divisible?))
+
+(defn- divide-out [n k]
+  (if (divisible? n k)
+    (recur (quot n k) k)
+    n))
+
+(defn- error-returning-check-divisibility-by [k n]
+  (let [q (divide-out n k)]
+    (if (= q n)
+      {:error (str n ": not divisible by " k)}
+      q)))
+
+(defn- exception-throwing-check-divisibility-by [k n]
+  (let [q (divide-out n k)]
+    (if (= q n)
+      (throw (Exception.
+              (str {:error (str n ": not divisible by " k)})))
+      q)))
+
+(defn- best-small-divisor-sample [a2]
+  (try
+    (->> a2
+        (exception-throwing-check-divisibility-by 2)
+        (exception-throwing-check-divisibility-by 3)
+        (exception-throwing-check-divisibility-by 5)
+        (exception-throwing-check-divisibility-by 7))
+    (catch Exception e (.getMessage e)))
+  )
+
+()
+
+(defn- ugly-small-divisor-sample [a2]
+  (if (not-divisible? a2 2)
+    {:error (str a2 ": not divisible by 2")}
+    (let [a3 (quot a2 2)]
+      (if (not-divisible? a3 3)
+        {:error (str a3 ": not divisible by 3")}
+        (let [a5 (quot a3 3)]
+          (if (not-divisible? a5 5)
+            {:error (str a5 ": not divisible by 5")}
+            (let [a7 (quot a5 5)]
+              (if (not-divisible? a7 7)
+                {:error (str a7 ": not divisible by 7")}
+                {:success (str a7 ": divisible by 2, 3, 5, and 7")}
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+
+(defn- not-pretty-enough-small-divisor-sample [a2]
+  (with-monad if-not-error-m
+    (->
+     (m-bind (m-result a2 ) (fn [a2]  (m-result (error-returning-check-divisibility-by 2 a2))))
+     (m-bind  (fn [a3]  (m-result (error-returning-check-divisibility-by 3 a3))))
+     (m-bind  (fn [a5]  (m-result (error-returning-check-divisibility-by 5 a5))))
+     (m-bind  (fn [a7]  (m-result (error-returning-check-divisibility-by 7 a7))))
+     )))
+
+(defn- prettier-small-divisor-sample [a2]
+  (domonad if-not-error-m
+           [a3  (error-returning-check-divisibility-by 2 a2)
+            a5  (error-returning-check-divisibility-by 3 a3)
+            a7  (error-returning-check-divisibility-by 5 a5)
+            a11 (error-returning-check-divisibility-by 7 a7)
+            ]
+           a11))
+
+(defn- even-prettier-small-divisor-sample [a2]
+  (with-monad if-not-error-m
+    ((m-chain
+      [(partial error-returning-check-divisibility-by 2)
+       (partial error-returning-check-divisibility-by 3)
+       (partial error-returning-check-divisibility-by 5)
+       (partial error-returning-check-divisibility-by 7)
+       ])
+     a2)))
+
+(defn- prettiest-small-divisor-sample [a2]
+  (with-monad if-not-error-m
+    ((m-chain
+      (vec (map #(partial error-returning-check-divisibility-by %)
+                [2 3 5 7])))
+     a2)))
+
+(deftest if-not-error-monad-test
+  (testing "the if-not-error-monad"
+    (is (=
+         (ugly-small-divisor-sample 42)
+         (prettier-small-divisor-sample 42)))
+    (is (=
+         (ugly-small-divisor-sample 42)
+         (not-pretty-enough-small-divisor-sample 42)))
+    (is (=
+         (ugly-small-divisor-sample 42)
+         (even-prettier-small-divisor-sample 42)))
+    (is (=
+         (ugly-small-divisor-sample 42)
+         (prettiest-small-divisor-sample 42)))    )
+)
+#+END_SRC
+ 
+* References
+
+* Conclusion
+
+  
