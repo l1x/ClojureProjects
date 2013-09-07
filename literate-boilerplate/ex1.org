@@ -1,5 +1,5 @@
-#+TITLE: Literate Clojure
-#+AUTHOR: The Team of Fu
+#+TITLE: Fluent, Composable Error Handling
+#+AUTHOR: Brian Beckman
 #+LATEX_HEADER: \usepackage{tikz}
 #+LATEX_HEADER: \usepackage{tikz}
 #+LATEX_HEADER: \usepackage{tikz-cd}
@@ -15,11 +15,26 @@ The following line generates a benign error
 #+END_COMMENT
 
 * Introduction
-\begin{figure}
-  \centering
-  \includegraphics[width=0.5\textwidth]{FuFortune2.png}
-  \caption{\label{fig:fufortune}This means ``Fortune'' and is pronounced ``Fu''.}
-\end{figure}
+  
+  Consider a program composed of a sequence of computations, any of
+  which produces either a value to feed to the next computation in the
+  sequence or an error value. Let us call the computations in such a
+  sequence /serially dependent/. 
+
+  A real-world example would be a database retrieval followed by some
+  web-service calls followed by a transformation followed by a logging
+  call followed by output to UI components.
+
+  We want the composition of these computations to abandon the
+  sequence on the first error value, and for the result of the entire
+  computation to be that error value. The desired behavior is similar
+  to that of the Maybe
+  monad,[fn::http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad]
+  the difference being that a sequence of computations in the Maybe
+  monad just produce /Nothing/ if anything goes wrong: we don't know
+  what stage of the pipeline failed nor any details about the error
+  at all. /Maybe/ suppresses all that. In our scenario, we want to
+  produce, as the result of the entire chain, 
 
 ** How-To's
   This is a literate program.[fn:LP: See
