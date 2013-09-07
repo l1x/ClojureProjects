@@ -166,7 +166,8 @@ in that buffer (see more in section
   :dependencies [[org.clojure/clojure  "1.5.1"]
                  [org.clojure/data.zip "0.1.1"]
                  [dk.ative/docjure     "1.6.0"]
-                ])
+                ]
+  :repl-options {:init-ns ex1.core})
 #+END_SRC
 
 ** The Documentation Subdirectory
