@@ -16,12 +16,173 @@ The following line generates a benign error
 
 * Introduction
   
-  Consider a program composed of a sequence of /serially dependent/
-  computations, any of which produces either a value to feed to the
-  next computation or an error value. If any component in the sequence
-  produces an error value, that value should be the result of the
-  entire sequence and all computations following the erroring
-  computation should be abandoned.
+  Consider a program composed of /serially dependent computations/,
+  any of which produces either a value to feed to the next computation
+  in line or an error. If any computation in the sequence produces an
+  error, no downstream computations should be attempted and that error
+  should be the result of the entire sequence.
+
+  We show how to write such a program in fluent style, which
+  minimizes the number of temporary variables that must be invented
+  and named. This style directly mimics the abstract data flow of the
+  solution. We further show techniques for fluent error handling,
+  both with exceptions and with returned error codes.
+
+* Motivating Example Problem  
+
+  As a concrete example, suppose we must
+  get an authorization token, do a database lookup, do a web-service
+  call, filter the results of that call, do another web-servie call,
+  and then combine the results. The data flow of our program
+  resembles that in figure \ref{fig:dataflow}.
+
+\begin{figure}
+\begin{center}
+\begin{tikzpicture}[
+  font=\sffamily,
+  every matrix/.style={ampersand replacement=\&,column sep=1cm,row sep=1cm},
+  source/.style={draw,thick,rounded corners,fill=yellow!20,inner sep=.3cm},
+  process/.style={draw,thick,circle,fill=blue!20},
+  sink/.style={source,fill=green!20},
+  rectangle/.style={draw,very thick,shape=rectangle,inner sep=.3cm},
+  dots/.style={gray,scale=2},
+  invisible/.style={},
+  to/.style={->,>=stealth',shorten >=1pt,semithick,font=\sffamily\footnotesize},
+  every node/.style={align=center}]
+
+  % Position  nodes using a matrix layout
+  \matrix{
+      {}
+      \& \node[source] (auth) {get authToken};
+      \& \\
+
+      {}
+      \& \node[process] (database) {read\\database};
+      \& \\
+
+      \node[process] (wscall1) {call web\\svc 1};
+      \& 
+      \& \node[process] (wscall2) {call web\\svc 2}; \\
+
+      \node[process] (filter) {filter};
+      \&
+      \& \node[invisible] (placeholder) {}; \\
+
+      {}
+      \& \node[process] (combine) {combine};
+      \& \\
+
+      {}
+      \& \node[sink] (result) {result};
+      \& \\
+  };
+
+  % Draw the arrows between the nodes and label them.
+  \draw[to] (auth) -- node[midway,right] {auth\\token} (database);
+  \draw[to] (database) -- node[midway,left] {PO} (wscall1);
+  \draw[to] (database) -- node[midway,right] {PO} (wscall2);
+  \draw[to] (wscall1)  -- node[midway,left] {item} (filter);
+  \draw[to] (filter)   -- node[midway,left] {item} (combine);
+  \draw[to] (wscall2)  -- node[midway,right] {price} (combine);
+  \draw[to] (combine)  -- (result);
+
+\end{tikzpicture}
+\end{center}
+\caption{\label{fig:dataflow}Serially dependent computations}
+\end{figure}
+
+  In the \mbox{C++ -- like} languages, including JavaScript and Java,
+  we might keep intermediate results in instance variables and model
+  the flow as methods that produce instances from instances, that is,
+  as \textbf{transforms}, also called \textbf{fluent style}. Imagine a
+  /main/ program like the following, in which put transforms on their
+  own lines, indented from their /sources/ by one \mbox{4-space} tab
+  stop. The \textbf{source} of a transform is an expression that
+  produces an object.
+
+#+BEGIN_SRC java :tangle no
+    public static void main(String[] args) {
+        Computation databaseResults = new Computation()
+            .authorize()
+            .readDatabase();
+        String result = databaseResults
+            .callWebService()
+            .filterResults()
+            .combineResults(databaseResults
+                .callOtherWebService());
+        System.out.println(result); } }
+#+END_SRC
+
+  Notice that we save the /Computation/ produced by reading the
+  database in its own local variable, namely /databaseResults/. We do
+  so because the dataflow branches from that result and we need to
+  use it twice, once as the source for calling the first web service
+  and once as the source for calling the second web service. If not
+  for this branching and recombining of the dataflow, we might have
+  written the entire program as one, fluent expression. 
+
+#+BEGIN_SRC java :tangle no
+public class Computation {
+    private String authToken;
+    private String databaseResults;
+    private String webServiceCallResults;
+    private String filteredWebServiceCallResults;
+    private String otherWebServiceCallResults;
+    
+    public Computation () {}
+    public Computation authorize() {
+        authToken = "John's credentials";
+        return this; }
+    public Computation readDatabase() {
+        databaseResults = "{\"name\":\"John\", \"PO\":\"421357\"}";
+        return this; }
+    public Computation callWebService() {
+        webServiceCallResults =
+            "{\"item\":\"camera\", \"item\":\"shoes\"}";
+        return this; }
+    public Computation filterResults() {
+        filteredWebServiceCallResults =
+            "{\"item\":\"camera\"}";
+        return this; }
+    public Computation callOtherWebService() {
+        otherWebServiceCallResults = "{\"price\":\"420.00\"}";
+        return this; }
+    public String combineResults(Computation other) {
+        return "{[" + filteredWebServiceCallResults +
+            "," + otherWebServiceCallResults + "]}"; }
+
+    public static void main(String[] args) {
+        Computation databaseResults = new Computation()
+            .authorize()
+            .readDatabase();
+        String result = databaseResults
+            .callWebService()
+            .filterResults()
+            .combineResults(databaseResults
+                .callOtherWebService());
+        System.out.println(result); } }
+#+END_SRC
+
+  One of the better ways to write such a program is to package every
+  computation in a function (or method) that either produces a correct
+  value or throws an exception.
+
+  So packaged, we may write the program
+  directly as a sequence /via/ Clojure's \verb|->| or \verb|->>| or
+  the \verb|let| syntax, as follows:
+
+#+BEGIN_SRC clojure :tangle no
+  (try
+    (let [auth-token        (get-auth-token)
+          db-results        (read-database auth-token)
+          svc-results       (call-web-service db-results)
+          other-svc-results (call-other-web-service svc-results)
+          filtered-results  (filter my-predicate 
+        read-database
+        
+    (catch Exception e (.getMessage e)))
+
+#+END_SRC
 
   The desired behavior is similar to that of the Maybe
   monad,[fn::http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad]
