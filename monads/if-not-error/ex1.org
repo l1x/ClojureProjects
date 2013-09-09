@@ -525,10 +525,11 @@ public class Computation {
   holding the results of the database read, which we must use for each
   of the two web-service calls. Even this variable can be eliminated
   /via/ /memoization/, /common sub-expression elimination/, /lambda
-  lifting/, /the state monad/, or /parallel composition/, but let's go
-  one step at a time and write the flow directly as a sequential
-  composition of function calls /via/ Clojure's \verb|->|, using its
-  \verb|let| syntax for the one remaining state variable, as follows:
+  lifting/, /the state monad/, or /parallel composition/, but let's do
+  that another time and place. For now, let's write the flow directly
+  as a sequential composition of function calls /via/ Clojure's
+  \verb|->|, using its \verb|let| syntax for the one remaining state
+  variable, as follows:
 
 #+NAME functional-attempt-1
 #+BEGIN_SRC clojure :tangle no
@@ -569,15 +570,17 @@ public class Computation {
     (catch Exception e (.getMessage e))))
 #+END_SRC
 
-  Several improvements are already noticeable in this first attempt: 
+  Several improvements are notable in this first attempt:
   + first, as stated, with but one exception, state variables have
-    become function parameters, purely local to each transform
+    become immutable function parameters, purely local to each
+    transform
   + the one remaining state variable is itself immutable, removing
     any need for temporal reasoning -- we only need to understand
     dependencies, and they are explicit in the code
-  + the values of each mock can be modeled directly in the language
-    as hash-maps, arrays, integers, and decimal numbers like
-    $420.00M$, as opposed to JSON objects encoded in strings
+  + the code is shorter, less repetitive, and less noisy
+  + the values of each mock can be modeled directly as hash-maps,
+    arrays, integers, and decimal numbers like $420.00M$, as opposed
+    to JSON objects encoded in strings
     + such direct modeling removes the implied need, which we had
       unstated in our Java solution, for JSON serialization and
       parsing
@@ -589,8 +592,29 @@ public class Computation {
       constructor call from \verb|(computation)| to
       \verb|(Computation.)|, which is shorthand for 
       \verb|(new Computation)| 
+    
+  We continue to use Java's native /Exception/ class, and this
+  illustrates Java interop again.
 
 ** Fluent Error Handling Without Exceptions
+
+   The improvements above alone justify the Clojure solution over the
+   Java solution. But the case is closed when it comes to error
+   handling without exceptions. In Clojure, we use a variation of
+   \textbf{the Maybe
+   monad}.[fn::http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad]
+   The difference being that /Maybe/ just produce /Nothing/ if
+   anything goes wrong. The consumer of the computation doesn't know
+   what stage of the pipeline failed nor any details at all about the
+   error. /Maybe/ suppresses all that. Such a situation is not
+   tolerable in the real world. Consider the example of a database
+   retrieval followed by a few web-service calls followed by a filter
+   and transformation followed by a logging call followed by output to
+   UI components. If something goes wrong in this sequence of
+   computations, we need to know exactly where and as much detail as
+   we can get about the failure. But we certainly don't want any
+   computations downstream of the failure to be attempted.
+   
 
 #+NAME if-not-error-monad
 #+BEGIN_SRC clojure :tangle no
@@ -605,19 +629,6 @@ public class Computation {
 
 ** Getting Rid of the Last Variable
 
-  The desired behavior is similar to that of the Maybe
-  monad,[fn::http://en.wikipedia.org/wiki/Monad_(functional_programming)#The_Maybe_monad]
-  the difference being that /Maybe/ just produce /Nothing/ if anything
-  goes wrong. The consumer of the computation doesn't know what stage
-  of the pipeline failed nor any details at all about the error.
-  /Maybe/ suppresses all that. Such a situation is not tolerable in
-  the real world. Consider the example of a database retrieval
-  followed by a few web-service calls followed by a filter and
-  transformation followed by a logging call followed by output to UI
-  components. If something goes wrong in this sequence of
-  computations, we need to know exactly where and as much detail as
-  we can get about the failure. But we certainly don't want any
-  computations downstream of the failure to be attempted.
 
 
 * Code
