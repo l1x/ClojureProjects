@@ -1,4 +1,4 @@
-% Created 2013-09-09 Mon 11:51
+% Created 2013-09-09 Mon 14:26
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -566,62 +566,96 @@ If, instead, we invert the paradigm to make the \emph{transforms} the
 focus, we sidestep this problem. Doing so requires a language with
 first-class transforms, that is, \emph{functions}. Mutable state
 variables become immutable function parameters. Thread-safety
-becomes automatic and locks do not arise. Fluency is free with
-exceptions, as before, and is available for errors-as-return-values
-through a \emph{monadic} technique. Only the name \emph{monad} is exotic; the
-technique is plain and simple and is, in fact, fundamental for
-manageable concurrent and distributed programming, even if we stick
-with mutable, stateful objects. But our scenario is better without
-mutable state, as we show.
+becomes automatic and locks do not arise.
+
+Fluency is immediate with exceptions, as before. We can achieve
+fluency for errors-as-return-values with a \emph{monad}. Despite the
+name, monads are not exotic or complicated. They furnish a
+straightforward generalization of function composition that is
+fundamental for manageable concurrent and distributed programming,
+even with onlymutable, stateful objects.
 
 \mbox{C\#} has first-class functions, a.k.a. \emph{lambda expressions}, as
 does \mbox{C++ 11} and as will \mbox{Java 8}. In the mean time, we
 can use \emph{Clojure}, a Java-compatible functional language.
 
-\subsection{Functional Solution With Exceptions}
+\subsection{Fluent Functional Solution With Exceptions}
 \label{sec-3-1}
 
-We may write the program with only one intermediate variable for the
-results of the database read, which we must use for each of the two
-web-service calls. Even this variable can be eliminated \emph{via}
-\emph{memoization}, \emph{common sub-expression elimination}, \emph{lambda
-lifting}, \emph{the state monad}, or \emph{parallel composition}, but let's do
-that another time and place. For now, let's write the flow directly
-as a sequential composition of function calls \emph{via} Clojure's
-\verb|->|, and using its \verb|let| syntax for the one intermediate
-variable, as follows:
+We may write the program with only one intermediate variable, as
+before. This variable holds results of the database read, which we
+must use for each of the two web-service calls. Even this variable
+can be eliminated \emph{via} \emph{memoization}, \emph{common sub-expression
+elimination}, \emph{lambda lifting}, \emph{the state monad}, or \emph{parallel
+composition}, but that is for another time and place. For now,
+write the flow directly as a sequential composition of
+function calls \emph{via} Clojure's \verb|->|, using its \verb|let|
+syntax for the one intermediate variable, as follows. 
 
 \begin{figure}[H]
 \label{functional-main-1}
 \begin{verbatim}
-(println
-  (try
-    (let [db-results
-          (-> (computation)
-              authorize
-              read-database
-              )]
-      (-> db-results
-          call-web-service
-          filter-ws
-          (combine (-> db-results
-                       call-other-web-service))))
-    (catch Exception e (.getMessage e))))
+(try
+  (let [db-results ; be the result of the composition
+        (-> (computation)
+            authorize
+            read-database
+            )]
+    (-> db-results 
+        call-web-service
+        filter-ws
+        (combine (-> db-results
+                     call-other-web-service))))
+  (catch Exception e (.getMessage e)))
 \end{verbatim}
 \end{figure}
 
-This looks very much like the fluent solution in Java. In Java, we
-have fluent streams of items connected by dots. In Clojure, we have
-the same fluent streams of items headed by arrows.
+This looks very much like the fluent Java solution. In Java, we have
+fluent streams of items connected by dots. In Clojure, we have the
+same fluent streams of items headed by arrows.
 
-The complete program is as follows:
+The rest of the program is as follows. First, declare a namespace
+for our symbols to inhabit:
 
 \begin{figure}[H]
 \label{functional-helpers-1}
 \begin{verbatim}
 (ns temp-1.core)
+\end{verbatim}
+\end{figure}
+
+Define a private symbol \emph{computation} to be a function of no
+arguments that produces an empty hash-map.
+
+\begin{figure}[H]
+\label{functional-helpers-2}
+\begin{verbatim}
 (defn- computation [] {})
+\end{verbatim}
+\end{figure}
+
+Define a private symbol \emph{randomly-error} to be a function of no
+arguments that produces \emph{true} if a random double-precision number
+is less than $0.10$. 
+
+\begin{figure}[H]
+\label{functional-helpers-3}
+\begin{verbatim}
 (defn- randomly-error [] (< (rand) 0.10))
+\end{verbatim}
+\end{figure}
+
+Define several private symbols to be mocks of functions that produce
+our application-specific data, or, with $10\%$ probability, throw an
+exception. These all use the three-term \emph{if}-branch form, which is
+just the same as Java's
+$\langle{}e_1\rangle{}\texttt{?}\langle{}e_2\rangle{}\texttt{:}\langle{}e_3\rangle{}$
+operator, taking an expression of Boolean type and two arbitrary
+expressions only one of which is evaluated.
+
+\begin{figure}[H]
+\label{functional-helpers-4}
+\begin{verbatim}
 (defn- authorize [computation]
   (if (randomly-error) (throw (Exception. "auth errored"))
                        {:auth-token "John's credentials"}))
@@ -637,30 +671,26 @@ The complete program is as follows:
 (defn- call-other-web-service [database-results]
   (if (randomly-error) (throw (Exception. "ws2 errored"))
                        [{:price 420.00M}]))
+\end{verbatim}
+\end{figure}
+
+The last application function is a bit more complicated: it takes
+two arguments and combines them. 
+
+\begin{figure}[H]
+\label{functional-helpers-5}
+\begin{verbatim}
 (defn- combine [filtered-web-service-results
                 other-web-service-call-results]
   (if (randomly-error) (throw (Exception. "combine errored"))
       (concat filtered-web-service-results
               other-web-service-call-results)))
-(println
-  (try
-    (let [db-results
-          (-> (computation)
-              authorize
-              read-database
-              )]
-      (-> db-results
-          call-web-service
-          filter-ws
-          (combine (-> db-results
-                       call-other-web-service))))
-    (catch Exception e (.getMessage e))))
 \end{verbatim}
 \end{figure}
 
 Several improvements are notable in this first attempt:
 \begin{itemize}
-\item first, as stated, with but one exception, state variables have
+\item first, as stated, with only one exception, state variables have
 become immutable function parameters, purely local to each
 transform
 \item the one remaining intermediate variable is itself immutable,
@@ -694,8 +724,7 @@ Java solution. But the case is really obvious when we get down to
 error handling without exceptions. In Clojure, we use a variation
 of \textbf{the Maybe monad}.\footnote{\url{http://bit.ly/WV02FF}}
 
-So that you are not put off by the intimidating word ``monad,''
-let's jump to the answer and see the code.
+Here is the main code
 
 \begin{figure}[H]
 \label{monadic-main}
@@ -712,13 +741,16 @@ let's jump to the answer and see the code.
 \end{verbatim}
 \end{figure}
 
-It looks \emph{just like} the non-monadic code with exceptions, just
-with a different arrow. The prerequisite helpers are as follows:
+It looks \emph{just like} the non-monadic code, just with a different
+arrow. The prerequisite helpers are as follows:
 
 \begin{figure}[H]
 \label{monadic-helpers}
 \begin{verbatim}
 (defn- computation [] (with-em-result {}))
+\end{verbatim}
+\end{figure}
+\begin{verbatim}
 (defn- authorize [computation]
   (with-em-result
     (if (randomly-error) {:error "auth errored"}
@@ -739,6 +771,14 @@ with a different arrow. The prerequisite helpers are as follows:
   (with-em-result
     (if (randomly-error) {:error "ws2 errored"}
         [{:price 420.00M}])))
+\end{verbatim}
+
+All but \emph{combine} are straightforward, simply wrapping their
+results in a \emph{with-em-result}. In fact, this wrapping is one of
+only two things we must learn about monads: it puts values in
+boxes. 
+
+\begin{verbatim}
 (defn- combine [other-ws-results-val]
   (fn [filtered-ws-results-val]
     (with-em-result
@@ -747,12 +787,11 @@ with a different arrow. The prerequisite helpers are as follows:
         (concat filtered-ws-results-val
                 other-ws-results-val)))))
 \end{verbatim}
-\end{figure}
 
 All but \emph{combine} are straightforward, simply wrapping their
 results in a \emph{with-em-result}. In fact, this wrapping is one of
 only two things we must learn about monads: it puts values in
-boxes. Monads are easy to understand.
+boxes. 
 
 \subsubsection{Monads Are Just Values In Boxes}
 \label{sec-3-2-1}

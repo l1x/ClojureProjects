@@ -89,19 +89,19 @@
           a7
           ))
 
-(defmacro >-> [in-monad & transforms]
+(defmacro =>> [in-monad & transforms]
   `(with-monad if-not-error-m
      ((m-chain [~@transforms]) ~in-monad)))
 
 (println
  (let [db-results
-       (>-> (computation)
+       (=>> (computation)
             authorize
             read-database)]
-   (>-> db-results
+   (=>> db-results
         call-web-service
         filter-ws
-        (combine (>-> db-results
+        (combine (=>> db-results
                       call-other-web-service)))))
 
 #_(println
