@@ -1,4 +1,4 @@
-% Created 2013-09-08 Sun 15:53
+% Created 2013-09-09 Mon 11:51
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -40,25 +40,30 @@
 Consider a program composed of \emph{serially dependent computations},
 any of which produces either a value to feed to the next computation
 in-line, or an error. If any computation in the sequence produces an
-error, no downstream computations should be attempted and that error
+error, no downstream computations should be attempted and the error
 should be the result of the entire sequence.
 
-We show a sequence of solutions of increasing elegance in Java and
-Clojure for this program. The solutions are in fluent style, which
-minimizes the number of temporary variables that must be invented
-and named. This style directly mimics the abstract data flow of the
-solution.
+We show a sequence of solutions in Java and Clojure for this
+program. We strive for fluent style, which minimizes the number of
+temporary variables to name and manage. This style directly mimics
+the abstract data flow of the solution.
 
-We further show techniques for fluent error handling, both with
-exceptions and with returned error codes.
+We find that fluent style is only available in Java if errors are
+propagated by exception. The reason is that the code for handling
+errors is in an independent \emph{catch} block, and the non-error code
+path can be written without explicitly handling errors.
+
+With functional programming in general and Clojure in particular, we
+can have fluent code without exceptions because we can abstract
+error handling in a monad. 
 \section{Motivating Example Problem}
 \label{sec-2}
 
-As a concrete example, suppose we must
-get an authorization token, do a database lookup, do a web-service
-call, filter the results of that call, do another web-servie call,
-and then combine the results. The data flow of our program
-resembles that in figure \ref{fig:dataflow}.
+As a concrete example, suppose we get an authorization token, do a
+database lookup, do a web-service call, filter the results of that
+call, do another web-servie call, and then combine the results. The
+data flow of our program resembles that in figure
+\ref{fig:dataflow}.
 
 \begin{figure}
 \begin{center}
@@ -120,7 +125,7 @@ resembles that in figure \ref{fig:dataflow}.
 
 In the \mbox{C++ -- like} languages, including JavaScript and Java,
 we might keep intermediate results in instance variables and model
-the flow as methods that produce instances from instances, that is,
+the flow as methods that produce objects from objects, that is,
 as \textbf{transforms}. This style is called \textbf{fluent style}
 because the text of the program resembles the flow in the diagram.
 
@@ -144,21 +149,35 @@ public static void main(String[] args) {
 
 Notice that we save the \emph{Computation} produced by reading the
 database in its own local variable, namely \emph{databaseResults}. We do
-so because the dataflow branches from that result and we need to
-use it twice, once as the source for calling the first web service
-and once as the source for calling the second web service. If not
-for this branching and recombining of the dataflow, we might have
-written the entire program as one, fluent expression with no
-intermediate variables.
+so because the dataflow branches from that result: we need the
+result twice, once for calling the first web service and once for
+calling the second web service. If not for this branching and
+recombining of the dataflow, we might have written the entire
+program as one, fluent expression with no intermediate variables.
+In any event, the correspondence between the diagram of the program
+and the desired code is obvious. The code \emph{looks like} the diagram.
+Changes to the diagrammatic specification propagate
+straightforwardly to changes in the code, all due to fluent style.
 
-Also note the compressed style, minimizing blank lines and lines
-with just one closing brace. We adopt this style to save space in
-this 
+Also note the non-idiomatic compressed style, minimizing blank lines
+and lines with just one closing brace. We adopt this style to save
+space in this paper; production versions of such code would have
+more white space.
 
 The following is a complete program that mocks out the database and
 web-service calls as static JSON objects encoded in strings, and can
 be compiled and executed, even online in some sandbox like
 \url{http://www.compileonline.com/compile_java_online.php}.
+
+The most important thing to note about this code is that each
+method, \emph{e.g.}, \emph{authorize}, \emph{readDatabase}, etc., takes an object
+-- implicitly as \emph{this} -- and returns an object. This convention
+enables the fluent style by chaining transforms with dot. It so
+happens that we return \emph{this} from each method. We could create a
+new object in each transform, but it would not simplify the code and
+would not give any performance advantage (quite the opposite).
+Instead, we propagate values through instance variables, namely
+\emph{authToken}, \emph{databaseResults}, etc. 
 
 \begin{verbatim}
 public class Computation {
@@ -206,14 +225,14 @@ public class Computation {
 \label{sec-2-2}
 
 The program above has \emph{no} error handling. At this point, let us
-agree that we \emph{must} have error handling in all but academic toys.
+agree that we \emph{must} have error handling in real-world programs.
 
 One of the better techniques for error handling in fluent style is
 with exceptions. If each sub-computation is responsible for
-throwing its own exception with error details, then a single
-try-catch suffices to get error details out of the overall
-sequence, leaving the essential dataflow expression unchanged. Our
-main routine has minimal changes, and becomes simply
+throwing its own exception, then a single try-catch suffices to get
+error details out of the overall sequence, leaving the essential
+dataflow unchanged. Our main routine has minimal changes, and
+becomes simply
 
 \begin{verbatim}
 public static void main(String[] args) {
@@ -231,14 +250,14 @@ public static void main(String[] args) {
         System.out.println(e.getMessage());
 }   }
 \end{verbatim}
-noting, in passing, that we ignore resource freeing (database
+noting, in passing, that we ignore resource management (database
 connections, sockets, file handles, etc.) in this
-paper.\footnote{Idiomatically, resource management can be handled in a
-   \emph{finally} clause or with Java 7's automatic resource management.
+paper.\footnote{Idiomatically, resources can be handled in a
+   \emph{finally} clause or with Java 7's Automatic Resource Management (ARM).
    See \url{http://bit.ly/15GYkMh}}
 
 Let's give each mocked sub-computation a \mbox{10\%} chance of
-erroring, and our entire sample becomes just the following:
+erroring, and our entire sample becomes the following:
 
 \begin{verbatim}
 import java.util.Random;
@@ -304,9 +323,16 @@ especially in Java, where runtime exceptions need not be
 declared,\footnote{\url{http://bit.ly/1e5P6Cg}} but the alternative of checked
 exceptions can be considered harmful.\footnote{\url{http://bit.ly/9NyrdD}}
 
-Rather than join the debate, just imagine that we have decided
-against exceptions for whatever reason and see if we can write
-reasonable code.
+Worse yet, the semantics of composed locks and exceptions are black
+magic. The fundamental reason is that an exception thrown from
+inside a lock leaves the program in an indeterminate state for
+other threads, with the lock summarily abandoned. There are expert
+techniques for mitigating this,\footnote{\url{http://bit.ly/qOO1r}} but a
+defensible way out is just to eschew exceptions.
+
+But, rather than join the debate, just imagine that we have decided
+against exceptions for whatever reason and try to write reasonable
+code.
 
 Add a private \emph{String} field, \emph{errorResult}, and let every method
 set the error result if and only if it errors. We must change
@@ -348,27 +374,27 @@ fact that its working set is optimized for the positive
 path!\footnote{The error branches are all at addresses far from the
    common-case, non-error branches, which are clustered together for
    maximum locality.} We've lost any correspondence between the
-program text and the program specification, and all options for
-nesting and placement of curly braces are ludicrous. Changing the
-computation graph would entail a sickening amount of work -- code
-like this is best left to automatic code generators, if we
-tolerate it at all.
+program text and the program specification, /i.e.,/ the diagram in
+figure \ref{fig:dataflow}. All options for nesting and placement of
+curly braces are ludicrous. Changing the computation graph would
+entail a sickening amount of work. Code like this is best left to
+automatic code generators, if we tolerate it at all.
 
 The prevailing style, nowadays, is to reverse error branches and to
-return as early as possible from the main routine. I have seen many
-instances of this style in shipped code from pre-eminent shops.
-Despite the fact that multiple returns were condemned in the dogma
-of structured programming and are lethal in code that manages
-resources,\footnote{\url{http://bit.ly/sAvDmY}} the justification for this is
-three-fold:
+return as early as possible from the main routine. I have seen and
+reviewed many instances of this style in shipped code from
+pre-eminent shops. Despite the fact that multiple returns were
+condemned in the dogma of structured programming and are lethal in
+code that manages resources,\footnote{\url{http://bit.ly/sAvDmY}} the
+justification for this is three-fold:
 \begin{itemize}
 \item it results in linear code that can be read from top to bottom
 \item edits to the computation graph entail just adding or subtracting
 a localized block of a few lines of code and adjusting a few
 temporary variables
-\item modern compilers can reverse the branches in the generated code
-automatically after a post-compilation profiling
-step\footnote{\url{http://en.wikipedia.org/wiki/Profile-guided_optimization}}
+\item modern compilers can reverse the branches \emph{again} in the
+generated code automatically after
+profiling\footnote{\url{http://bit.ly/QkXSM}}
 \end{itemize}
 
 This alternative\footnote{favored in the previously cited
@@ -396,8 +422,8 @@ public static void main(String[] args) {
 
 This, at least, gets rid of the ludicrous nesting, but exposes another
 deep weakness: we have a proliferation of temporary variables just to
-hold the \emph{Computations} returned by the intermediate stages. Why
-bother with this when we have no hope of fluent style? Let's go to
+hold the intermediate \emph{Computations}. Why bother with this when we
+have no hope of fluent style? Let's go to
 
 \begin{verbatim}
 public static String computation() {
@@ -419,8 +445,8 @@ public static void main(String[] args) {
     System.out.println(computation()); }
 \end{verbatim}
 
-Edits to the graph entail even easier edits to the source. The whole
-program, now, is the following
+Edits to the graph now entail even easier edits to the source. The
+whole program at this point is the following:
 
 \begin{verbatim}
 import java.util.Random;
@@ -487,59 +513,66 @@ public class Computation {
 \section{Let's Do Better}
 \label{sec-3}
 
-At this point, we have a nice, fluent solution, but only if we use
-exceptions. We also have a just-barely-acceptable solution without
-exceptions. It's possible to do much better in both cases by
-going \emph{functional}.
-
-In Java, our fundamental modeling tools are \emph{mutable, stateful
-objects}. Stateful object programming has many disadvantages:
+Looking back, the main benefits of fluent style are
 \begin{itemize}
-\item making it thread-safe entails locks, which are complex
-\item making it thread-safe \emph{and} compositional is very difficult, if
-not impossible, because exceptions and locks do not interleave
+\item direct correspondence between the program specification and the
+program text -- the text \emph{looks like} the diagram
+\item edits to the specification and edits to the code are parallel
+\item minimal number of temporary variables
+\end{itemize}
+
+But we only have fluent style if we use exceptions. Without
+exceptions, we're essentially writing assembly language: storing and
+combining intermediate results in temporary variables and checking
+for errors after every step. It's possible to do much better, with
+and without exceptions, by going \emph{functional}.
+
+In Java, our fundamental modeling tool is the \emph{mutable}, \emph{stateful
+object}. Stateful object programming has many disadvantages:
+\begin{itemize}
+\item modeling dataflow is awkward
+\item concurrency entails locks, which are complex
+\item concurrency with exceptions is very difficult
 \item composing stateful objects, even without concurrency, is
 difficult: the operational semantics of even a sequential program
 requires temporal reasoning, well outside the capabilities of
 compilers and programming tools
 \end{itemize}
 
-At this point, it's worthwhile to emphasize a point we left
-unstated. Why did we use a new instance variable in the object for
-each intermediate state? Why not use just a single variable for
-every non-error result? After all, we used a single variable for
-the error result?
+It's worthwhile to emphasize a point we left unstated. Why did we
+use a new instance variable in the object for each intermediate
+state? Why not use just a single variable for every non-error
+result? After all, we used a single variable for the error result?
 
 The reason is that we wanted the individual methods that update
 non-error state to be as independent as possible. Though our mocks
 don't do so, in a real program, each intermediate computation would
-use the result of its predecessors: \verb|readDatabase| would use
-the \verb|authToken|, the web-service calls would use
-\verb|databaseResults| and so on. By using a separate, named
-variable for each intermediate result, the correctness of our
-individual sub-computations would be easier to verify by inspection.
-If we had re-used a single \emph{String} variable, the temporal flow
-forced by the dependencies would be even more obscured, and our
-program would be even more difficult to understand and maintain.
-It's definitely worth a few more named variables to make our
-program easier for the next poor slob tasked with reading our code.
-Because the only tool we have is mutable state, it's hard to do
-better than a sequence of mutable state variables mirroring our
-sequence of sub-computations.
+use the result of its predecessors: \emph{readDatabase} would use the
+\emph{authToken}, the web-service calls would use \emph{databaseResults} and
+so on. By using a separate, named variable for each intermediate
+result, the correctness of our individual sub-computations would be
+easier to verify by inspection. If we had re-used a single \emph{String}
+variable, the temporal flow forced by the dependencies would be even
+more obscured, and our program would be even more difficult to
+understand and maintain. It's definitely worth a few more named
+variables to make our program easier for the next programmer tasked
+with reading our code. Because the only tool we have is mutable
+state, it's hard to do better than a sequence of mutable state
+variables mirroring our sequence of sub-computations.
 
 The essence of the problem is that we are modeling a \emph{flow} of data
 through \emph{transforms} as a flow of data through mutable variables.
 If, instead, we invert the paradigm to make the \emph{transforms} the
-objects of focus, we sidestep this problem. Doing so requires a
-language with first-class transforms, that is, \emph{functions}. Mutable
-state variables become immutable function parameters. Thread-safety
+focus, we sidestep this problem. Doing so requires a language with
+first-class transforms, that is, \emph{functions}. Mutable state
+variables become immutable function parameters. Thread-safety
 becomes automatic and locks do not arise. Fluency is free with
 exceptions, as before, and is available for errors-as-return-values
 through a \emph{monadic} technique. Only the name \emph{monad} is exotic; the
-technique is as plain as water and is, in fact, fundamental for
+technique is plain and simple and is, in fact, fundamental for
 manageable concurrent and distributed programming, even if we stick
 with mutable, stateful objects. But our scenario is better without
-them, as we show.
+mutable state, as we show.
 
 \mbox{C\#} has first-class functions, a.k.a. \emph{lambda expressions}, as
 does \mbox{C++ 11} and as will \mbox{Java 8}. In the mean time, we
@@ -548,37 +581,64 @@ can use \emph{Clojure}, a Java-compatible functional language.
 \subsection{Functional Solution With Exceptions}
 \label{sec-3-1}
 
-We may write the program with only one intermediate variable for
-holding the results of the database read, which we must use for each
-of the two web-service calls. Even this variable can be eliminated
-\emph{via} \emph{memoization}, \emph{common sub-expression elimination}, \emph{lambda
-lifting}, or \emph{parallel composition}, but let's go one step at a time
-and write the flow directly as a sequential composition of function
-calls \emph{via} Clojure's \verb|->|, using its \verb|let| syntax for the
-one remaining state variable, as follows:
+We may write the program with only one intermediate variable for the
+results of the database read, which we must use for each of the two
+web-service calls. Even this variable can be eliminated \emph{via}
+\emph{memoization}, \emph{common sub-expression elimination}, \emph{lambda
+lifting}, \emph{the state monad}, or \emph{parallel composition}, but let's do
+that another time and place. For now, let's write the flow directly
+as a sequential composition of function calls \emph{via} Clojure's
+\verb|->|, and using its \verb|let| syntax for the one intermediate
+variable, as follows:
 
-\#+NAME functional-attempt-1
+\begin{figure}[H]
+\label{functional-main-1}
+\begin{verbatim}
+(println
+  (try
+    (let [db-results
+          (-> (computation)
+              authorize
+              read-database
+              )]
+      (-> db-results
+          call-web-service
+          filter-ws
+          (combine (-> db-results
+                       call-other-web-service))))
+    (catch Exception e (.getMessage e))))
+\end{verbatim}
+\end{figure}
+
+This looks very much like the fluent solution in Java. In Java, we
+have fluent streams of items connected by dots. In Clojure, we have
+the same fluent streams of items headed by arrows.
+
+The complete program is as follows:
+
+\begin{figure}[H]
+\label{functional-helpers-1}
 \begin{verbatim}
 (ns temp-1.core)
-(defn computation [] {})
-(defn randomly-error [] (< (rand) 0.10))
-(defn authorize [computation]
+(defn- computation [] {})
+(defn- randomly-error [] (< (rand) 0.10))
+(defn- authorize [computation]
   (if (randomly-error) (throw (Exception. "auth errored"))
                        {:auth-token "John's credentials"}))
-(defn read-database [auth-token]
+(defn- read-database [auth-token]
   (if (randomly-error) (throw (Exception. "database errored"))
                        {:name "John", :PO 421357}))
-(defn call-web-service [database-results]
+(defn- call-web-service [database-results]
   (if (randomly-error) (throw (Exception. "ws1 errored"))
                        [{:item "camera"}, {:item "shoes"}]))
-(defn filter-ws [web-service-call-results]
+(defn- filter-ws [web-service-call-results]
   (if (randomly-error) (throw (Exception. "filter errored"))
                        [{:item "camera"}]))
-(defn call-other-web-service [database-results]
+(defn- call-other-web-service [database-results]
   (if (randomly-error) (throw (Exception. "ws2 errored"))
                        [{:price 420.00M}]))
-(defn combine [filtered-web-service-results
-               other-web-service-call-results]
+(defn- combine [filtered-web-service-results
+                other-web-service-call-results]
   (if (randomly-error) (throw (Exception. "combine errored"))
       (concat filtered-web-service-results
               other-web-service-call-results)))
@@ -592,47 +652,169 @@ one remaining state variable, as follows:
       (-> db-results
           call-web-service
           filter-ws
-          (combine (call-other-web-service db-results))))
+          (combine (-> db-results
+                       call-other-web-service))))
     (catch Exception e (.getMessage e))))
 \end{verbatim}
+\end{figure}
 
-Several improvements are already noticeable in this first attempt: 
+Several improvements are notable in this first attempt:
 \begin{itemize}
 \item first, as stated, with but one exception, state variables have
-become function parameters, purely local to each transform
-\item the one remaining state variable is itself immutable, removing
-any need for temporal reasoning
-\item the values of each mock can be modeled directly in the language
-as hash-maps, arrays, integers, and decimal numbers like
-$420.00M$, as opposed to JSON objects encoded in strings
+become immutable function parameters, purely local to each
+transform
+\item the one remaining intermediate variable is itself immutable,
+removing any need for temporal reasoning -- we only need to
+understand dependencies, and they are explicit in the code
+\item the code is shorter, less repetitive, less noisy
+\item the values of each mock can be modeled directly as hash-maps,
+arrays, integers, and decimal numbers like $420.00M$, as opposed
+to JSON objects encoded in strings
 \begin{itemize}
-\item such direct modeling removes the implied need, which we had
-unstated in our Java solution, for JSON serialization and
-parsing
-\item such direct modeling also means that we do not need direct java
+\item such direct modeling removes the implied need, unstated in our
+Java solution, for JSON serialization and parsing
+\item such direct modeling also means that we do not need direct Java
 interop; our computation ``constructor'' just returns an empty
 hash-map
-\item if we needed to interface with an exising \emph{Computation} java
-class, we would only need to \emph{import} the class and change our
+\item if we did need needed to interface with an exising Java class,
+we would only need to \emph{import} the class and change our
 constructor call from \verb|(computation)| to
-\verb|(Computation.)|, which is shorthand for 
+\verb|(Computation.)|, shorthand for 
 \verb|(new Computation)|
 \end{itemize}
 \end{itemize}
 
-The desired behavior is similar to that of the Maybe
-monad,\footnote{\url{http://en.wikipedia.org/wiki/Monad_(functional_programming)}\#The$_{\text{Maybe}}$$_{\text{monad}}$}
-the difference being that \emph{Maybe} just produce \emph{Nothing} if anything
-goes wrong. The consumer of the computation doesn't know what stage
-of the pipeline failed nor any details at all about the error.
-\emph{Maybe} suppresses all that. Such a situation is not tolerable in
-the real world. Consider the example of a database retrieval
-followed by a few web-service calls followed by a filter and
-transformation followed by a logging call followed by output to UI
-components. If something goes wrong in this sequence of
-computations, we need to know exactly where and as much detail as
-we can get about the failure. But we certainly don't want any
-computations downstream of the failure to be attempted.
+We continue to use Java's native \emph{Exception} class, and this
+illustrates Java interop again.
+\subsection{Fluent Error Handling Without Exceptions}
+\label{sec-3-2}
+
+The improvements above alone justify the Clojure solution over the
+Java solution. But the case is really obvious when we get down to
+error handling without exceptions. In Clojure, we use a variation
+of \textbf{the Maybe monad}.\footnote{\url{http://bit.ly/WV02FF}}
+
+So that you are not put off by the intimidating word ``monad,''
+let's jump to the answer and see the code.
+
+\begin{figure}[H]
+\label{monadic-main}
+\begin{verbatim}
+(let [db-results
+      (>-> (computation)
+           authorize
+           read-database)]
+  (>-> db-results
+       call-web-service
+       filter-ws
+       (combine (>-> db-results
+                     call-other-web-service))))
+\end{verbatim}
+\end{figure}
+
+It looks \emph{just like} the non-monadic code with exceptions, just
+with a different arrow. The prerequisite helpers are as follows:
+
+\begin{figure}[H]
+\label{monadic-helpers}
+\begin{verbatim}
+(defn- computation [] (with-em-result {}))
+(defn- authorize [computation]
+  (with-em-result
+    (if (randomly-error) {:error "auth errored"}
+        {:auth-token "John's credentials"})))
+(defn- read-database [auth-token]
+  (with-em-result
+    (if (randomly-error) {:error "database errored"}
+        {:name "John", :PO 421357})))
+(defn- call-web-service [database-results]
+  (with-em-result
+    (if (randomly-error) {:error "ws1 errored"}
+        [{:item "camera"}, {:item "shoes"}])))
+(defn- filter-ws [web-service-call-results]
+  (with-em-result
+    (if (randomly-error) {:error "filter errored"}
+        [{:item "camera"}])))
+(defn- call-other-web-service [database-results]
+  (with-em-result
+    (if (randomly-error) {:error "ws2 errored"}
+        [{:price 420.00M}])))
+(defn- combine [other-ws-results-val]
+  (fn [filtered-ws-results-val]
+    (with-em-result
+      (if (randomly-error)
+        {:error "combine errored"}
+        (concat filtered-ws-results-val
+                other-ws-results-val)))))
+\end{verbatim}
+\end{figure}
+
+All but \emph{combine} are straightforward, simply wrapping their
+results in a \emph{with-em-result}. In fact, this wrapping is one of
+only two things we must learn about monads: it puts values in
+boxes. Monads are easy to understand.
+
+\subsubsection{Monads Are Just Values In Boxes}
+\label{sec-3-2-1}
+
+An instance of a monad is just a value in a box. Every monad has an
+operator, \emph{m-result}, which takes a value and produces a value in a
+box. All monads work this way: take a value and put it in a box.
+The box can be arbitrarily complicated inside, and each type of
+monad has its own type of box. But all monads have this \emph{m-result}
+operator in common: you take values and put them in boxes. 
+
+Our \emph{with-em-result} macro above is just shorthand \emph{m-result} for
+our error-propagating monad.
+
+\begin{figure}[H]
+\label{with-em-result-macro}
+\begin{verbatim}
+(defmacro with-em-result [expr]
+  `(with-monad if-not-error-m (m-result ~expr)))
+\end{verbatim}
+\end{figure}
+
+Monads have one more essential operator, \emph{m-bind}. This takes two
+arguments: a value-in-a-box and a
+function-from-value-to-value-in-a-box. The signature of this
+function is just like the signature of \emph{m-result}: it takes a value
+and returns a value-in-a-box. Here we see again the fundamental
+simplifying idea: we're always taking values and putting them in
+boxes.
+
+The implementations of \emph{m-result} and \emph{m-bind} are particular to
+each monad. You package your application-dependent logic in your
+functions-from-value-to-value-in-a-boxes.
+
+Why do we have a variation of the standard \emph{Maybe} monad?. First,
+note that \emph{Maybe} just produce \emph{Nothing} if anything goes wrong.
+The consumer of the computation doesn't know what stage of the
+pipeline failed nor any details at all about the error. Such a
+situation is not tolerable in the real world. Consider the example
+of a database retrieval followed by a few web-service calls
+followed by a filter and transformation followed by a logging call
+followed by output to UI components. If something goes wrong in
+this sequence of computations, we need to know exactly where and as
+much detail as we can get about the failure. But we certainly don't
+want any computations downstream of the failure to be attempted.
+
+
+\begin{figure}[H]
+\label{if-not-error-monad}
+\begin{verbatim}
+(defmonad if-not-error-m
+  [m-result (fn [value] value)
+   m-bind   (fn [value f]
+              (if-not (:error value)
+                (f value) 
+                value))
+  ])
+\end{verbatim}
+\end{figure}
+\subsection{Getting Rid of the Last Variable}
+\label{sec-3-3}
+
 
 \section{Code}
 \label{sec-4}

@@ -23,7 +23,8 @@
   (if (randomly-error) (throw (Exception. "combine errored"))
       (concat filtered-web-service-results
               other-web-service-call-results)))
-#_(println
+#_
+(println
   (try
     (let [db-results
           (-> (computation)
@@ -33,7 +34,8 @@
       (-> db-results
           call-web-service
           filter-ws
-          (combine (call-other-web-service db-results))))
+          (combine (-> db-results
+                       call-other-web-service))))
     (catch Exception e (.getMessage e))))
 
 (defmonad if-not-error-m
@@ -74,16 +76,48 @@
         {:error "combine errored"}
         (concat filtered-ws-results-val
                 other-ws-results-val)))))
-(println
+#_(println
  (domonad if-not-error-m
           [a1 (computation)
            a2 (authorize a1)
-           a3 (read-database a2)
-           a4 (call-web-service a3)
+           db (read-database a2)
+           a4 (call-web-service db)
            a5 (filter-ws a4)
-           a6 (call-other-web-service a3)
+           a6 (call-other-web-service db)
            a7 ((combine a6) a5)
            ]
-          [a1 a2 a3 a4 a5 a6 a7]
+          a7
           ))
 
+(defmacro >-> [in-monad & transforms]
+  `(with-monad if-not-error-m
+     ((m-chain [~@transforms]) ~in-monad)))
+
+(println
+ (let [db-results
+       (>-> (computation)
+            authorize
+            read-database)]
+   (>-> db-results
+        call-web-service
+        filter-ws
+        (combine (>-> db-results
+                      call-other-web-service)))))
+
+#_(println
+ (let [db-results
+       (with-monad if-not-error-m
+         ((m-chain [authorize
+                    read-database])
+          (computation)))
+       ]
+   (with-monad if-not-error-m
+     ((m-chain [call-web-service
+                filter-ws
+                (combine
+                 (with-monad if-not-error-m
+                   ((m-chain [call-other-web-service])
+                    db-results)))
+                ])
+      db-results)))
+ )
