@@ -44,53 +44,46 @@
                 value))
   ])
 
-(defmacro with-em [expr]
-  `(with-monad if-not-error-m ~expr))
-
-(defmacro em-blind [em-a ex-result]
-  `(with-em (m-bind ~em-a (fn [_#] (m-result ~ex-result)))))
-
-(defn- computation [] (with-em (m-result {})))
+(defmacro with-em-result [expr]
+  `(with-monad if-not-error-m (m-result ~expr)))
+(defn- computation [] (with-em-result {}))
 (defn- authorize [computation]
-  (em-blind computation
-            (if (randomly-error) {:error "auth errored"}
-                {:auth-token "John's credentials"})))
+  (with-em-result
+    (if (randomly-error) {:error "auth errored"}
+        {:auth-token "John's credentials"})))
 (defn- read-database [auth-token]
-  (em-blind auth-token
-            (if (randomly-error) {:error "database errored"}
-                {:name "John", :PO 421357})))
+  (with-em-result
+    (if (randomly-error) {:error "database errored"}
+        {:name "John", :PO 421357})))
 (defn- call-web-service [database-results]
-  (em-blind database-results
-            (if (randomly-error) {:error "ws1 errored"}
-                [{:item "camera"}, {:item "shoes"}])))
+  (with-em-result
+    (if (randomly-error) {:error "ws1 errored"}
+        [{:item "camera"}, {:item "shoes"}])))
 (defn- filter-ws [web-service-call-results]
-  (em-blind web-service-call-results
-            (if (randomly-error) {:error "filter errored"}
-                [{:item "camera"}])))
+  (with-em-result
+    (if (randomly-error) {:error "filter errored"}
+        [{:item "camera"}])))
 (defn- call-other-web-service [database-results]
-  (em-blind database-results
-            (if (randomly-error) {:error "ws2 errored"}
-                [{:price 420.00M}])))
-(defn- combine [filtered-web-service-results
-                other-web-service-call-results]
-  (with-em
-    (m-bind filtered-web-service-results
-            (fn [filtered-val]
-              (if (randomly-error)
-                (m-result {:error "combine errored"})
-                (m-bind other-web-service-call-results
-                        (fn [other-ws-val]
-                          (m-result (concat filtered-val
-                                            other-ws-val)))))))))
-
+  (with-em-result
+    (if (randomly-error) {:error "ws2 errored"}
+        [{:price 420.00M}])))
+(defn- combine [other-ws-results-val]
+  (fn [filtered-ws-results-val]
+    (with-em-result
+      (if (randomly-error)
+        {:error "combine errored"}
+        (concat filtered-ws-results-val
+                other-ws-results-val)))))
 (println
- (let [db-results
-       (-> (computation)
-           authorize
-           read-database)]
-   (-> db-results
-       call-web-service
-       filter-ws
-       (combine (call-other-web-service db-results))))
- )
+ (domonad if-not-error-m
+          [a1 (computation)
+           a2 (authorize a1)
+           a3 (read-database a2)
+           a4 (call-web-service a3)
+           a5 (filter-ws a4)
+           a6 (call-other-web-service a3)
+           a7 ((combine a6) a5)
+           ]
+          [a1 a2 a3 a4 a5 a6 a7]
+          ))
 
