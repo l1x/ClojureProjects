@@ -1,4 +1,4 @@
-% Created 2013-09-09 Mon 17:07
+% Created 2013-09-10 Tue 06:53
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -27,7 +27,7 @@
 \hypersetup{
   pdfkeywords={},
   pdfsubject={},
-  pdfcreator={Emacs 24.3.1 (Org mode 8.0.7)}}
+  pdfcreator={Emacs 24.2.1 (Org mode 8.0.7)}}
 \begin{document}
 
 \maketitle
@@ -51,7 +51,7 @@ the abstract data flow of the solution.
 We find that fluent style is only available in Java if errors are
 propagated by exception. Because tht code for handling errors is in
 an independent \emph{catch} block, the non-error code path can be written
-without explicitly handling errors.
+without explicitly handling errors. 
 
 With functional programming in general and Clojure in particular, we
 can have fluent code without exceptions because we can delegate
@@ -541,12 +541,12 @@ requires \emph{temporal reasoning}, well outside the capabilities of
 compilers and programming tools
 \end{itemize}
 
-To begin a trek away from stateful-object programming, it's
-worthwhile to ask a question. Why did we use a new instance variable
-in the object, \emph{e.g.}, \emph{authToken}, \emph{databaseResults},
-\emph{webServiceCallResults}, etc., for each intermediate state? Why not
-reuse a single variable for all non-error results? After all, we
-used a single variable for the error result?
+To begin a trek away from stateful-object programming, start with a
+question. Why did we use a new instance variable in the object,
+\emph{e.g.}, \emph{authToken}, \emph{databaseResults}, \emph{webServiceCallResults},
+etc., for each intermediate state? Why not reuse a single variable
+for all non-error results? After all, we used a single variable for
+the error result?
 
 The reason is that we wanted the individual methods that update
 non-error state to be as independent as possible. Though our mocks
@@ -578,9 +578,18 @@ we can use \emph{Clojure}, a Java-compatible functional language.
 As to error handling, fluency is immediate with exceptions, as
 before. We achieve fluency for errors-as-return-values with a
 \emph{monad}. Despite the name, monads are not exotic or complicated.
-They furnish a straight generalization of function composition that
-is fundamental for manageable concurrent and distributed
-programming.
+They furnish a straight generalization of function composition. Our
+monad flows values through the pipeline, applying user-supplied
+functions only when an error has not been produced. The
+user-supplied functions do not need to check. This monad abstracts
+the boilerplate code for checking errors.
+
+Other monads abstract other boilerplate into the monad machinery,
+leaving user-supplied code free of clutter. Monads are inherently
+stateless, so are not a good fit in stateful-object programming
+languages. They are fundamental for concurrent and distributed
+programming, and their benefits are evident in functional
+programming languages.
 
 \subsection{Fluent Functional Solution With Exceptions}
 \label{sec-3-1}
@@ -615,10 +624,17 @@ syntax for the one intermediate variable, as follows:
 
 This looks very much like the fluent Java solution. In Java, we have
 fluent streams of items connected by dots. In Clojure, we have the
-same fluent streams of items headed by arrows.
+same fluent streams of items headed by arrows. The fundamental
+difference is that Clojure has no instance variables, therefore it
+is automatically re-entrant, unlike our Java solution. The semantics
+of the Clojure program is evident in the text -- it's a flow of data
+through serially dependent computations. There is no temporal
+component to the semantics. Contrast with the Java solution, where
+we must understand the temporal sequence of operations to
+understand the program.
 
-The rest of the program is as follows. First, declare a namespace
-for our symbols to inhabit:
+The rest of the Clojure program is as follows. First, declare a
+namespace for our symbols to inhabit:
 
 \begin{figure}[H]
 \label{functional-helpers-1}
@@ -677,8 +693,8 @@ expressions, only one of which is evaluated.
 \end{verbatim}
 \end{figure}
 
-The last application-specific function, \emph{combine} is a bit more
-complicated: it takes two arguments and combines them.
+The last application-specific function, \emph{combine} takes two
+arguments and combines them.
 
 \begin{figure}[H]
 \label{functional-helpers-5}
@@ -799,10 +815,36 @@ our error-propagating monad. Here is its definition:
 
 Monads have one more essential operator, \emph{m-bind}. This takes two
 arguments: a value-in-a-box and a
-function-from-value-to-value-in-a-box. This function's signature is
+function-that-puts-a-value-in-a-box. This function's signature is
 just like the signature of \emph{m-result}: it takes a value and puts it
-in a box.. Here we see again the fundamental simplifying idea: put
-values them in boxes.
+in a box. Here we see again the fundamental simplifying idea: put
+values in boxes.
+
+Our monad is called \emph{if-not-error-m}. Its \emph{m-result} operator
+simply returns its input. This monad's box is an invisible box.
+That's ok; monadic boxes can be arbitrarily complicated, including
+not complicated at all. A real-world implementation might do
+logging as a side-effect. Our monad's \emph{m-bind} takes a
+value-in-a-box and a user-supplied function, like the \emph{m-binds} of
+all monads. With this monad, \emph{m-bind} applies the user-supplied
+function only if the value doesn't have an error in it. Otherwise,
+it puts the value, including its error, in a box and passes it down
+the line. Since every subsequent element of the pipeline must go
+through the very same \emph{m-bind}, the very first error produced in
+the pipeline is propagated all the way through. All subsequent
+user-supplied functions are sidestepped. If there is no error, it
+applies the user-supplied function to the value. The user-supplied
+function has the responsibility of putting the value in a box,
+automated by our \emph{with-em-result} macro.
+\begin{verbatim}
+(defmonad if-not-error-m
+  [m-result (fn [value] value)
+   m-bind   (fn [value f]
+              (if-not (:error value)
+                (f value) 
+                (m-result value)))
+  ])
+\end{verbatim}
 
 We can see how our new arrow operator, \verb|=>>|, composes values
 through \emph{m-bind}. For instance, the fragment
@@ -830,21 +872,25 @@ languages,\footnote{\url{http://en.wikipedia.org/wiki/Homoiconicity}} in
 general, often have embedded rewrite
 systems\footnote{\url{http://en.wikipedia.org/wiki/Rewriting}} or macro
 languages.\footnote{\url{http://en.wikipedia.org/wiki/Macro_(computer_science)}}
-Without going more deeply into Clojure's macro syntax, the arrow
-macro is at least small:
+Without going more deeply into Clojure's macro syntax or the
+monadic \emph{m-chain} helper it employs, the arrow macro is at least
+small:
 \begin{verbatim}
 (defmacro =>> [in-monad & transforms]
   `(with-monad if-not-error-m
      ((m-chain [~@transforms]) ~in-monad)))
 \end{verbatim}
 
-The final monadic helper, \emph{combine}, illustrates \emph{m-bind}.
+The final monadic helper, \emph{combine}, illustrates \emph{m-bind} directly.
 Given a value from the second of the two web-service calls, it
-produces a function-from-value-to-value-in-a-box. That function
-will be composed, via \emph{m-bind} with the filtered value of the first
+produces a \emph{closure}
+\footnote{\url{http://en.wikipedia.org/wiki/Closure_(computer_science)}}
+a first-class value of type
+\emph{function-that-puts-a-value-in-a-box}. That function
+will be composed, \emph{via} \emph{m-bind}, with the filtered value of the first
 of the two web-service calls. We use the suffix \emph{-val} to
 distinguish values-not-in-boxes from value-in-boxes, which are
-produces by \emph{with-em-result}.
+produce by \emph{with-em-result}.
 \begin{figure}[H]
 \label{monadic-helpers-2}
 \begin{verbatim}
@@ -862,7 +908,7 @@ produces by \emph{with-em-result}.
 
 The implementations of \emph{m-result} and \emph{m-bind} are particular to
 each monad. Package your application-dependent logic in
-functions-from-value-to-value-in-a-box. Compose them \emph{via}
+user-supplied functions-that-put-values-in-a-box. Compose them \emph{via}
 \emph{m-bind}, \emph{m-chain}, or the \verb|=>>| operator.
 \subsubsection{Varying from the Standard Maybe Monad}
 \label{sec-3-2-3}
@@ -873,41 +919,46 @@ anything goes wrong. The consumer of the computation doesn't know
 what stage of the pipeline failed nor any details at all about the
 error. Such is not tolerable in the real world. In our example of a
 database read followed by web-service calls followed by filtering
-and combining. If something goes wrong in this sequence of
+and combining, if something goes wrong in this sequence of
 computations, we need to know exactly where and to log as much
 detail as we can get about the failure. But we certainly don't want
-any computations downstream of the failure to be attempted.
+any computations downstream of the failure to be attempted. We
+want the pass-through semantics of \emph{Maybe} but without the ignorance.
 \section{Conclusion}
 \label{sec-4}
 
 Controlling complexity is the central problem of software
-engineering. Bringing code closer to specifications is an essential
-aspect of controlling complexity. Many business processes are
-fundamentally data flows. Modeling data flows directly in our
-programming languages and applications is a clear advantage.
+engineering. Making code closer to specifications is essential, and
+that is the central theme of progress in programming languages. 
+
+Many business processes are fundamentally data-flows. Modeling
+data-flows directly in our programming languages and applications is
+a clear advantage.
 
 Fluent style is a direct representation of dataflow dependencies in
 the text of a program. Stateful-object programming is an awkward fit
 to fluent style. The semantics of stateful-object programs are
-temporal and hidden, while the semantics of fluent style are
-dependency-based and explicit. Fluent style can be approached in
-stateful-object programming by simulating flow-through-transforms as
+temporal and implicit, while the semantics of fluent style are
+dependency-based and explicit.
+
+Fluent style can be approached in stateful-object programming by
+simulating flow-through-transforms as
 flow-through-instance-variables, but the style is brittle. For
 instance, changing from errors-as-exceptions to
 errors-as-return-codes makes fluent style intractable.
 
-Stateful-object programming makes concurrency more hazardous.
-Composability of objects and exceptions is difficult to test, and
-manual, pattern-based concurrent programming with locks is a dark
-art for the elite few. Yet it is necessary in everyday web
-programming.
+Furthermore, tateful-object programming makes concurrency more
+hazardous. Composability of objects and exceptions is difficult to
+test, and manual, pattern-based concurrent programming with locks is
+a dark art for the elite few. Yet, concurrency is necessary in
+everyday web programming.
 
-Fluent style is natural in functional programming. It is composable
-with exceptions and with errors-as-return-codes. Functional
-programming sidesteps the temporal reasoning required for
-stateful-object programming, making it exponentially easier to test
-and debug. Functional programming also sidesteps the concurrency
-hazards of stateful-object programming, replacing mutability with
-referential transparency and deterministic behavior.
-% Emacs 24.3.1 (Org mode 8.0.7)
+In addition to enabling fluent style everywhere, functional
+programming aleviates the other hazards of stateful-object
+programming. It is composable both with exceptions and with
+errors-as-return-codes. Because function-parameters are immutable,
+functions are naturally re-entrant. Functional programming also
+sidesteps the temporal reasoning required for stateful-object
+programming, making code easier to test and debug.
+% Emacs 24.2.1 (Org mode 8.0.7)
 \end{document}

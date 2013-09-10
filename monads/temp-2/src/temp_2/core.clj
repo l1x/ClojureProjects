@@ -43,7 +43,7 @@
    m-bind   (fn [value f]
               (if-not (:error value)
                 (f value) 
-                value))
+                (m-result value)))
   ])
 
 (defmacro with-em-result [expr]
