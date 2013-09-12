@@ -29,7 +29,7 @@ The following line generates a benign error
   and source coherent.
 
   This file is named /ex1.org/. It's an outline in plain text with
-  rather obvious structure. Top-level headlines get a single star;
+  obvious structure. Top-level headlines get a single star;
   second-level headlines get two stars, and so on; \LaTeX{} can be
   freely written anywhere; source-code examples abound to
   copy-and-paste, and text explaining how to build and run the source
@@ -42,11 +42,9 @@ The following line generates a benign error
   \verb|org-babel-tangle|. To generate documentation, issue the emacs
   command \verb|org-latex-export-to-pdf|.
 
-  If you don't want to use emacs, by all means use /any/ plain-text
-  editor. We are working on a batch process via /make/ so that you can
-  just clone the repo, make whatever edits you like, type /make/, and
-  have a complete PDF file and a complete directory full of source
-  code.
+  We are working on a batch process via /make/ so that you can just
+  clone the repo, make whatever edits you like, type /make/, and have
+  a complete PDF file and a complete directory full of source code.
 
 * Tangle to Leiningen
   Let's generate Leiningen projects.[fn::http://leiningen.org]
@@ -56,10 +54,10 @@ The following line generates a benign error
   post-2010. As with any Java-based language, there is significant
   ``ceremony'' in setting up code to run. Files must be in certain
   directories that correspond to namespaces and packages, and the
-  ever-finicky /classpath/ must be set up just right. This ceremony is
-  often much more time-consuming than the code itself. Much of the
-  value of the Clojure-Leiningen combination is that Leiningen
-  automates almost all the ceremony.
+  ever-finicky /classpath/ must be set up. This ceremony is often much
+  more time-consuming than the code. Much of the value of the
+  Clojure-Leiningen combination is that Leiningen automates almost all
+  the ceremony.
 
   After /tangling/ this file, as directed in this section, you will
   have a Leiningen project. Go to the project directory (the one
