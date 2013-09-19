@@ -1,4 +1,4 @@
-% Created 2013-09-19 Thu 07:12
+% Created 2013-09-19 Thu 10:34
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -26,7 +26,7 @@
 \hypersetup{
   pdfkeywords={},
   pdfsubject={},
-  pdfcreator={Emacs 24.2.1 (Org mode 8.0.7)}}
+  pdfcreator={Emacs 24.3.1 (Org mode 8.0.7)}}
 \begin{document}
 
 \maketitle
@@ -41,6 +41,8 @@
 Source code \emph{and} PDF documentation spring
 from the same, plain-text source files.
 \end{description}
+
+
 \section{Tangle to Leiningen}
 \label{sec-2}
 
@@ -60,50 +62,9 @@ from the same, plain-text source files.
 \end{verbatim}
 \end{figure}
 
-\subsection{The Documentation Subdirectory}
-\label{sec-2-1}
-Mimicking Leiningen's documentation subdirectory, it contains the
-single file \verb+intro.md+, again in \verb+markdown+ syntax.
-\begin{verbatim}
-# Introduction to ex1
-TODO: The project documentation is the .org file that produced 
-this output, but it still pays to read
-http://jacobian.org/writing/great-documentation/what-to-write/
-\end{verbatim}
-
-\subsection{Core Source File}
-\label{sec-2-2}
-By convention, the core source files go in a subdirectory named
-\verb+./ex1/src/ex1+. This convention allows the Clojure namespaces
-to map to Java packages.
-
-The following is our core source file, explained in small pieces.
-The \emph{org} file contains a spec for emitting the tangled source at
-this point. This spec is not visible in the generated PDF file,
-because we want to individually document the small pieces. The
-invisible spec simply gathers up the source of the small pieces from
-out of their explanations and then emits them into the source
-directory tree, using another tool called
-\emph{noweb}.\footnote{\url{http://orgmode.org/manual/Noweb-reference-syntax.html}}
-This is not more complexity for you to learn, rather it is just a
-way for you to feel comfortable with literate-programming magic.
 \subsubsection{The Namespace}
-\label{sec-2-2-1}
-First, we must mention the libraries we're using. This is pure
-ceremony, and we get to the meat of the code immediately after. These
-library-mentions correspond to the \verb|:dependencies| in the
-\verb|project.clj| file above. Each \verb|:use| or \verb|:require|
-below must correspond to either an explicit dependency in the
-\verb|project.clj| file or to one of several implicitly loaded
-libraries. Leiningen loads libraries by processing the
-\verb|project.clj| file above. We bring symbols from those libraries
-into our namespace so we can use the libraries in our core routines.
+\label{sec-2-0-1}
 
-To ingest and compile raw Excel spreadsheets, we use the built-in
-libraries \verb|clojure.zip| for tree navigation and
-\verb|clojure.xml| for XML parsing, plus the third-party libraries
-\verb|clojure.data.zip.xml| and \verb|dk.ative.docjure.spreadsheet|.
-The following brings these libraries into our namespace:
 \begin{figure}[H]
 \label{main-namespace}
 \begin{verbatim}
@@ -115,14 +76,8 @@ The following brings these libraries into our namespace:
 \end{verbatim}
 \end{figure}
 \subsubsection{Data Instances}
-\label{sec-2-2-2}
-Next, we create a couple of data instances to manipulate later in our
-unit tests. The first one ingests a trivial XML file and the second
-one converts the in-memory data structure into a
-\emph{zipper},\footnote{\url{http://richhickey.github.io/clojure/clojure.zip-api.html}}
-a very modern, functional tree-navigation facility. These instances
-will test our ability to freely navigate the raw XML form of Excel
-spreadsheets:
+\label{sec-2-0-2}
+
 \begin{figure}[H]
 \label{main-zippered}
 \begin{verbatim}
@@ -131,14 +86,8 @@ spreadsheets:
 \end{verbatim}
 \end{figure}
 \subsubsection{A Test Excel Spreadsheet}
-\label{sec-2-2-3}
-Finally, we use \verb|docjure| to emit a test Excel spreadsheet, which
-we will read in our unit tests and verify some operations on it. This
-code creates a workbook with a single sheet in a rather obvious way,
-picks out the sheet and its header row, and sets some visual
-properties on the header row. We can open the resulting spreadsheet in
-Excel after running \verb|lein test| and verify that the
-\verb|docjure| library works as advertised.
+\label{sec-2-0-3}
+
 \begin{figure}[H]
 \label{docjure-test-spreadsheet}
 \begin{verbatim}
@@ -158,7 +107,7 @@ Excel after running \verb|lein test| and verify that the
 \end{verbatim}
 \end{figure}
 \subsection{Core Unit-Test File}
-\label{sec-2-3}
+\label{sec-2-1}
 Unit-testing files go in a subdirectory named \verb+./ex1/test/ex1+.
 Again, the directory-naming convention enables valuable shortcuts
 from Leiningen.
@@ -271,5 +220,5 @@ not copied out to the PDF file.
 \section{Conclusion}
 \label{sec-5}
 Fu is Fortune.
-% Emacs 24.2.1 (Org mode 8.0.7)
+% Emacs 24.3.1 (Org mode 8.0.7)
 \end{document}

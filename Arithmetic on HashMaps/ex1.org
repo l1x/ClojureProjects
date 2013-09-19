@@ -2,6 +2,7 @@
 #+AUTHOR: The Team of Fu
 #+LATEX_HEADER: \usepackage{tikz}
 #+LATEX_HEADER: \usepackage{tikz-cd}
+#+LATEX_HEADER: \usepackage{amsthm}
 #+LATEX_HEADER: \usetikzlibrary{matrix,arrows,positioning,scopes,chains}
 #+LATEX_HEADER: \tikzset{node distance=2cm, auto}
 #+BEGIN_COMMENT
@@ -18,6 +19,8 @@ The following line generates a benign error
               [fn:LP: See http://en.wikipedia.org/wiki/Literate_programming.] 
               Source code /and/ PDF documentation spring
               from the same, plain-text source files.
+
+  
 
 * Tangle to Leiningen
 
