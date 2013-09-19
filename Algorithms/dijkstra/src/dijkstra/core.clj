@@ -48,7 +48,7 @@
   ;; by an edge of cost 4."
   ;;
   ;; "Explored" begins as the empty map, and "frontier" begins as the
-  ;; map from "start" with a degenerat pair of cost zero (0) and no
+  ;; map from "start" with a degenerate pair of cost zero (0) and no
   ;; predecessor.
   ((fn explore [explored frontier]
      (lazy-seq
