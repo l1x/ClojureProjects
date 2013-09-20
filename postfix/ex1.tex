@@ -1,4 +1,4 @@
-% Created 2013-09-19 Thu 21:17
+% Created 2013-09-19 Thu 22:33
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -42,8 +42,6 @@
 Source code \emph{and} PDF documentation spring
 from the same, plain-text source files.
 \end{description}
-\section{Tangle to Leiningen}
-\label{sec-2}
 
 \begin{figure}[H]
 \label{project-file}
@@ -58,9 +56,8 @@ from the same, plain-text source files.
   :repl-options {:init-ns ex1.core})
 \end{verbatim}
 \end{figure}
-
-\subsubsection{The Namespace}
-\label{sec-2-0-1}
+\section{The Namespace}
+\label{sec-2}
 
 \begin{figure}[H]
 \label{main-namespace}
@@ -68,17 +65,61 @@ from the same, plain-text source files.
 (ns ex1.core)
 \end{verbatim}
 \end{figure}
-\subsubsection{Functions}
-\label{sec-2-0-2}
+\section{Functions}
+\label{sec-3}
+
+This \emph{postfix} function receives a sequence of expressions $es$. It
+produces a reduction of a binary function $f$ over the empty vector
+$[\;]$ and $es$. $f$ receives a vector $a$ and an expression $e$. $a$
+implements a stack. If $e$ is a function, $f$ replaces the top two
+elements $r$ and $l$ of $a$ with $e(l,r)$, the application of function
+$e$ to those arguments. Otherwise, $f$ just \emph{cons}-es $e$ to the front
+of $a$. $r$ and $l$ appear in opposite order in $a$ to the order that
+$e$ receives them; while reducing arguments left-to-right in $es$,
+\emph{postfix} reverses them when \emph{cons}-ing to the front of the stack.
+
+\begin{figure}[H]
+\label{main-postfix}
+\begin{verbatim}
+(defn postfix [& es]
+  (reduce
+    (fn f [a-vec e]
+      (if (fn? e)
+          (let [[r l & m] a-vec]
+            (cons (e l r) m))
+          (cons e a-vec)))
+    []
+    es))
+\end{verbatim}
+\end{figure}
 
 \begin{figure}[H]
 \label{main-functions}
 \begin{verbatim}
-(def x 42)
+(defn zero-out-divide-by-zero [fn l r]
+  ; if function is division (/) and right-hand operand is 0
+  (if (and
+        (= fn /)
+        (some #{r} [0 0.0 0M]))
+    ; return operand
+    r
+    ; otherwise, execute function
+    (fn l r)))
+
+(defn binary-apply-fn [fn r l]
+  (apply map (partial zero-out-divide-by-zero fn)
+    (list r l)))
+
+(defn postfix-collections [& e]
+  (mapcat identity
+    (reduce #(if (fn? %2)
+               (let [[r l & m]%]
+                 (cons (binary-apply-fn %2 l r) m))
+               (cons %2 %))[]e)))
 \end{verbatim}
 \end{figure}
-\subsection{Core Unit-Test File}
-\label{sec-2-1}
+\section{Core Unit-Test File}
+\label{sec-4}
 
 \begin{figure}[H]
 \label{main-test-namespace}
@@ -99,7 +140,7 @@ from the same, plain-text source files.
 \end{verbatim}
 \end{figure}
 \section{A REPL-based Solution}
-\label{sec-3}
+\label{sec-5}
 \label{sec:emacs-repl}
 To run the REPL for interactive programming and testing in org-mode,
 take the following steps:
