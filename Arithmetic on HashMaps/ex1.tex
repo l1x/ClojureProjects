@@ -1,4 +1,4 @@
-% Created 2013-09-19 Thu 10:34
+% Created 2013-09-20 Fri 16:01
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -16,17 +16,24 @@
 \usepackage{amstext}
 \usepackage{hyperref}
 \tolerance=1000
+\usepackage{savesym}
+\savesymbol{iint}
+\savesymbol{iiint}
+\usepackage{amsmath}
 \usepackage{tikz}
 \usepackage{tikz-cd}
 \usetikzlibrary{matrix,arrows,positioning,scopes,chains}
 \tikzset{node distance=2cm, auto}
+\usepackage{framed}
+\usepackage[framed]{ntheorem}
+\newframedtheorem{myrule}{Rule}[section]
 \author{The Team of Fu}
 \date{\today}
-\title{Arithmetic on Hash Maps}
+\title{Reversible Arithmetic on Collections}
 \hypersetup{
   pdfkeywords={},
   pdfsubject={},
-  pdfcreator={Emacs 24.3.1 (Org mode 8.0.7)}}
+  pdfcreator={Emacs 24.3.1 (Org mode 8.0)}}
 \begin{document}
 
 \maketitle
@@ -36,158 +43,190 @@
 \section{Introduction}
 \label{sec-1}
 \begin{description}
-\item[{Remark}] This is a literate program. 
-\footnote{See \url{http://en.wikipedia.org/wiki/Literate_programming}.} 
+\item[{Remark}] This is a literate program.
+\footnote{\url{http://en.wikipedia.org/wiki/Literate_programming}.}
 Source code \emph{and} PDF documentation spring
 from the same, plain-text source files.
 \end{description}
 
+We often encounter data records as hash maps, sequences, or vectors.
+Arithmetic on vectors is familiar from school math: to get the sum of
+two vectors, just add the corresponding elements, first-to-first,
+second-to-second, and so on.  Here's an example in two dimensions:
+\begin{verbatim}
+[1, 2] + [3, 4] = [4, 6]
+\end{verbatim}
 
-\section{Tangle to Leiningen}
+We don't need to write the commas (but we can if we want -- in Clojure,
+they're just whitespace):
+\begin{verbatim}
+[1 2] + [3 4] = [4 6]
+\end{verbatim}
+
+Clojure's \emph{map} can already do this:
+\begin{verbatim}
+(map + [1 2] [3 4])
+\end{verbatim}
+\begin{verbatim}
+==> [4 6]
+\end{verbatim}
+
+The same idea works in any number of dimensions and with any kind of
+elements that can be added (any
+\emph{field}:\footnote{\url{http://en.wikipedia.org/wiki/Field_(mathematics)}} integers,
+complex numbers, quaternions.  It's the foundation of the important
+theory of \emph{Vector Spaces} in
+mathematics.\footnote{\url{http://en.wikipedia.org/wiki/Vector_space}}
+
+Now, suppose you want to \emph{un-add} the result, \verb|[4 6]|? There is no
+unique answer.  All the following are mathematically correct:
+\begin{verbatim}
+...
+[-1 2] + [5 4] = [4 6]
+[ 0 2] + [4 4] = [4 6]
+[ 1 2] + [3 4] = [4 6]
+[ 2 2] + [2 4] = [4 6]
+[ 3 2] + [1 4] = [4 6]
+...
+\end{verbatim}
+and a large infinity of more answers.
+
+But, in our financial computations, we usually want this functionality
+so we can undo a mistake, roll back a provisional result, perform a
+backfill or allocation: in short, get back the original inputs.
+
+Let's define a protocol for \emph{reversible arithmetic in vector spaces}
+that captures the desired functionality.  We want a protocol because we
+want several implementations with the same reversible arithmetic.  For
+instance, we should be able to do similarly for hash-maps, which, after
+all, are just sparse vectors with named components:
+\begin{verbatim}
+{:x 1, :y 2} + {:x 3, :y} = {:x 4, y:6}
+\end{verbatim}
+
+To get the desired behavior, we can't use \emph{map}; it doesn't work the
+same on hash-maps.  We must use Clojure's \emph{merge-with}:
+\begin{verbatim}
+(merge-with + {:x 1, :y 2} {:x 3, :y 4})
+\end{verbatim}
+\begin{verbatim}
+==> {:y  6, :x 4}
+\end{verbatim}
+
+We want to get rid of these annoying differences: the protocol for
+adding data rows should be the same for all collection
+types.\footnote{including streams over time! Don't forget Rx and SRS.}  Along
+the way, we'll do some hardening so that the implementations are robust
+both mathematically and computationally.
+\section{A Protocol for Reversible Arithmetic}
 \label{sec-2}
 
+First, name our objects of interest \emph{algebraic vectors} to distinguish
+them from Clojure's existing \emph{vector} type.  Borrowing an idiom from C\#
+and .NET, name our protocol with an initial \emph{I} and with camelback
+casing.  Don't misread \emph{IReversibleAlgebraicVector} as ``irreversible
+algebraic vector,'' but rather read it as ``Interface to Reversible
+Algebraic Vector,'' where ``Interface'' is a synonym for ``protocol.''
+
 \begin{figure}[H]
-\label{project-file}
+\label{reversible-algebraic-vector-protocol}
 \begin{verbatim}
-(defproject ex1 "0.1.0-SNAPSHOT"
-  :description "Project Fortune's Excel Processor"
-  :url "http://example.com/TODO"
-  :license {:name "TODO"
-            :url "TODO"}
-  :dependencies [[org.clojure/clojure  "1.5.1"]
-                 [org.clojure/data.zip "0.1.1"]
-                 [dk.ative/docjure     "1.6.0"]
-                ]
-  :repl-options {:init-ns ex1.core})
+(defprotocol IReversibleAlgebraicVector
+  ;; binary operators
+  (add   [a b])
+  (sub   [a b])
+  (inner [a b])
+  ;; unary operators
+  (scale [a scalar])
+  ;; reverse any operation
+  (undo [a])
+  (redo [a])
+)
 \end{verbatim}
 \end{figure}
 
-\subsubsection{The Namespace}
-\label{sec-2-0-1}
-
-\begin{figure}[H]
-\label{main-namespace}
-\begin{verbatim}
-(ns ex1.core
-  (:use [clojure.data.zip.xml :only (attr text xml->)]
-        [dk.ative.docjure.spreadsheet] ) 
-  (:require [clojure.xml :as xml]
-            [clojure.zip :as zip]))
-\end{verbatim}
-\end{figure}
-\subsubsection{Data Instances}
-\label{sec-2-0-2}
-
-\begin{figure}[H]
-\label{main-zippered}
-\begin{verbatim}
-(def xml (xml/parse "myfile.xml"))
-(def zippered (zip/xml-zip xml))
-\end{verbatim}
-\end{figure}
-\subsubsection{A Test Excel Spreadsheet}
-\label{sec-2-0-3}
-
-\begin{figure}[H]
-\label{docjure-test-spreadsheet}
-\begin{verbatim}
-(let [wb (create-workbook "Price List"
-                          [["Name"       "Price"]
-                           ["Foo Widget" 100]
-                           ["Bar Widget" 200]])
-      sheet (select-sheet "Price List" wb)
-      header-row (first (row-seq sheet))]
-  (do
-    (set-row-style!
-      header-row
-      (create-cell-style! wb
-        {:background :yellow,
-         :font       {:bold true}}))
-    (save-workbook! "spreadsheet.xlsx" wb)))
-\end{verbatim}
-\end{figure}
-\subsection{Core Unit-Test File}
+\subsection{Implementing the Protocol for Vectors}
 \label{sec-2-1}
-Unit-testing files go in a subdirectory named \verb+./ex1/test/ex1+.
-Again, the directory-naming convention enables valuable shortcuts
-from Leiningen.
 
-As with the core source files, we include the built-in and downloaded
-libraries, but also the \verb|test framework| and the \verb|core|
-namespace, itself, so we can test the functions in the core.
+As a first cut, package Clojure vectors in hash-maps that contain enough
+information to reverse any computation.
+
+Start with a little helper to get data from a vector that may be either
+a basic Clojure vector or one of our reversible algebraic vectors.
+Define it as a \emph{multimethod} since we anticipate needing it for every
+basic type that can hold a reversible algebraic vector, namely for
+vectors, lists, and hash-maps. If the hash-map has a value for key
+\emph{:data}, then return that value. Otherwise, return the given
+hash-map. This implies our first rule:
+\begin{myrule}[Data]
+A reversible algebraic vector is a hash-map, list, or ordinary Clojure
+vector. If it is a hash-map, it either has a \texttt{:data}
+attribute or not.
+If it has a \texttt{:data} attribute, then its data is the value of that
+attribute. Otherwise, its data is the
+hash-map is itself.
+\end{myrule}
+
+
 \begin{figure}[H]
-\label{main-test-namespace}
+\label{get-data-helper}
+\begin{verbatim}
+(defmulti get-data type)
+(defmethod get-data (type [])  [that] that)
+(defmethod get-data (type '()) [that] that)
+(defmethod get-data (type {}) (or (:data that) that))
+\end{verbatim}
+\end{figure}
+
+\begin{figure}[H]
+\label{reversible-algebraic-vector-on-vector}
+\begin{verbatim}
+(defrecord ReversibleVector [a-vector]
+  IReversibleAlgebraicVector
+  (add [a b] {:left-prior a, :right-prior b,
+              :operation 'add, :data (map + (get-data a)
+                                            (get-data b))})
+  (sub [a b] nil)
+  (inner [a b] nil)
+  (scale [a scalar] nil)
+  (undo [a] nil)
+  (undo [b] nil))
+\end{verbatim}
+\end{figure}
+
+\section{Functions}
+\label{sec-3}
+\begin{figure}[H]
+\label{main-functions}
+\begin{verbatim}
+(def x 42)
+(defn foo [] x)
+\end{verbatim}
+\end{figure}
+\section{Unit-Tests}
+\label{sec-4}
+
+\begin{figure}[H]
+\label{test-namespace}
 \begin{verbatim}
 (ns ex1.core-test
-  (:use [clojure.data.zip.xml :only (attr text xml->)]
-        [dk.ative.docjure.spreadsheet]
-  )
-  (:require [clojure.xml :as xml]
-            [clojure.zip :as zip]
-            [clojure.test :refer :all]
-            [ex1.core :refer :all]))
+  (:require [clojure.test :refer :all]
+            [ex1.core     :refer :all]))
 \end{verbatim}
 \end{figure}
-
-We now test that the zippered XML file can be accessed by the \emph{zipper}
-operators. The main operator of interest is \verb|xml->|, which acts
-a lot like Clojure's
-\emph{fluent-style} \footnote{\url{http://en.wikipedia.org/wiki/Fluent_interface}}
-\emph{threading} operator
-\verb|->|.\footnote{\url{http://clojuredocs.org/clojure_core/clojure.core/-\%3E}}
-It takes its first argument, a zippered XML file in this case, and
-then a sequence of functions to apply. For instance, the following
-XML file, when subjected to the functions \verb|:track|,
-\verb|:name|, and \verb|text|, should produce \verb|'("Track one" "Track two")|
-\begin{verbatim}
-<songs>
-  <track id="t1"><name>Track one</name></track>
-  <ignore>pugh!</ignore>
-  <track id="t2"><name>Track two</name></track>
-</songs>
-\end{verbatim}
-Likewise, we can dig into the attributes with natural accessor
-functions \footnote{Clojure treats colon-prefixed keywords as functions that
-fetch the corresponding values from hashmaps, rather like the dot
-operator in Java or JavaScript; Clojure also treats hashmaps as
-functions of their keywords: the result of the function call
-$\texttt{(\{:a 1\} :a)}$ is the same as the result of the function call
-$\texttt{(:a \{:a 1\})}$}\#+name: docjure-test-namespace
 
 \begin{figure}[H]
-\label{test-zippered}
+\label{test-functions}
 \begin{verbatim}
-(deftest xml-zipper-test
-  (testing "xml and zip on a trivial file."
-    (are [a b] (= a b)
-      (xml-> zippered :track :name text) '("Track one" "Track two")
-      (xml-> zippered :track (attr :id)) '("t1" "t2"))))
+(deftest null-test
+  (testing "null test"
+    (is (= (merge-with + {:x 1 :y 2} {:x 3 :y 4}) {:x 4 :y 6}))
+    (is (= 1 1))
+  ))
 \end{verbatim}
 \end{figure}
-
-Next, we ensure that we can faithfully read back the workbook we
-created \emph{via} \verb|docjure|. Here, we use Clojure's
-\verb|thread-last| macro to achieve fluent style:
-\begin{figure}[H]
-\label{test-docjure-read}
-\begin{verbatim}
-(deftest docjure-test
-  (testing "docjure read"
-    (is (= 
-
-      (->> (load-workbook "spreadsheet.xlsx")
-           (select-sheet "Price List")
-           (select-columns {:A :name, :B :price}))
-
-      [{:name "Name"      , :price "Price"}, ; don't forget header row
-       {:name "Foo Widget", :price 100.0  },
-       {:name "Bar Widget", :price 200.0  }]
-
-      ))))
-\end{verbatim}
-\end{figure}
-\section{A REPL-based Solution}
-\label{sec-3}
+\section{REPLing}
+\label{sec-5}
 \label{sec:emacs-repl}
 To run the REPL for interactive programming and testing in org-mode,
 take the following steps:
@@ -201,24 +240,11 @@ not copied out to the PDF file.
 \end{enumerate}
 
 \begin{verbatim}
-[(xml-> zippered :track :name text)        ; ("Track one" "Track two")
- (xml-> zippered :track (attr :id))]       ; ("t1" "t2")
-\end{verbatim}
-
-\begin{verbatim}
-(->> (load-workbook "spreadsheet.xlsx")
-     (select-sheet "Price List")
-     (select-columns {:A :name, :B :price}))
-\end{verbatim}
-
-\begin{verbatim}
 (run-all-tests)
 \end{verbatim}
-\section{References}
-\label{sec-4}
 
-\section{Conclusion}
-\label{sec-5}
-Fu is Fortune.
-% Emacs 24.3.1 (Org mode 8.0.7)
+\begin{verbatim}
+(foo)
+\end{verbatim}
+% Emacs 24.3.1 (Org mode 8.0)
 \end{document}

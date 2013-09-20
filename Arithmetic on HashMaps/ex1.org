@@ -1,10 +1,17 @@
-#+TITLE: Arithmetic on Hash Maps
+#+TITLE: Reversible Arithmetic on Collections
 #+AUTHOR: The Team of Fu
+#+LATEX_HEADER: \usepackage{savesym}
+#+LATEX_HEADER: \savesymbol{iint}
+#+LATEX_HEADER: \savesymbol{iiint}
+#+LATEX_HEADER: \usepackage{amsmath}
+
 #+LATEX_HEADER: \usepackage{tikz}
 #+LATEX_HEADER: \usepackage{tikz-cd}
-#+LATEX_HEADER: \usepackage{amsthm}
 #+LATEX_HEADER: \usetikzlibrary{matrix,arrows,positioning,scopes,chains}
 #+LATEX_HEADER: \tikzset{node distance=2cm, auto}
+#+LATEX_HEADER: \usepackage{framed}
+#+LATEX_HEADER: \usepackage[framed]{ntheorem}
+#+LATEX_HEADER: \newframedtheorem{myrule}{Rule}[section]
 #+BEGIN_COMMENT
 The following line generates a benign error
 #+LATEX_HEADER: \usepackage{amsmath, amsthm, amssymb}
@@ -15,190 +22,210 @@ The following line generates a benign error
 #+END_COMMENT
 
 * Introduction
-  + Remark :: This is a literate program. 
-              [fn:LP: See http://en.wikipedia.org/wiki/Literate_programming.] 
+  + Remark :: This is a literate program.
+              [fn:LP: http://en.wikipedia.org/wiki/Literate_programming.]
               Source code /and/ PDF documentation spring
               from the same, plain-text source files.
 
-  
+We often encounter data records as hash maps, sequences, or vectors.
+Arithmetic on vectors is familiar from school math: to get the sum of
+two vectors, just add the corresponding elements, first-to-first,
+second-to-second, and so on.  Here's an example in two dimensions:
+#+BEGIN_SRC clojure :tangle no
+[1, 2] + [3, 4] = [4, 6]
+#+END_SRC
 
-* Tangle to Leiningen
+We don't need to write the commas (but we can if we want -- in Clojure,
+they're just whitespace):
+#+BEGIN_SRC clojure :tangle no
+[1 2] + [3 4] = [4 6]
+#+END_SRC
 
-#+BEGIN_SRC text :mkdirp yes :tangle ./ex1/.gitignore :exports none
-/target
-/lib
-/classes
-/checkouts
-pom.xml
-pom.xml.asc
-*.jar
-*.class
-.lein-deps-sum
-.lein-failures
-.lein-plugins
-.lein-repl-history
+Clojure's /map/ can already do this:
+#+BEGIN_SRC clojure :tangle no
+(map + [1 2] [3 4])
+#+END_SRC
+\begin{verbatim}
+==> [4 6]
+\end{verbatim}
+
+The same idea works in any number of dimensions and with any kind of
+elements that can be added (any
+/field/:[fn::http://en.wikipedia.org/wiki/Field_(mathematics)] integers,
+complex numbers, quaternions.  It's the foundation of the important
+theory of /Vector Spaces/ in
+mathematics.[fn::http://en.wikipedia.org/wiki/Vector_space]
+
+Now, suppose you want to /un-add/ the result, \verb|[4 6]|? There is no
+unique answer.  All the following are mathematically correct:
+#+BEGIN_SRC clojure :tangle no
+...
+[-1 2] + [5 4] = [4 6]
+[ 0 2] + [4 4] = [4 6]
+[ 1 2] + [3 4] = [4 6]
+[ 2 2] + [2 4] = [4 6]
+[ 3 2] + [1 4] = [4 6]
+...
+#+END_SRC
+and a large infinity of more answers.
+
+But, in our financial computations, we usually want this functionality
+so we can undo a mistake, roll back a provisional result, perform a
+backfill or allocation: in short, get back the original inputs.
+
+Let's define a protocol for /reversible arithmetic in vector spaces/
+that captures the desired functionality.  We want a protocol because we
+want several implementations with the same reversible arithmetic.  For
+instance, we should be able to do similarly for hash-maps, which, after
+all, are just sparse vectors with named components:
+#+BEGIN_SRC clojure :tangle no
+{:x 1, :y 2} + {:x 3, :y} = {:x 4, y:6}
+#+END_SRC
+
+To get the desired behavior, we can't use /map/; it doesn't work the
+same on hash-maps.  We must use Clojure's /merge-with/:
+#+BEGIN_SRC clojure :tangle no
+(merge-with + {:x 1, :y 2} {:x 3, :y 4})
+#+END_SRC
+\begin{verbatim}
+==> {:y  6, :x 4}
+\end{verbatim}
+
+We want to get rid of these annoying differences: the protocol for
+adding data rows should be the same for all collection
+types.[fn::including streams over time! Don't forget Rx and SRS.]  Along
+the way, we'll do some hardening so that the implementations are robust
+both mathematically and computationally.
+
+* A Protocol for Reversible Arithmetic
+
+First, name our objects of interest /algebraic vectors/ to distinguish
+them from Clojure's existing /vector/ type.  Borrowing an idiom from C\#
+and .NET, name our protocol with an initial /I/ and with camelback
+casing.  Don't misread /IReversibleAlgebraicVector/ as ``irreversible
+algebraic vector,'' but rather read it as ``Interface to Reversible
+Algebraic Vector,'' where ``Interface'' is a synonym for ``protocol.''
+
+#+NAME: reversible-algebraic-vector-protocol
+#+BEGIN_SRC clojure :tangle no
+(defprotocol IReversibleAlgebraicVector
+  ;; binary operators
+  (add   [a b])
+  (sub   [a b])
+  (inner [a b])
+  ;; unary operators
+  (scale [a scalar])
+  ;; reverse any operation
+  (undo [a])
+  (redo [a])
+)
+#+END_SRC
+
+** Implementing the Protocol for Vectors
+
+As a first cut, package Clojure vectors in hash-maps that contain enough
+information to reverse any computation.
+
+Start with a little helper to get data from a vector that may be either
+a basic Clojure vector or one of our reversible algebraic vectors.
+Define it as a /multimethod/ since we anticipate needing it for every
+basic type that can hold a reversible algebraic vector, namely for
+vectors, lists, and hash-maps. If the hash-map has a value for key
+/:data/, then return that value. Otherwise, return the given
+hash-map. This implies our first rule:
+\begin{myrule}[Vector Data]
+A reversible algebraic vector is a hash-map, list, or ordinary Clojure
+vector. If it is a hash-map, it either has a \texttt{:data}
+attribute or not.
+If it has a \texttt{:data} attribute, then its data is the value of that
+attribute. Otherwise, its data is the
+hash-map is itself.
+\end{myrule}
+
+#+NAME: get-data-helper
+#+BEGIN_SRC clojure :tangle no
+(defmulti get-data type)
+(defmethod get-data (type [])  [that] that)
+(defmethod get-data (type '()) [that] that)
+(defmethod get-data (type {})  [that] (or (:data that) that))
+#+END_SRC
+
+Here are a few unit tests for these helpers that show how they enforce
+the rule.
+
+#+name: test-get-data-helper
+#+BEGIN_SRC clojure :results silent
+(deftest get-data-helper-test
+  (testing "get-data-helper"
+    (is (= 1 1))))
+#+END_SRC
+
+#+NAME: reversible-algebraic-vector-on-vector
+#+BEGIN_SRC clojure :tangle no
+(defrecord ReversibleVector [a-vector]
+  IReversibleAlgebraicVector
+  (add   [a b] {:left-prior a, :right-prior b,
+                :operation 'add, :data (map + (get-data a)
+                                              (get-data b))})
+  (sub   [a b] nil)
+  (inner [a b] nil)
+  (scale [a scalar] nil)
+  (undo  [a] nil)
+  (redo  [b] nil))
 #+END_SRC
 
 #+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/README.md :exports none
 # ex1
-A Clojure library designed to do SOMETHING. 
+A Clojure library for reversible arithmetic on collections.
 ## Usage
 TODO
 ## License
 Copyright © 2013 TODO
 #+END_SRC
-
 #+BEGIN_SRC clojure :noweb yes :mkdirp yes :tangle ./ex1/project.clj :exports none
-  <<project-file>>
-#+END_SRC
-
-#+NAME: project-file
-#+BEGIN_SRC clojure :tangle no
 (defproject ex1 "0.1.0-SNAPSHOT"
   :description "Project Fortune's Excel Processor"
   :url "http://example.com/TODO"
   :license {:name "TODO"
             :url "TODO"}
   :dependencies [[org.clojure/clojure  "1.5.1"]
-                 [org.clojure/data.zip "0.1.1"]
-                 [dk.ative/docjure     "1.6.0"]
                 ]
   :repl-options {:init-ns ex1.core})
 #+END_SRC
-
 #+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/doc/intro.md :exports none
-# Introduction to ex1
-TODO: The project documentation is the .org file that produced 
+# Reversible Arithmetic on Collections
+TODO: The project documentation is the .org file that produced
 this output, but it still pays to read
 http://jacobian.org/writing/great-documentation/what-to-write/
 #+END_SRC
-  
 #+name: top-level-load-block
-#+BEGIN_SRC clojure  :exports none :mkdirp yes :tangle ./ex1/src/ex1/core.clj :padline no :results silent :noweb yes
+#+BEGIN_SRC clojure :exports none :mkdirp yes :tangle ./ex1/src/ex1/core.clj :padline no :results silent :noweb yes
 <<main-namespace>>
-<<main-zippered>>
-<<docjure-test-spreadsheet>>
+<<reversible-algebraic-vector-protocol>>
+<<get-data-helper>>
+<<reversible-algebraic-vector-on-vector>>
 #+END_SRC
-
-*** The Namespace
 
 #+name: main-namespace
-#+BEGIN_SRC clojure :results silent 
-(ns ex1.core
-  (:use [clojure.data.zip.xml :only (attr text xml->)]
-        [dk.ative.docjure.spreadsheet] ) 
-  (:require [clojure.xml :as xml]
-            [clojure.zip :as zip]))
+#+BEGIN_SRC clojure :results silent :exports none
+(ns ex1.core)
 #+END_SRC
 
-*** Data Instances
-
-#+name: main-zippered
-#+BEGIN_SRC clojure :results silent 
-(def xml (xml/parse "myfile.xml"))
-(def zippered (zip/xml-zip xml))
-#+END_SRC
-
-*** A Test Excel Spreadsheet
-
-#+name: docjure-test-spreadsheet
-#+BEGIN_SRC clojure
-(let [wb (create-workbook "Price List"
-                          [["Name"       "Price"]
-                           ["Foo Widget" 100]
-                           ["Bar Widget" 200]])
-      sheet (select-sheet "Price List" wb)
-      header-row (first (row-seq sheet))]
-  (do
-    (set-row-style!
-      header-row
-      (create-cell-style! wb
-        {:background :yellow,
-         :font       {:bold true}}))
-    (save-workbook! "spreadsheet.xlsx" wb)))
-#+END_SRC
-
-** Core Unit-Test File
-  Unit-testing files go in a subdirectory named \verb+./ex1/test/ex1+.
-  Again, the directory-naming convention enables valuable shortcuts
-  from Leiningen.
+* Unit-Tests
 
 #+BEGIN_SRC clojure  :exports none :mkdirp yes :tangle ./ex1/test/ex1/core_test.clj :padline no :results silent :noweb yes
-<<main-test-namespace>>
-<<test-zippered>>
-<<test-docjure-read>>
+<<test-namespace>>
+<<get-data-helper-test>>
 #+END_SRC
 
-As with the core source files, we include the built-in and downloaded
-libraries, but also the \verb|test framework| and the \verb|core|
-namespace, itself, so we can test the functions in the core.
-#+name: main-test-namespace
-#+BEGIN_SRC clojure :results silent 
+#+name: test-namespace
+#+BEGIN_SRC clojure :results silent
 (ns ex1.core-test
-  (:use [clojure.data.zip.xml :only (attr text xml->)]
-        [dk.ative.docjure.spreadsheet]
-  )
-  (:require [clojure.xml :as xml]
-            [clojure.zip :as zip]
-            [clojure.test :refer :all]
-            [ex1.core :refer :all]))
+  (:require [clojure.test :refer :all]
+            [ex1.core     :refer :all]))
 #+END_SRC
 
-We now test that the zippered XML file can be accessed by the /zipper/
-operators. The main operator of interest is \verb|xml->|, which acts
-a lot like Clojure's
-/fluent-style/ [fn::http://en.wikipedia.org/wiki/Fluent_interface]
-/threading/ operator
-\verb|->|.[fn::http://clojuredocs.org/clojure_core/clojure.core/-\%3E]
-It takes its first argument, a zippered XML file in this case, and
-then a sequence of functions to apply. For instance, the following
-XML file, when subjected to the functions \verb|:track|,
-\verb|:name|, and \verb|text|, should produce \verb|'("Track one" "Track two")|
-#+BEGIN_SRC xml :mkdirp yes :tangle ./ex1/myfile.xml
-<songs>
-  <track id="t1"><name>Track one</name></track>
-  <ignore>pugh!</ignore>
-  <track id="t2"><name>Track two</name></track>
-</songs>
-#+END_SRC
-Likewise, we can dig into the attributes with natural accessor
-functions [fn::Clojure treats colon-prefixed keywords as functions that
-fetch the corresponding values from hashmaps, rather like the dot
-operator in Java or JavaScript; Clojure also treats hashmaps as
-functions of their keywords: the result of the function call
-$\texttt{(\{:a 1\} :a)}$ is the same as the result of the function call
-$\texttt{(:a \{:a 1\})}$ ]#+name: docjure-test-namespace
-
-#+name: test-zippered
-#+BEGIN_SRC clojure :results silent 
-(deftest xml-zipper-test
-  (testing "xml and zip on a trivial file."
-    (are [a b] (= a b)
-      (xml-> zippered :track :name text) '("Track one" "Track two")
-      (xml-> zippered :track (attr :id)) '("t1" "t2"))))
-#+END_SRC
-
-Next, we ensure that we can faithfully read back the workbook we
-created /via/ \verb|docjure|. Here, we use Clojure's
-\verb|thread-last| macro to achieve fluent style:
-#+name: test-docjure-read 
-#+BEGIN_SRC clojure :results silent 
-(deftest docjure-test
-  (testing "docjure read"
-    (is (= 
-
-      (->> (load-workbook "spreadsheet.xlsx")
-           (select-sheet "Price List")
-           (select-columns {:A :name, :B :price}))
-      
-      [{:name "Name"      , :price "Price"}, ; don't forget header row
-       {:name "Foo Widget", :price 100.0  },
-       {:name "Bar Widget", :price 200.0  }]
-      
-      ))))
-#+END_SRC
-
-* A REPL-based Solution
+* REPLing
 \label{sec:emacs-repl}
 To run the REPL for interactive programming and testing in org-mode,
 take the following steps:
@@ -208,36 +235,3 @@ take the following steps:
 4. Run code in the org-mode buffer with \verb|C-c C-c|; results of
    evaluation are placed right in the buffer for inspection; they are
    not copied out to the PDF file.
-  
-#+BEGIN_SRC clojure :tangle no
-[(xml-> zippered :track :name text)        ; ("Track one" "Track two")
- (xml-> zippered :track (attr :id))]       ; ("t1" "t2")
-#+END_SRC
-
-#+RESULTS:
-| Track one | Track two |
-| t1        | t2        |
-
-#+BEGIN_SRC clojure :tangle no
-(->> (load-workbook "spreadsheet.xlsx")
-     (select-sheet "Price List")
-     (select-columns {:A :name, :B :price}))
-#+END_SRC
-
-#+RESULTS:
-| :price | Price | :name | Name       |
-| :price | 100.0 | :name | Foo Widget |
-| :price | 200.0 | :name | Bar Widget |
-
-#+BEGIN_SRC clojure :tangle no
-(run-all-tests)
-#+END_SRC
-
-#+RESULTS:
-| :type | :summary | :pass | 115 | :test | 31 | :error | 0 | :fail | 0 |
-
-* References
-
-* Conclusion
-  Fu is Fortune.
-  

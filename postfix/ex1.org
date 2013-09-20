@@ -15,8 +15,8 @@ The following line generates a benign error
 #+END_COMMENT
 
 * Introduction
-  + Remark :: This is a literate program. 
-              [fn:LP: See http://en.wikipedia.org/wiki/Literate_programming.] 
+  + Remark :: This is a literate program.
+              [fn:LP: See http://en.wikipedia.org/wiki/Literate_programming.]
               Source code /and/ PDF documentation spring
               from the same, plain-text source files.
 
@@ -37,7 +37,7 @@ pom.xml.asc
 
 #+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/README.md :exports none
 # ex1
-A Clojure library designed to do SOMETHING. 
+A Clojure library designed to do SOMETHING.
 ## Usage
 TODO
 ## License
@@ -62,11 +62,11 @@ Copyright © 2013 TODO
 
 #+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/doc/intro.md :exports none
 # Introduction to ex1
-TODO: The project documentation is the .org file that produced 
+TODO: The project documentation is the .org file that produced
 this output, but it still pays to read
 http://jacobian.org/writing/great-documentation/what-to-write/
 #+END_SRC
-  
+
 #+name: top-level-load-block
 #+BEGIN_SRC clojure :exports none :mkdirp yes :tangle ./ex1/src/ex1/core.clj :padline no :results silent :noweb yes
 <<main-namespace>>
@@ -77,7 +77,7 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 * The Namespace
 
 #+name: main-namespace
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (ns ex1.core)
 #+END_SRC
 
@@ -94,7 +94,7 @@ $e$ receives them; while reducing arguments left-to-right in $es$,
 /postfix/ reverses them when /cons/-ing to the front of the stack.
 
 #+name: main-postfix
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (defn postfix [& es]
   (reduce
     (fn f [a-vec e]
@@ -107,7 +107,7 @@ $e$ receives them; while reducing arguments left-to-right in $es$,
 #+END_SRC
 
 #+name: main-functions
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (defn zero-out-divide-by-zero [fn l r]
   ; if function is division (/) and right-hand operand is 0
   (if (and
@@ -138,7 +138,7 @@ $e$ receives them; while reducing arguments left-to-right in $es$,
 #+END_SRC
 
 #+name: main-test-namespace
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (ns ex1.core-test
   (:require [ex1.core :refer :all]
             [clojure.test :refer :all]
@@ -146,7 +146,7 @@ $e$ receives them; while reducing arguments left-to-right in $es$,
 #+END_SRC
 
 #+name: test-functions
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (deftest null-test
   (testing "null test"
     (is (= 1 1))))
@@ -162,7 +162,3 @@ take the following steps:
 4. Run code in the org-mode buffer with \verb|C-c C-c|; results of
    evaluation are placed right in the buffer for inspection; they are
    not copied out to the PDF file.
-  
-#+BEGIN_SRC clojure :tangle no
-#+END_SRC
-
