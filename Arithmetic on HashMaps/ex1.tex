@@ -1,4 +1,4 @@
-% Created 2013-09-20 Fri 16:01
+% Created 2013-09-20 Fri 17:39
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -27,6 +27,7 @@
 \usepackage{framed}
 \usepackage[framed]{ntheorem}
 \newframedtheorem{myrule}{Rule}[section]
+\newframedtheorem{mydefinition}{Definition}[section]
 \author{The Team of Fu}
 \date{\today}
 \title{Reversible Arithmetic on Collections}
@@ -49,13 +50,13 @@ Source code \emph{and} PDF documentation spring
 from the same, plain-text source files.
 \end{description}
 
-We often encounter data records as hash maps, sequences, or vectors.
-Arithmetic on vectors is familiar from school math: to get the sum of
-two vectors, just add the corresponding elements, first-to-first,
-second-to-second, and so on.  Here's an example in two dimensions:
 \begin{verbatim}
 [1, 2] + [3, 4] = [4, 6]
 \end{verbatim}
+We often encounter data records as hash-maps, sequences, or vectors.
+Arithmetic on vectors is familiar from school math: to get the sum of
+two vectors, just add the corresponding elements, first-to-first,
+second-to-second, and so on.  Here's an example in two dimensions:
 
 We don't need to write the commas (but we can if we want -- in Clojure,
 they're just whitespace):
@@ -114,14 +115,14 @@ same on hash-maps.  We must use Clojure's \emph{merge-with}:
 \end{verbatim}
 
 We want to get rid of these annoying differences: the protocol for
-adding data rows should be the same for all collection
+reversible arithmetic on data rows should be the same for all collection
 types.\footnote{including streams over time! Don't forget Rx and SRS.}  Along
 the way, we'll do some hardening so that the implementations are robust
 both mathematically and computationally.
 \section{A Protocol for Reversible Arithmetic}
 \label{sec-2}
 
-First, name our objects of interest \emph{algebraic vectors} to distinguish
+Name our objects of interest \emph{algebraic vectors} to distinguish
 them from Clojure's existing \emph{vector} type.  Borrowing an idiom from C\#
 and .NET, name our protocol with an initial \emph{I} and with camelback
 casing.  Don't misread \emph{IReversibleAlgebraicVector} as ``irreversible
@@ -148,33 +149,95 @@ Algebraic Vector,'' where ``Interface'' is a synonym for ``protocol.''
 \subsection{Implementing the Protocol for Vectors}
 \label{sec-2-1}
 
-As a first cut, package Clojure vectors in hash-maps that contain enough
-information to reverse any computation.
+As a first cut, package algebraic vectors in hash-maps that contain
+enough information to reverse any computation.
 
-Start with a little helper to get data from a vector that may be either
-a basic Clojure vector or one of our reversible algebraic vectors.
-Define it as a \emph{multimethod} since we anticipate needing it for every
-basic type that can hold a reversible algebraic vector, namely for
-vectors, lists, and hash-maps. If the hash-map has a value for key
-\emph{:data}, then return that value. Otherwise, return the given
-hash-map. This implies our first rule:
-\begin{myrule}[Data]
-A reversible algebraic vector is a hash-map, list, or ordinary Clojure
-vector. If it is a hash-map, it either has a \texttt{:data}
-attribute or not.
-If it has a \texttt{:data} attribute, then its data is the value of that
-attribute. Otherwise, its data is the
-hash-map is itself.
-\end{myrule}
+First, define the base case: collections that hold data that can be
+treated as ordinary, non-reversible vectors.  What kinds of things can
+hold ordinary vector data?  They be things we can operate on with \emph{map}
+or \emph{merge-with} to perform the basic, vector-space operations.
+Therefore, the data must be a Clojure vector, list, or hash-map.
 
+The higher-level case is to store reversing information in hash-maps
+along with base-data. The base data will belong to the \emph{:data} key, by
+convention.
+
+\begin{mydefinition}[Reversible Algebraic Vector]
+A \textbf{reversible algebraic vector} is either a \textbf{base-data} collection
+or a hash-map containing a \texttt{:data} attribute. A base-data
+collection is either a Clojure vector, list, or hash-map that does
+not contain a \texttt{:data} attribute. If a reversible algebraic vector
+does contain a \texttt{:data} attribute, the value of that attribute
+is a base-data collection.
+\end{mydefinition}
+
+Here is a \emph{fluent}, type-checking function that either returns its input
+-- like the \emph{identity} function -- or throws an exception if something
+is wrong.  We want this function also to accept \emph{nil} because we use
+that value to detect basic hash maps that can't be reversed any more --
+hash maps that are simply their own data and do not contain priors.
+
+\begin{figure}[H]
+\label{check-data}
+\begin{verbatim}
+(defn- check-data-type [that]
+  (let [t (type that)]
+    (if (or (= t (type []))
+            (= t (type '()))  ; empty list is special
+            (= t (type '(0))) ; this list is ordinary
+            (= t (type {}))
+            (= t (type nil))) ; nil is acceptable
+      that
+      (throw IllegalArgumentException.
+        (str "This type of object can't hold vector data: " t)))))
+\end{verbatim}
+\end{figure}
+
+Now we can formally define the reversible algebraic vector:
+
+Now we need a way to get the data out of any reversible algebraic
+vector.
 
 \begin{figure}[H]
 \label{get-data-helper}
 \begin{verbatim}
 (defmulti get-data type)
-(defmethod get-data (type [])  [that] that)
-(defmethod get-data (type '()) [that] that)
-(defmethod get-data (type {}) (or (:data that) that))
+(defmethod get-data (type [])   [that] that)
+(defmethod get-data (type '())  [that] that)
+(defmethod get-data (type '(0)) [that] that)
+(defmethod get-data (type {})   [that]
+  (or (check-data (:data that)) that))
+(defmethod get-data :default    [that]
+  (throw (IllegalArgumentException.
+    (str "get-data doesn't like this food: " that))))
+\end{verbatim}
+\end{figure}
+
+Here are unit tests for these helpers that show how they enforce the
+definition.
+
+\begin{figure}[H]
+\label{test-get-data-helper}
+\begin{verbatim}
+(deftest get-data-helper-test
+  (testing "get-data-helper"
+    (is (thrown? IllegalArgumentException
+      (get-data nil)))
+    (are [x y] (= x y)
+       [] (get-data  [])
+      '() (get-data '())
+       {} (get-data  {})
+
+       [0] (get-data  [0])
+      '(0) (get-data '(0))
+    {:a 0} (get-data  {:a 0})
+
+     [1 0] (get-data  [1 0])
+    '(1 0) (get-data '(1 0))
+ {:a 0 :b 1} (get-data  {:b 1 :a 0})
+
+ {:data 42
+  )))
 \end{verbatim}
 \end{figure}
 
@@ -183,28 +246,18 @@ hash-map is itself.
 \begin{verbatim}
 (defrecord ReversibleVector [a-vector]
   IReversibleAlgebraicVector
-  (add [a b] {:left-prior a, :right-prior b,
-              :operation 'add, :data (map + (get-data a)
-                                            (get-data b))})
-  (sub [a b] nil)
+  (add   [a b] {:left-prior a, :right-prior b,
+                :operation 'add, :data (map + (get-data a)
+                                              (get-data b))})
+  (sub   [a b] nil)
   (inner [a b] nil)
   (scale [a scalar] nil)
-  (undo [a] nil)
-  (undo [b] nil))
-\end{verbatim}
-\end{figure}
-
-\section{Functions}
-\label{sec-3}
-\begin{figure}[H]
-\label{main-functions}
-\begin{verbatim}
-(def x 42)
-(defn foo [] x)
+  (undo  [a] nil)
+  (redo  [b] nil))
 \end{verbatim}
 \end{figure}
 \section{Unit-Tests}
-\label{sec-4}
+\label{sec-3}
 
 \begin{figure}[H]
 \label{test-namespace}
@@ -214,19 +267,8 @@ hash-map is itself.
             [ex1.core     :refer :all]))
 \end{verbatim}
 \end{figure}
-
-\begin{figure}[H]
-\label{test-functions}
-\begin{verbatim}
-(deftest null-test
-  (testing "null test"
-    (is (= (merge-with + {:x 1 :y 2} {:x 3 :y 4}) {:x 4 :y 6}))
-    (is (= 1 1))
-  ))
-\end{verbatim}
-\end{figure}
 \section{REPLing}
-\label{sec-5}
+\label{sec-4}
 \label{sec:emacs-repl}
 To run the REPL for interactive programming and testing in org-mode,
 take the following steps:
@@ -238,13 +280,5 @@ take the following steps:
 evaluation are placed right in the buffer for inspection; they are
 not copied out to the PDF file.
 \end{enumerate}
-
-\begin{verbatim}
-(run-all-tests)
-\end{verbatim}
-
-\begin{verbatim}
-(foo)
-\end{verbatim}
 % Emacs 24.3.1 (Org mode 8.0)
 \end{document}
