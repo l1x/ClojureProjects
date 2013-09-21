@@ -148,68 +148,97 @@ is a base-data collection.
 
 Here is a /fluent/, type-checking function that either returns its input
 -- like the /identity/ function -- or throws an exception if something
-is wrong.  We want this function also to accept /nil/ because we use
-that value to detect basic hash maps that can't be reversed any more --
-hash maps that are simply their own data and do not contain priors.
+is wrong.
 
-#+NAME: check-data
+#+NAME: check-data-type
 #+BEGIN_SRC clojure :tangle no
 (defn- check-data-type [that]
   (let [t (type that)]
     (if (or (= t (type []))
             (= t (type '()))  ; empty list is special
             (= t (type '(0))) ; this list is ordinary
-            (= t (type {}))
-            (= t (type nil))) ; nil is acceptable
+            (= t (type {})))
       that
-      (throw IllegalArgumentException.
-        (str "This type of object can't hold vector data: " t)))))
+      (throw (IllegalArgumentException.
+        (str "This type of object can't hold vector data: " t))))))
 #+END_SRC
 
 Now we can formally define the reversible algebraic vector:
 
 Now we need a way to get the data out of any reversible algebraic
-vector.
+vector. We must explicitly check for existence of /:data/ so that we can
+tell the difference between a hash-map that has /:data/ whose value is
+/nil/ and a hash-map that has no /:data/; the prettier code
+
+#+BEGIN_SRC clojure :tangle no
+(:data that)
+#+END_SRC
+
+does not distinguish those two cases.
 
 #+NAME: get-data-helper
 #+BEGIN_SRC clojure :tangle no
-(defmulti get-data type)
+(defmulti  get-data type)
 (defmethod get-data (type [])   [that] that)
 (defmethod get-data (type '())  [that] that)
 (defmethod get-data (type '(0)) [that] that)
 (defmethod get-data (type {})   [that]
-  ;; returns `that' if there is no :data attribute
-  (or (check-data-type (:data that)) that))
+  (if (contains? that :data)
+    (check-data-type (:data that))
+    that))
 (defmethod get-data :default    [that]
   (throw (IllegalArgumentException.
     (str "get-data doesn't like this food: " that))))
 #+END_SRC
 
-Here are unit tests for these helpers that show how they enforce the
-definition.
-
 #+name: test-get-data-helper
 #+BEGIN_SRC clojure :results silent
 (deftest get-data-helper-test
   (testing "get-data-helper"
-    (is (thrown? IllegalArgumentException
-      (get-data nil)))
+    (are [val] (thrown? IllegalArgumentException val)
+      (get-data 42)
+      (get-data 'a)
+      (get-data :a)
+      (get-data "a")
+      (get-data \a)
+      (get-data #inst "2012Z")
+      (get-data #{})
+      (get-data nil)
+      (get-data {:data 42 })
+      (get-data {:data 'a })
+      (get-data {:data :a })
+      (get-data {:data "a"})
+      (get-data {:data \a })
+      (get-data {:data #inst "2012Z"})
+      (get-data {:data #{} })
+      (get-data {:data nil })
+    )
     (are [x y] (= x y)
-       [] (get-data  [])
-      '() (get-data '())
-       {} (get-data  {})
+          [] (get-data  [])
+         '() (get-data '())
+          {} (get-data  {})
 
-       [0] (get-data  [0])
-      '(0) (get-data '(0))
-    {:a 0} (get-data  {:a 0})
+         [0] (get-data  [0])
+        '(0) (get-data '(0))
+      {:a 0} (get-data  {:a 0})
 
-     [1 0] (get-data  [1 0])
-    '(1 0) (get-data '(1 0))
+       [1 0] (get-data  [1 0])
+      '(1 0) (get-data '(1 0))
  {:a 0 :b 1} (get-data  {:b 1 :a 0})
 
- {:data 42
-  )))
+        [42] (get-data {:a 1 :data [42]})
+       '(42) (get-data {:a 1 :data '(42)})
+     {:a 42} (get-data {:a 1 :data {:a 42}})
+
+          [] (get-data {:a 1 :data []})
+         '() (get-data {:a 1 :data '()})
+          {} (get-data {:a 1 :data {}})
+    )
+))
 #+END_SRC
+
+Here are unit tests for these helpers that show how they enforce the
+definition.
 
 #+NAME: reversible-algebraic-vector-on-vector
 #+BEGIN_SRC clojure :tangle no
@@ -253,6 +282,7 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 #+BEGIN_SRC clojure :exports none :mkdirp yes :tangle ./ex1/src/ex1/core.clj :padline no :results silent :noweb yes
 <<main-namespace>>
 <<reversible-algebraic-vector-protocol>>
+<<check-data-type>>
 <<get-data-helper>>
 <<reversible-algebraic-vector-on-vector>>
 #+END_SRC

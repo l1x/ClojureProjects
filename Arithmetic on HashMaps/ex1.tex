@@ -1,4 +1,4 @@
-% Created 2013-09-20 Fri 17:39
+% Created 2013-09-20 Fri 18:29
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -173,73 +173,103 @@ is a base-data collection.
 
 Here is a \emph{fluent}, type-checking function that either returns its input
 -- like the \emph{identity} function -- or throws an exception if something
-is wrong.  We want this function also to accept \emph{nil} because we use
-that value to detect basic hash maps that can't be reversed any more --
-hash maps that are simply their own data and do not contain priors.
+is wrong.
 
 \begin{figure}[H]
-\label{check-data}
+\label{check-data-type}
 \begin{verbatim}
 (defn- check-data-type [that]
   (let [t (type that)]
     (if (or (= t (type []))
             (= t (type '()))  ; empty list is special
             (= t (type '(0))) ; this list is ordinary
-            (= t (type {}))
-            (= t (type nil))) ; nil is acceptable
+            (= t (type {})))
       that
-      (throw IllegalArgumentException.
-        (str "This type of object can't hold vector data: " t)))))
+      (throw (IllegalArgumentException.
+        (str "This type of object can't hold vector data: " t))))))
 \end{verbatim}
 \end{figure}
 
 Now we can formally define the reversible algebraic vector:
 
 Now we need a way to get the data out of any reversible algebraic
-vector.
+vector. We must explicitly check for existence of \emph{:data} so that we can
+tell the difference between a hash-map that has \emph{:data} whose value is
+\emph{nil} and a hash-map that has no \emph{:data}; the prettier code
+
+\begin{verbatim}
+(:data that)
+\end{verbatim}
+
+does not distinguish those two cases.
 
 \begin{figure}[H]
 \label{get-data-helper}
 \begin{verbatim}
-(defmulti get-data type)
+(defmulti  get-data type)
 (defmethod get-data (type [])   [that] that)
 (defmethod get-data (type '())  [that] that)
 (defmethod get-data (type '(0)) [that] that)
 (defmethod get-data (type {})   [that]
-  (or (check-data (:data that)) that))
+  (if (contains? that :data)
+    (check-data-type (:data that))
+    that))
 (defmethod get-data :default    [that]
   (throw (IllegalArgumentException.
     (str "get-data doesn't like this food: " that))))
 \end{verbatim}
 \end{figure}
 
-Here are unit tests for these helpers that show how they enforce the
-definition.
-
 \begin{figure}[H]
 \label{test-get-data-helper}
 \begin{verbatim}
 (deftest get-data-helper-test
   (testing "get-data-helper"
-    (is (thrown? IllegalArgumentException
-      (get-data nil)))
+    (are [val] (thrown? IllegalArgumentException val)
+      (get-data 42)
+      (get-data 'a)
+      (get-data :a)
+      (get-data "a")
+      (get-data \a)
+      (get-data #inst "2012Z")
+      (get-data #{})
+      (get-data nil)
+      (get-data {:data 42 })
+      (get-data {:data 'a })
+      (get-data {:data :a })
+      (get-data {:data "a"})
+      (get-data {:data \a })
+      (get-data {:data #inst "2012Z"})
+      (get-data {:data #{} })
+      (get-data {:data nil })
+    )
     (are [x y] (= x y)
-       [] (get-data  [])
-      '() (get-data '())
-       {} (get-data  {})
+          [] (get-data  [])
+         '() (get-data '())
+          {} (get-data  {})
 
-       [0] (get-data  [0])
-      '(0) (get-data '(0))
-    {:a 0} (get-data  {:a 0})
+         [0] (get-data  [0])
+        '(0) (get-data '(0))
+      {:a 0} (get-data  {:a 0})
 
-     [1 0] (get-data  [1 0])
-    '(1 0) (get-data '(1 0))
+       [1 0] (get-data  [1 0])
+      '(1 0) (get-data '(1 0))
  {:a 0 :b 1} (get-data  {:b 1 :a 0})
 
- {:data 42
-  )))
+        [42] (get-data {:a 1 :data [42]})
+       '(42) (get-data {:a 1 :data '(42)})
+     {:a 42} (get-data {:a 1 :data {:a 42}})
+
+          [] (get-data {:a 1 :data []})
+         '() (get-data {:a 1 :data '()})
+          {} (get-data {:a 1 :data {}})
+    )
+))
 \end{verbatim}
 \end{figure}
+
+Here are unit tests for these helpers that show how they enforce the
+definition.
 
 \begin{figure}[H]
 \label{reversible-algebraic-vector-on-vector}
