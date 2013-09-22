@@ -254,9 +254,10 @@ The following line generates a benign error
    {:a-vector "a" }   {:a-vector \a  } {:a-vector #inst "2012Z"}
    {:a-vector #{} }   {:a-vector nil } {:a-vector true }
    {:a-vector false } {:a-vector {:a-vector 'foo} }
-   ))
+  ))
 
-(def ^:private good-ish-test-set)
+(def ^:private good-ish-test-set
+  '([] () {} [0] (0) {:a 0} [1 0] (1 0) {:a 0, :b 1})  )
 #+END_SRC
 
 #+name: get-a-vector-helper-test
@@ -272,22 +273,11 @@ The following line generates a benign error
   (testing "get-a-vector-helper"
     ;; Negative tests
     (is (= #{"java.lang.IllegalArgumentException"}
-           (value-set get-a-vector bad-ish-test-set)
-    ))
+           (value-set get-a-vector bad-ish-test-set)))
+    (is (= (set good-ish-test-set)
+           (value-set get-a-vector good-ish-test-set)))
     ;; Positive tests
     (are [x y] (= x y)
-          [] (get-a-vector  [])
-         '() (get-a-vector '())
-          {} (get-a-vector  {})
-
-         [0] (get-a-vector  [0])
-        '(0) (get-a-vector '(0))
-      {:a 0} (get-a-vector  {:a 0})
-
-       [1 0] (get-a-vector  [1 0])
-      '(1 0) (get-a-vector '(1 0))
- {:a 0 :b 1} (get-a-vector  {:b 1 :a 0})
-
         [42] (get-a-vector {:a 1 :a-vector [42]})
        '(42) (get-a-vector {:a 1 :a-vector '(42)})
      {:a 42} (get-a-vector {:a 1 :a-vector {:a 42}})
