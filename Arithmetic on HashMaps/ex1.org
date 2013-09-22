@@ -22,96 +22,132 @@ The following line generates a benign error
   TODO: Integrate BibTeX
 #+END_COMMENT
 
-* Introduction
-  + Remark :: This is a literate program.
++ Remark :: This is a literate program.
               [fn:LP: http://en.wikipedia.org/wiki/Literate_programming.]
               Source code /and/ PDF documentation spring
               from the same, plain-text source files.
 
-#+BEGIN_SRC clojure :tangle no
-[1, 2] + [3, 4] = [4, 6]
-#+END_SRC
-We often encounter data records as hash-maps, sequences, or vectors.
-Arithmetic on vectors is familiar from school math: to get the sum of
-two vectors, just add the corresponding elements, first-to-first,
-second-to-second, and so on.  Here's an example in two dimensions:
+* Introduction
 
-We don't need to write the commas (but we can if we want -- in Clojure,
-they're just whitespace):
-#+BEGIN_SRC clojure :tangle no
-[1 2] + [3 4] = [4 6]
-#+END_SRC
+  We often encounter data records or rows as hash-maps, lists, vectors
+  (also called /arrays/). In our financial calculations, we often want
+  to add up a collection of such things, where adding two rows means
+  adding the corresponding elements and creating a new virtual row from
+  the result. We also want to /un-add/ so we can undo a mistake, roll
+  back a provisional result, perform a backfill or allocation: in short,
+  get back the original inputs. This paper presents a library supporting
+  reversible on a large class of collections in
+  Clojure.[fn::http://clojure.org]
 
-Clojure's /map/ can already do this:
+* Mathematical Background
+
+  Think of computer lists and vectors as /mathematical vectors/ familiar
+  from linear algebra:[fn::http://en.wikipedia.org/wiki/Linear_algebra]
+  ordered sequences of numerical /components/ or /elements/. Think of
+  hash-maps, which are equivalent to /objects/ in object-oriented
+  programming,[fn::http://en.wikipedia.org/wiki/Object-oriented_programming]
+  as sparse vectors[fn::http://en.wikipedia.org/wiki/Sparse_vector] of
+  /named/ elements.
+
+  Mathematically, arithmetic on vectors is straightforward: to add
+  them, just add the corresponding elements, first-with-first,
+  second-with-second, and so on.  Here's an example in two dimensions:
+  $$[1, 2] + [3, 4] = [4, 6]$$
+
+  Clojure's /map/ function does mathematical vector addition straight
+  out of the box on Clojure vectors and lists.  (We don't need to write
+  the commas, but we can if we want -- they're just whitespace in
+  Clojure):
 #+BEGIN_SRC clojure :tangle no
 (map + [1 2] [3 4])
 #+END_SRC
+
+#+RESULTS:
+| 4 | 6 |
+
 \begin{verbatim}
 ==> [4 6]
 \end{verbatim}
 
-The same idea works in any number of dimensions and with any kind of
-elements that can be added (any
-/field/:[fn::http://en.wikipedia.org/wiki/Field_(mathematics)] integers,
-complex numbers, quaternions.  It's the foundation of the important
-theory of /Vector Spaces/ in
-mathematics.[fn::http://en.wikipedia.org/wiki/Vector_space]
-
-Now, suppose you want to /un-add/ the result, \verb|[4 6]|? There is no
-unique answer.  All the following are mathematically correct:
-#+BEGIN_SRC clojure :tangle no
-...
-[-1 2] + [5 4] = [4 6]
-[ 0 2] + [4 4] = [4 6]
-[ 1 2] + [3 4] = [4 6]
-[ 2 2] + [2 4] = [4 6]
-[ 3 2] + [1 4] = [4 6]
-...
-#+END_SRC
-and a large infinity of more answers.
-
-But, in our financial computations, we usually want this functionality
-so we can undo a mistake, roll back a provisional result, perform a
-backfill or allocation: in short, get back the original inputs.
-
-Let's define a protocol for /reversible arithmetic in vector spaces/
-that captures the desired functionality.  We want a protocol because we
-want several implementations with the same reversible arithmetic.  For
-instance, we should be able to do similarly for hash-maps, which, after
-all, are just sparse vectors with named components:
-#+BEGIN_SRC clojure :tangle no
-{:x 1, :y 2} + {:x 3, :y} = {:x 4, y:6}
-#+END_SRC
-
-To get the desired behavior, we can't use /map/; it doesn't work the
-same on hash-maps.  We must use Clojure's /merge-with/:
+  With Clojure hash-maps, add corresponding elements via /merge-with/:
 #+BEGIN_SRC clojure :tangle no
 (merge-with + {:x 1, :y 2} {:x 3, :y 4})
 #+END_SRC
+
+#+RESULTS:
+| :y | 6 | :x | 4 |
+
 \begin{verbatim}
-==> {:y  6, :x 4}
+==> {:x 4, :y 6}
 \end{verbatim}
 
-We want to get rid of these annoying differences: the protocol for
-reversible arithmetic on data rows should be the same for all collection
-types.[fn::including streams over time! Don't forget Rx and SRS.]  Along
-the way, we'll do some hardening so that the implementations are robust
-both mathematically and computationally.
+  The same idea works in any number of dimensions and with any kind of
+  elements that can be added (any /mathematical
+  field/:[fn::http://en.wikipedia.org/wiki/Field_(mathematics)]
+  integers, complex numbers, quaternions -- many more.
+
+  Now, suppose you want to /un-add/ the result, \verb|[4 6]|? There is
+  no unique answer.  All the following are mathematically correct:
+\begin{align*}
+[-1, 2] + [5, 4] &= [4, 6] \\
+[ 0, 2] + [4, 4] &= [4, 6] \\
+[ 1, 2] + [3, 4] &= [4, 6] \\
+[ 2, 2] + [2, 4] &= [4, 6] \\
+[ 3, 2] + [1, 4] &= [4, 6] \\
+\end{align*}
+  and a large infinity of more answers.
 
 * A Protocol for Reversible Arithmetic
 
-Name our objects of interest /algebraic vectors/ to distinguish
-them from Clojure's existing /vector/ type.  Borrowing an idiom from C\#
-and .NET, name our protocol with an initial /I/ and with camelback
-casing.  Don't misread /IReversibleAlgebraicVector/ as ``irreversible
-algebraic vector,'' but rather read it as ``Interface to Reversible
-Algebraic Vector,'' where ``Interface'' is a synonym for ``protocol.''
+  Let's define a protocol for /reversible arithmetic in vector spaces/
+  that captures the desired functionality.  We want a /protocol/ --
+  Clojure's word for
+  /interface/,[fn::http://en.wikipedia.org/wiki/Interface_(computing)]
+  because we want several implementations with the same reversible
+  arithmetic: one implementation for vectors and lists, another
+  implementation for hash-maps.  /Protocols/ let us ignore inessential
+  differences: the protocol for reversible arithmetic on is the same for
+  all compatible collection
+  types.[fn::including streams over time! Don't forget Rx and SRS.]
 
-We want to add, subtract, and scale our reversible vectors, just as we
-can do with vectors in vector spaces and in linear algebra. We can add
-inner product because it is a common and useful operation. Then, we
-need to be able to undo and redo operations that have yielded a given
-vector.
+  Name our objects of interest /algebraic vectors/ to distinguish them
+  from Clojure's existing /vector/ type. Borrowing an idiom from C\# and
+  .NET, name our protocol with an initial /I/ and with camelback
+  casing.[fn::http://en.wikipedia.org/wiki/CamelCase] Don't misread
+  /IReversibleAlgebraicVector/ as ``irreversible algebraic vector;''
+  rather read it as ``I Reversible Algebraic Vector'', i.e., ``Interface
+  to Reversible Algebraic Vector,'' where the ``I'' abbreviates
+  ``Interface.''
+
+  We want to add, subtract, and scale our reversible vectors, just as we
+  can do with mathematical vectors.  Include inner product, since it is
+  likely to be useful.  Though we don't have immediate scenarios for
+  subtraction, scaling, and inner product, the mathematics tells us
+  they're fundamental. Putting them in our design /now/ affords two
+  benefits:
+  1. when the need arises, we won't have to change the code
+  1. their existence in the library may inspire usage scenarios
+
+
+
++ Remark :: The choice to include operations in a library in the absense
+            of scenarios is a philosophical
+            choice,[fn::http://en.wikipedia.org/wiki/Design_philosophy]
+            perhaps more akin to /Action-Centric/ design or /proactive/
+            design as opposed to /Hyper-Rationalist/ or /minimalist/
+            design. The former philosophy promotes early inclusion of
+            facilities likely to be useful or inspirational, whereas the
+            latter philosophy demands ruthless rejection of facilities
+            not known to be needed. Both buy into to removing facilities
+            /known to be not needed/, of course. The former philosophy
+            is based on intuition, judgment, and experience, and the
+            latter philosophy embraces ignorance of the future as a
+            design principle. We thus prefer the former.
+
+
+
+  Finally, we need undo and redo, the differentiating features of
+  reversible algebraic vectors. Here is our protocol design:
 
 #+NAME: reversible-algebraic-vector-protocol
 #+BEGIN_SRC clojure :tangle no
@@ -128,29 +164,30 @@ vector.
 )
 #+END_SRC
 
-** Implementing the Protocol for Vectors
+** Implementing the Protocol for Vectors and Lists
 
-As a first cut, let us package algebraic vectors in hash-maps that
-contain enough information to reverse any computation.
+  As a first cut, let us define reversible vectors as algebraic vectors
+  wrapped in hash-maps that contain enough information to reverse
+  computations.
 
-First, define the base case: collections that hold data that can be
-treated as ordinary, non-reversible vectors.  What kinds of things can
-hold ordinary vector data?  They must be things we can operate on with
-/map/ or /merge-with/ to perform the basic, vector-space operations.
-Therefore, they be Clojure vectors, lists, or hash-maps.
+  First, define the base case: collections that hold data that can be
+  treated as ordinary, non-reversible, algebraic vectors.  What kinds of
+  things can represent algebraic vectors?  Things we can operate on with
+  /map/ or /merge-with/ to perform basic vector-space operations.
+  Therefore, they must be Clojure vectors, lists, or hash-maps.
 
-The higher-level case is to store reversing information in hash-maps
-along with base-data. The base data will belong to the /:data/ key, by
-convention.
+  The higher-level case is to store reversing information in hash-maps
+  along with base-data. The base data will belong to the /:a-vector/ key, by
+  convention.
 
-
-\begin{mydefinition}[Reversible Algebraic Vector]
-A \textbf{reversible algebraic vector} is either a \textbf{base-data}
-collection or a hash-map containing a \texttt{:data} attribute. A
-base-data collection is either a Clojure vector, list, or hash-map that
-does not contain a \texttt{:data} attribute. If a reversible algebraic
-vector does contain a \texttt{:data} attribute, the value of that
-attribute is a base-data collection.  \end{mydefinition}
+\begin{mydefinition}[Reversible Algebraic Vector (r-vector)] A
+\textbf{reversible algebraic vector} or \textbf{r-vector} is either a
+\textbf{a-vector} or a hash-map containing a \texttt{:a-vector}
+attribute. An a-vector is either a Clojure vector, list, or hash-map
+that does not contain a \texttt{:a-vector} attribute. If an r-vector
+does contain a \texttt{:a-vector} attribute, the value of that attribute
+is an a-vector.
+\end{mydefinition}
 
 Here is a /fluent/ type-checking function for base-data. It either
 returns its input -- like the /identity/ function -- or throws an
@@ -163,7 +200,7 @@ exception if something is wrong.
     (if (or (= t (type []))
             (= t (type '()))  ; empty list is special
             (= t (type '(0))) ; this list is ordinary
-            (and (= t (type {})) (not (contains? that :data))))
+            (and (= t (type {})) (not (contains? that :a-vector))))
       that ; ok -- otherwose:
       (throw (IllegalArgumentException.
         (str "This type of object can't hold vector data: " t))))))
@@ -173,11 +210,11 @@ Now we need a way to get the data out of any reversible algebraic
 vector.
 
 If the input is a hash-map, we must explicitly check for existence of
-/:data/ so that we can tell the difference between a hash-map that has
-/:data/ whose value is /nil/, which is an illegal case, and a hash-map
-that has no /:data/, a legal case. We cannot simply apply the keyword
-/:data/ to the candidate reversible vector because that application
-would produce /nil/ in both cases. Instead, we apply /:data/ to the
+/:a-vector/ so that we can tell the difference between a hash-map that has
+/:a-vector/ whose value is /nil/, which is an illegal case, and a hash-map
+that has no /:a-vector/, a legal case. We cannot simply apply the keyword
+/:a-vector/ to the candidate reversible vector because that application
+would produce /nil/ in both cases. Instead, we apply /:a-vector/ to the
 candidate after checking for existence of the key, and then we apply
 /check-data-type/, defined above.
 
@@ -188,8 +225,8 @@ candidate after checking for existence of the key, and then we apply
 (defmethod get-data (type '())  [that] that)
 (defmethod get-data (type '(0)) [that] that)
 (defmethod get-data (type {})   [that]
-  (if (contains? that :data)
-    (check-data-type (:data that))
+  (if (contains? that :a-vector)
+    (check-data-type (:a-vector that))
     that))
 (defmethod get-data :default    [that]
   (throw (IllegalArgumentException.
@@ -205,6 +242,7 @@ reversible-vectors: our design does not want to nest such vectors.
 #+BEGIN_SRC clojure :results silent
 (deftest get-data-helper-test
   (testing "get-data-helper"
+    ;; Negative tests
     (are [val] (thrown? IllegalArgumentException val)
       (get-data 42)
       (get-data 'a)
@@ -214,16 +252,17 @@ reversible-vectors: our design does not want to nest such vectors.
       (get-data #inst "2012Z")
       (get-data #{})
       (get-data nil)
-      (get-data {:data 42 })
-      (get-data {:data 'a })
-      (get-data {:data :a })
-      (get-data {:data "a"})
-      (get-data {:data \a })
-      (get-data {:data #inst "2012Z"})
-      (get-data {:data #{} })
-      (get-data {:data nil })
-      (get-data {:data {:data 'foo} })
+      (get-data {:a-vector 42 })
+      (get-data {:a-vector 'a })
+      (get-data {:a-vector :a })
+      (get-data {:a-vector "a"})
+      (get-data {:a-vector \a })
+      (get-data {:a-vector #inst "2012Z"})
+      (get-data {:a-vector #{} })
+      (get-data {:a-vector nil })
+      (get-data {:a-vector {:a-vector 'foo} })
     )
+    ;; Positive tests
     (are [x y] (= x y)
           [] (get-data  [])
          '() (get-data '())
@@ -237,19 +276,16 @@ reversible-vectors: our design does not want to nest such vectors.
       '(1 0) (get-data '(1 0))
  {:a 0 :b 1} (get-data  {:b 1 :a 0})
 
-        [42] (get-data {:a 1 :data [42]})
-       '(42) (get-data {:a 1 :data '(42)})
-     {:a 42} (get-data {:a 1 :data {:a 42}})
+        [42] (get-data {:a 1 :a-vector [42]})
+       '(42) (get-data {:a 1 :a-vector '(42)})
+     {:a 42} (get-data {:a 1 :a-vector {:a 42}})
 
-          [] (get-data {:a 1 :data []})
-         '() (get-data {:a 1 :data '()})
-          {} (get-data {:a 1 :data {}})
+          [] (get-data {:a 1 :a-vector []})
+         '() (get-data {:a 1 :a-vector '()})
+          {} (get-data {:a 1 :a-vector {}})
     )
 ))
 #+END_SRC
-
-Here are unit tests for these helpers that show how they enforce the
-definition.
 
 # \begin{figure}
 #   \centering
@@ -257,12 +293,33 @@ definition.
 #   \caption{\label{fig:fufortune}This means ``Fortune'' and is pronounced ``Fu''.}
 # \end{figure}
 
+To implement the protocol, we will need multimethods that dispatch on
+the types of the base data. There is an example of this above in get
+data; let's follow it to build add-data:
+
+#+NAME: add-data
+#+BEGIN_SRC clojure :tangle no
+(defn two-types [a b])
+(defmulti  add-data two-types)
+(defmethod add-data (type [])   [that] that)
+(defmethod add-data (type '())  [that] that)
+(defmethod add-data (type '(0)) [that] that)
+(defmethod add-data (type {})   [that]
+  (if (contains? that :a-vector)
+    (check-data-type (:a-vector that))
+    that))
+(defmethod add-data :default    [that]
+  (throw (IllegalArgumentException.
+    (str "get-data doesn't like this food: " that))))
+#+END_SRC
+
+
 #+NAME: reversible-algebraic-vector-on-vector
 #+BEGIN_SRC clojure :tangle no
 (defrecord ReversibleVector [a-vector]
   IReversibleAlgebraicVector
   (add   [a b] {:left-prior a, :right-prior b,
-                :operation 'add, :data (map + (get-data a)
+                :operation 'add, :a-vector (map + (get-data a)
                                               (get-data b))})
   (sub   [a b] nil)
   (inner [a b] nil)
@@ -301,6 +358,11 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 <<reversible-algebraic-vector-protocol>>
 <<check-data-type>>
 <<get-data-helper>>
+<<add-data>>
+<<sub-data>>
+<<inner-product-data>>
+<<undo>>
+<<redo>>
 <<reversible-algebraic-vector-on-vector>>
 #+END_SRC
 
