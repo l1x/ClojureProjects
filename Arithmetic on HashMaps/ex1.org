@@ -240,6 +240,12 @@ does not distinguish those two cases.
 Here are unit tests for these helpers that show how they enforce the
 definition.
 
+# \begin{figure}
+#   \centering
+#   \includegraphics[width=0.5\textwidth]{/Users/rebcabin/tmp/BB_00000.PDF}
+#   \caption{\label{fig:fufortune}This means ``Fortune'' and is pronounced ``Fu''.}
+# \end{figure}
+
 #+NAME: reversible-algebraic-vector-on-vector
 #+BEGIN_SRC clojure :tangle no
 (defrecord ReversibleVector [a-vector]
