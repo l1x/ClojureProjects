@@ -120,11 +120,12 @@ The following line generates a benign error
   ``Interface.''
 
   We want to add, subtract, and scale our reversible vectors, just as we
-  can do with mathematical vectors.  Include inner product, since it is
-  likely to be useful.  Though we don't have immediate scenarios for
-  subtraction, scaling, and inner product, the mathematics tells us
-  they're fundamental. Putting them in our design /now/ affords two
-  benefits:
+  can do with mathematical vectors.  /Add/ should be multiary, because
+  that's intuitive. /Sub/ should be binary, because multiary sub is
+  ambiguous. Include inner product, since it is likely to be useful.
+  Though we don't have immediate scenarios for subtraction, scaling, and
+  inner product, the mathematics tells us they're fundamental. Putting
+  them in our design /now/ affords two benefits:
   1. when the need arises, we won't have to change the code
   1. their existence in the library may inspire usage scenarios
 
@@ -140,8 +141,8 @@ The following line generates a benign error
             latter philosophy demands ruthless rejection of facilities
             not known to be needed. Both buy into to removing facilities
             /known to be not needed/, of course. The former philosophy
-            is based on intuition, judgment, and experience, and the
-            latter philosophy embraces ignorance of the future as a
+            relies on intuition, taste, judgment, and experience; and
+            the latter philosophy embraces ignorance of the future as a
             design principle. We thus prefer the former.
 
 
@@ -153,7 +154,7 @@ The following line generates a benign error
 #+BEGIN_SRC clojure :tangle no
 (defprotocol IReversibleAlgebraicVector
   ;; binary operators
-  (add   [a b])
+  (add   [a b & more])
   (sub   [a b])
   (inner [a b])
   ;; unary operators
@@ -174,54 +175,58 @@ The following line generates a benign error
 
    The higher-level case wraps reversing information in a hash-map along
    with base-case algebraic vector data. The base data will belong to
-   the /:a-vector/ key, by convention.
+   the /\mbox{:a-vector}/ key, by convention.
+
 
 \begin{mydefinition}[Reversible Algebraic Vector (r-vector)]
    A \textbf{reversible algebraic vector} or \textbf{r-vector} is either
-   an \textbf{a-vector} or a hash-map containing an \texttt{:a-vector}
-   attribute. An a-vector is either a Clojure vector, list, or hash-map
-   that does not contain a \texttt{:a-vector} attribute. If an r-vector
-   does contain a \texttt{:a-vector} attribute, the value of that
-   attribute must be an a-vector.
+   an algebraic vector, i.e., \textbf{a-vector}, or a hash-map containing
+   an \texttt{:a-vector} attribute. An a-vector is either a Clojure
+   vector, list, or hash-map that does not contain a \mbox{\texttt{:a-vector}}
+   attribute. If an r-vector does contain a \texttt{:a-vector}
+   attribute, the value of that attribute must be an a-vector.
 \end{mydefinition}
 
-  Here is a /fluent/ type-checking function for a-vector data. It either
-  returns its input -- like the /identity/ function -- or throws an
-  exception if something is wrong.
+** Checking the Definition
+
+   Here is a type-checking function for a-vector data that promotes
+   fluent style. It either returns its input -- like the /identity/
+   function -- or throws an exception if something is wrong.
 
 #+NAME: check-a-vector
 #+BEGIN_SRC clojure :tangle no
 (defn- check-a-vector [that]
-  (let [t (type that)]
-    (if (or (= t (type []))
-            (= t (type '()))  ; empty list is special
-            (= t (type '(0))) ; this list is ordinary
-            (and (= t (type {})) (not (contains? that :a-vector))))
+  (if (or (list? that)
+          (vector? that)
+          (and (map? that) (not (contains? that :a-vector))))
       that ; ok -- otherwise:
       (throw (IllegalArgumentException.
-        (str "This type of object can't hold vector data: " t))))))
+        (str "This type of object can't hold vector data: "
+             (type that))))))
 #+END_SRC
 
 ** Fetching a-vector Data
 
-   Now we need a way to get a-vector data out of any r-vector. If the
+   We need a way to get a-vector data out of any r-vector. If the
    r-vector is an a-vector, just return it. Otherwise, if the r-vector
-   is a hash-map, fetch and check the value of the :a-vector
+   is a hash-map, fetch and check the value of the \mbox{:a-vector}
    attribute. In all other cases, reject the input.
 
    If the input is a hash-map, we must explicitly check for existence of
-   key /:a-vector/ so that we can tell the difference between a hash-map
-   that has an /:a-vector/ whose value is /nil/, an illegal case, and a
-   hash-map that has no /:a-vector/, a legal case. We cannot simply
-   apply the keyword /:a-vector/ to the candidate r-vector because that
-   application would produce /nil/ in both cases. Instead, we apply
-   /:a-vector/ to the candidate after checking for existence of the key,
-   and then we apply /check-a-vector/, defined above.
+   key /\mbox{:a-vector}/ so that we can tell the difference between a
+   hash-map that has an /\mbox{:a-vector}/ whose value is /nil/, an
+   illegal case, and a hash-map that has no /\mbox{:a-vector}/, a legal
+   case. We cannot simply apply the keyword /\mbox{:a-vector}/ to the
+   candidate r-vector because that application would produce /nil/ in
+   both cases. Instead, we apply /\mbox{:a-vector}/ to the candidate
+   after checking for existence of the key, and then apply
+   /check-a-vector/, defined above.
 
 #+NAME: get-a-vector-helper
 #+BEGIN_SRC clojure :tangle no
 (defmulti  get-a-vector type)
 (defmethod get-a-vector (type [])   [that] that)
+;; empty list has its own type, but it is still a list
 (defmethod get-a-vector (type '())  [that] that)
 (defmethod get-a-vector (type '(0)) [that] that)
 (defmethod get-a-vector (type {})   [that]
@@ -235,35 +240,40 @@ The following line generates a benign error
     (str "get-a-vector doesn't like this food: " that))))
 #+END_SRC
 
-  Now we write a test for all these cases. We require
-  /IllegalArgumentExceptions/ for inputs that are not vectors, lists, or
-  hash-maps and for a-vector values that contain r-vectors: our design
-  does not nest r-vectors.
+** Unit-Testing get-a-vector
 
-#+name: test-get-a-vector-helper
-#+BEGIN_SRC clojure :results silent
+   We require /IllegalArgumentExceptions/ for inputs that are not
+   vectors, lists, or hash-maps and for a-vectors that contain
+   r-vectors: our design does not nest r-vectors.
+
+#+NAME: bad-ish-test-set
+#+BEGIN_SRC clojure :results silent :tangle no
+(def ^:private bad-ish-test-set
+  '(42 'a :a "a" \a #inst "2012Z" #{} nil true false
+   {:a-vector 42  }   {:a-vector 'a  } {:a-vector :a }
+   {:a-vector "a" }   {:a-vector \a  } {:a-vector #inst "2012Z"}
+   {:a-vector #{} }   {:a-vector nil } {:a-vector true }
+   {:a-vector false } {:a-vector {:a-vector 'foo} }
+   ))
+
+(def ^:private good-ish-test-set)
+#+END_SRC
+
+#+name: get-a-vector-helper-test
+#+BEGIN_SRC clojure :results silent :tangle no
+(defmacro ^:private exception-to-name [expr]
+  `(try ~expr (catch Exception e# (re-find #"[^:]+" (str e#)))))
+
+(defmacro ^:private value-set [fun exprs]
+  `(into #{} (map (fn [x#] (exception-to-name (~fun x#)))
+                  ~exprs)))
+
 (deftest get-a-vector-helper-test
   (testing "get-a-vector-helper"
     ;; Negative tests
-    (are [val] (thrown? IllegalArgumentException val)
-      (get-a-vector 42)
-      (get-a-vector 'a)
-      (get-a-vector :a)
-      (get-a-vector "a")
-      (get-a-vector \a)
-      (get-a-vector #inst "2012Z")
-      (get-a-vector #{})
-      (get-a-vector nil)
-      (get-a-vector {:a-vector 42 })
-      (get-a-vector {:a-vector 'a })
-      (get-a-vector {:a-vector :a })
-      (get-a-vector {:a-vector "a"})
-      (get-a-vector {:a-vector \a })
-      (get-a-vector {:a-vector #inst "2012Z"})
-      (get-a-vector {:a-vector #{} })
-      (get-a-vector {:a-vector nil })
-      (get-a-vector {:a-vector {:a-vector 'foo} })
-    )
+    (is (= #{"java.lang.IllegalArgumentException"}
+           (value-set get-a-vector bad-ish-test-set)
+    ))
     ;; Positive tests
     (are [x y] (= x y)
           [] (get-a-vector  [])
@@ -287,6 +297,7 @@ The following line generates a benign error
           {} (get-a-vector {:a 1 :a-vector {}})
     )
 ))
+
 #+END_SRC
 
 # \begin{figure}
@@ -295,9 +306,53 @@ The following line generates a benign error
 #   \caption{\label{fig:fufortune}This means ``Fortune'' and is pronounced ``Fu''.}
 # \end{figure}
 
-  To implement the protocol, we will need multimethods that dispatch on
-the types of the base data. There is an example of this above in get
-data; let's follow it to build add-data:
+   To implement the protocol, we need multimethods that dispatch on the
+   types of the a-vectors.
+
+#+NAME: one-type
+#+BEGIN_SRC clojure :tangle no :results silent
+(defn one-type [a]
+        (cond
+         (or (vector? a) (list? a)) 'seq-ish
+         (map? a)                   'map-ish
+         :default (throw (IllegalArgumentException.
+                          (str ": " a)))))
+#+END_SRC
+
+#+NAME: one-type-test
+#+BEGIN_SRC clojure :tangle no
+(deftest one-type-test
+  (testing "type-merging"
+    (are [val] (thrown? IllegalArgumentException val)
+         (one-type 42)
+         (one-type 'a)
+         (one-type :a)
+         (one-type "a")
+         (one-type \a)
+         (one-type #inst "2012Z")
+         (one-type #{})
+         (one-type nil))
+    (are [x y] (= x y)
+         'seq-ish (one-type  [])
+         'seq-ish (one-type '())
+         'map-ish (one-type  {})
+
+         'seq-ish (one-type  [0])
+         'seq-ish (one-type '(0))
+         'map-ish (one-type  {:a 0})
+
+         'seq-ish (one-type  [1 0])
+         'seq-ish (one-type '(1 0))
+         'map-ish (one-type {:b 1 :a 0})
+
+         'map-ish (one-type {:a 1 :a-vector [42]})
+         'map-ish (one-type {:a 1 :a-vector '(42)})
+         'map-ish (one-type {:a 1 :a-vector {:a 42}})
+         'map-ish (one-type {:a 1 :a-vector []})
+         'map-ish (one-type {:a 1 :a-vector '()})
+         'map-ish (one-type {:a 1 :a-vector {}})
+        )    ))
+#+END_SRC
 
 #+NAME: add-data
 #+BEGIN_SRC clojure :tangle no
@@ -320,7 +375,8 @@ data; let's follow it to build add-data:
 #+BEGIN_SRC clojure :tangle no
 (defrecord ReversibleVector [a-vector]
   IReversibleAlgebraicVector
-  (add   [a b] {:left-prior a, :right-prior b,
+  (add   [a b & more]
+         {:priors a, :right-prior b,
                 :operation 'add, :a-vector (map + (get-a-vector a)
                                               (get-a-vector b))})
   (sub   [a b] nil)
@@ -360,6 +416,7 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 <<reversible-algebraic-vector-protocol>>
 <<check-a-vector>>
 <<get-a-vector-helper>>
+<<one-type>>
 <<add-data>>
 <<sub-data>>
 <<inner-product-data>>
@@ -375,9 +432,11 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 
 * Unit-Tests
 
-#+BEGIN_SRC clojure  :exports none :mkdirp yes :tangle ./ex1/test/ex1/core_test.clj :padline no :results silent :noweb yes
+#+BEGIN_SRC clojure :exports none :mkdirp yes :tangle ./ex1/test/ex1/core_test.clj :padline no :results silent :noweb yes
 <<test-namespace>>
-<<test-get-a-vector-helper>>
+<<bad-ish-test-set>>
+<<get-a-vector-helper-test>>
+<<one-type-test>>
 #+END_SRC
 
 #+name: test-namespace
