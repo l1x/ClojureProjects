@@ -1,4 +1,4 @@
-% Created 2013-09-22 Sun 09:01
+% Created 2013-09-22 Sun 15:57
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -136,11 +136,14 @@ to Reversible Algebraic Vector,'' where the ``I'' abbreviates
 ``Interface.''
 
 We want to add, subtract, and scale our reversible vectors, just as we
-can do with mathematical vectors.  Include inner product, since it is
-likely to be useful.  Though we don't have immediate scenarios for
-subtraction, scaling, and inner product, the mathematics tells us
-they're fundamental. Putting them in our design \emph{now} affords two
-benefits:
+can do with mathematical vectors.  \emph{Add} should be multiary, because
+that's intuitive. Multiary functions are written with ampersands
+before all the optional parameters, which Clojure will package in a
+sequence. \emph{Sub} should be binary, because multiary sub is
+ambiguous. Include inner product, because it is likely to be useful.
+Though we don't have immediate scenarios for subtraction, scaling, and
+inner product, the mathematics tells us they're fundamental. Putting
+them in our design \emph{now} affords two benefits:
 \begin{enumerate}
 \item when the need arises, we won't have to change the code
 \item their existence in the library may inspire usage scenarios
@@ -159,8 +162,8 @@ facilities likely to be useful or inspirational, whereas the
 latter philosophy demands ruthless rejection of facilities
 not known to be needed. Both buy into to removing facilities
 \emph{known to be not needed}, of course. The former philosophy
-is based on intuition, judgment, and experience, and the
-latter philosophy embraces ignorance of the future as a
+relies on intuition, taste, judgment, and experience; and
+the latter philosophy embraces ignorance of the future as a
 design principle. We thus prefer the former.
 \end{description}
 
@@ -174,7 +177,7 @@ reversible algebraic vectors. Here is our protocol design:
 \begin{verbatim}
 (defprotocol IReversibleAlgebraicVector
   ;; binary operators
-  (add   [a b])
+  (add   [a b & more])
   (sub   [a b])
   (inner [a b])
   ;; unary operators
@@ -188,7 +191,7 @@ reversible algebraic vectors. Here is our protocol design:
 \section{Implementing the Protocol}
 \label{sec-4}
 
-\subsection{Defining r-vectors and a-vectors}
+\subsection{Defining \emph{r-vectors} and \emph{a-vectors}}
 \label{sec-4-1}
 
 What things represent algebraic vectors?  Things we can operate on
@@ -208,32 +211,36 @@ the \emph{\mbox{:a-vector}} key, by convention.
    attribute. If an r-vector does contain a \texttt{:a-vector}
    attribute, the value of that attribute must be an a-vector.
 \end{mydefinition}
+\subsection{Checking the Definition}
+\label{sec-4-2}
 
-Here is a \emph{fluent} type-checking function for a-vector data. It either
-returns its input -- like the \emph{identity} function -- or throws an
-exception if something is wrong.
+Here is a type-checking function for a-vector data. This function is
+private to the namespace (that's what the `-' in \emph{defn-} means).  It
+takes a single parameter named \emph{that}. It promotes \emph{fluent} or
+function-chaining style by being, semantically, the identity function
+-- it either returns its input or throws an exception if something is
+wrong.
 
 \begin{figure}[H]
 \label{check-a-vector}
 \begin{verbatim}
 (defn- check-a-vector [that]
-  (let [t (type that)]
-    (if (or (= t (type []))
-            (= t (type '()))  ; empty list is special
-            (= t (type '(0))) ; this list is ordinary
-            (and (= t (type {})) (not (contains? that :a-vector))))
+  (if (or (list? that)
+          (vector? that)
+          (and (map? that) (not (contains? that :a-vector))))
       that ; ok -- otherwise:
       (throw (IllegalArgumentException.
-        (str "This type of object can't hold vector data: " t))))))
+        (str "This type of object can't hold vector data: "
+             (type that))))))
 \end{verbatim}
 \end{figure}
-\subsection{Fetching a-vector Data}
-\label{sec-4-2}
+\subsection{Fetching \emph{a-vector} Data}
+\label{sec-4-3}
 
-Now we need a way to get a-vector data out of any r-vector. If the
+We need a way to get a-vector data out of any r-vector. If the
 r-vector is an a-vector, just return it. Otherwise, if the r-vector
 is a hash-map, fetch and check the value of the \mbox{:a-vector}
-attribute. In all other cases, reject the input.
+attribute. In all other cases, reject the input with an exception.
 
 If the input is a hash-map, we must explicitly check for existence of
 key \emph{\mbox{:a-vector}} so that we can tell the difference between a
@@ -250,6 +257,7 @@ after checking for existence of the key, and then apply
 \begin{verbatim}
 (defmulti  get-a-vector type)
 (defmethod get-a-vector (type [])   [that] that)
+;; empty list has its own type, but it is still a list
 (defmethod get-a-vector (type '())  [that] that)
 (defmethod get-a-vector (type '(0)) [that] that)
 (defmethod get-a-vector (type {})   [that]
@@ -263,53 +271,80 @@ after checking for existence of the key, and then apply
     (str "get-a-vector doesn't like this food: " that))))
 \end{verbatim}
 \end{figure}
-\subsection{Testing the Definition}
-\label{sec-4-3}
+\subsection{Unit-Testing \emph{get-a-vector}}
+\label{sec-4-4}
 
-Now we write a test for all these cases. We require
-\emph{IllegalArgumentExceptions} for inputs that are not vectors, lists,
-or hash-maps and for a-vector hash-map values that contain r-vectors:
-our design does not nest r-vectors.
+We require \emph{IllegalArgumentExceptions} for inputs that are not
+a-vectors and for r-vectors that contain r-vectors: our design does
+not nest r-vectors.
+
+Let's make a couple of test sets for data that should be accepted and
+rejected immediately. Creating new tests is as easy as adding new
+instances to these sets.\footnote{this is a white lie, as we see below;
+   but the technique of data-driven testing is worth illustrating.} We
+include some types that may not be acceptable for arithmetic. Here,
+we are just testing structure.
 
 \begin{figure}[H]
-\label{test-get-a-vector-helper}
+\label{test-data-sets}
 \begin{verbatim}
+(def ^:private good-ish-test-set
+  '([] () {} [0] (0) {:a 0} [1 0] (1 0) {:a 0, :b 1}
+    [true] [false] [nil] (true) (false) (nil)
+    {:a true} {:a false} {:a nil} )  )
+
+(def ^:private bad-ish-test-set
+  '(42 'a :a "a" \a #inst "2012Z" #{} nil true false
+   {:a-vector 42  }   {:a-vector 'a  } {:a-vector :a }
+   {:a-vector "a" }   {:a-vector \a  } {:a-vector #inst "2012Z"}
+   {:a-vector #{} }   {:a-vector nil } {:a-vector true }
+   {:a-vector #{42} }
+   {:a-vector false } {:a-vector {:a-vector 'foo} } ) )
+\end{verbatim}
+\end{figure}
+
+We cannot just \emph{map} or iterate \emph{get-a-vector} over bad inputs
+because Clojure evaluates arguments eagerly.\footnote{so-called \emph{applicative-order evaluation}; see \url{http://en.wikipedia.org/wiki/Applicative_order#Applicative_order}}
+The first exception will terminate the entire \emph{map} operation, but we
+want to test that they all throw exceptions.
+
+One way to defeat applicative-order evaluation is with a higher-order
+function.  \footnote{another, more complicated way is with a \emph{macro},
+   which rewrites expressions at compile time. Macrros should be avoided
+   when functional alternatives exist because they are hard to develop
+   and debug.}  We can pass \emph{get-a-vector} as a function to another
+function that wraps it in a \emph{try} that converts an exception into a
+string. We then collect all bad-ish strings into a hash-set and test
+that the hash-set contain just the string
+``\emph{java.lang.IllegalArgumentException}.'' For the \emph{good-ish}
+test set, we map the values into a sequence that should match the
+inputs in order.
+
+Finally, we test the good nested cases -- r-vectors containing
+a-vectors -- explicitly, without functional tricks.
+
+\begin{figure}[H]
+\label{get-a-vector-helper-test}
+\begin{verbatim}
+(defn- exception-to-name [fun expr]
+  (try (fun expr)
+       (catch Exception e (re-find #"[^:]+" (str e)))))
+
+(defn- value-seq [fun exprs]
+  (map (fn [x] (exception-to-name fun x)) exprs))
+
+(defn- value-set [fun exprs]
+  (set (value-seq fun exprs)))
+
 (deftest get-a-vector-helper-test
   (testing "get-a-vector-helper"
     ;; Negative tests
-    (are [val] (thrown? IllegalArgumentException val)
-      (get-a-vector 42)
-      (get-a-vector 'a)
-      (get-a-vector :a)
-      (get-a-vector "a")
-      (get-a-vector \a)
-      (get-a-vector #inst "2012Z")
-      (get-a-vector #{})
-      (get-a-vector nil)
-      (get-a-vector {:a-vector 42 })
-      (get-a-vector {:a-vector 'a })
-      (get-a-vector {:a-vector :a })
-      (get-a-vector {:a-vector "a"})
-      (get-a-vector {:a-vector \a })
-      (get-a-vector {:a-vector #inst "2012Z"})
-      (get-a-vector {:a-vector #{} })
-      (get-a-vector {:a-vector nil })
-      (get-a-vector {:a-vector {:a-vector 'foo} })
-    )
+    (is (= #{"java.lang.IllegalArgumentException"}
+           (value-set get-a-vector bad-ish-test-set)))
     ;; Positive tests
+    (is (= good-ish-test-set
+           (value-seq get-a-vector good-ish-test-set)))
     (are [x y] (= x y)
-          [] (get-a-vector  [])
-         '() (get-a-vector '())
-          {} (get-a-vector  {})
-
-         [0] (get-a-vector  [0])
-        '(0) (get-a-vector '(0))
-      {:a 0} (get-a-vector  {:a 0})
-
-       [1 0] (get-a-vector  [1 0])
-      '(1 0) (get-a-vector '(1 0))
- {:a 0 :b 1} (get-a-vector  {:b 1 :a 0})
-
         [42] (get-a-vector {:a 1 :a-vector [42]})
        '(42) (get-a-vector {:a 1 :a-vector '(42)})
      {:a 42} (get-a-vector {:a 1 :a-vector {:a 42}})
@@ -317,32 +352,154 @@ our design does not nest r-vectors.
           [] (get-a-vector {:a 1 :a-vector []})
          '() (get-a-vector {:a 1 :a-vector '()})
           {} (get-a-vector {:a 1 :a-vector {}})
-    )
-))
+    ) ) )
 \end{verbatim}
 \end{figure}
-\subsection{Implementing the Protocol}
-\label{sec-4-4}
+\subsection{Dispatching Operations by Collection Type}
+\label{sec-4-5}
 
-To implement the protocol, we will need multimethods that dispatch on
-the types of the base data. There is an example of this above in get
-data; let's follow it to build add-data:
+To implement the protocol, we need multimethods that dispatch on the
+collection types of the a-vectors. Lists and Clojure vectors should
+be treated the same: as sequences. Let's call them
+\emph{seq-ish}. Hash-maps should be treated as \emph{map-ish}. All other types
+are illegal.
 
 \begin{figure}[H]
-\label{add-data}
+\label{one-type}
 \begin{verbatim}
-(defn two-types [a b])
-(defmulti  add-data two-types)
-(defmethod add-data (type [])   [that] that)
-(defmethod add-data (type '())  [that] that)
-(defmethod add-data (type '(0)) [that] that)
-(defmethod add-data (type {})   [that]
-  (if (contains? that :a-vector)
-    (check-a-vector (:a-vector that))
-    that))
-(defmethod add-data :default    [that]
+(defn one-type [a]
+  (cond
+    (or (vector? a) (list? a)) 'seq-ish
+    (map? a)                   'map-ish
+    :default (throw (IllegalArgumentException. (str ": " a)))))
+\end{verbatim}
+\end{figure}
+
+Test \emph{one-type} on the \emph{bad-ish} set as before, expecting one
+\emph{map-ish} result because \emph{one-type} is not sensitive to nested
+r-vectors, by design. Test \emph{one-type} on the \emph{good-ish} set by
+comparing transformed good values against good inputs. This approach
+requires us to maintain a parallel sequence of good-ish results, but
+it's still preferable to writing repetitive code. In general,
+repetitive data is better than repetitive code.
+
+\begin{figure}[H]
+\label{one-type-test}
+\begin{verbatim}
+(def ^:private good-ish-collection-types
+  '(seq-ish seq-ish map-ish,
+    seq-ish seq-ish map-ish,
+    seq-ish seq-ish map-ish,
+    seq-ish seq-ish seq-ish,
+    seq-ish seq-ish seq-ish,
+    map-ish map-ish map-ish))
+(deftest one-type-test
+  (testing "type-merging"
+    (is (= #{"java.lang.IllegalArgumentException" 'map-ish}
+           (value-set one-type bad-ish-test-set)))
+    (is (= good-ish-collection-types
+           (value-seq one-type good-ish-test-set))) ) )
+\end{verbatim}
+\end{figure}
+
+To dispatch on collection type, we must test the types of all
+inputs. Here, again, we see ampersands before a parameter
+representing a sequence of all optional arguments.
+
+\begin{figure}[H]
+\label{add-a-vectors}
+\begin{verbatim}
+(defn all-types [& exprs] (set (map one-type exprs)))
+(defmulti  add-a-vectors all-types)
+(defmethod add-a-vectors #{'seq-ish} [& those]
+ (apply map + those))
+(defmethod add-a-vectors #{'map-ish} [& those]
+ (apply merge-with + those))
+(defmethod add-a-vectors :default    [& those]
   (throw (IllegalArgumentException.
-    (str "get-a-vector doesn't like this food: " that))))
+    (str "add-a-vectors doesn't like this food: " those))))
+\end{verbatim}
+\end{figure}
+
+At this point, it is worth noting that \emph{static typing} -- types
+tested by the compiler -- would save us the work of writing run-time
+tests of these type tests. A statically typed language like Scala or
+Haskell would save us this work, but at the expense of the build-time
+and run-time complexity of introducing another language into our
+data-processing pipeline. This complexity tradeoff -- coding versus
+building and running -- is a judgment call, and we stick with dynamic
+type-checking, the only option available in Clojure, for now.
+
+Our \emph{add-a-vectors} function is quite loose: it will add one or more
+a-vectors, where our protocol will only accept two or more. This is
+fine: it only means that we unit test a few more cases for
+\emph{add-a-vectors} than for our protocol.
+
+For our negative tests, we can only consider the first ten of the
+bad-ish test set because the later bad-ish cases include hash-maps we
+should not test here.  So we give the lie to our earlier assertion
+that we need only add cases to our test sets to augment all our
+tests. However, it's still convenient to use them. From this point
+on, we write explicit test code rather than data-driven tests to save
+the complexity of building more test infrastructure. The results are
+quite lengthy, but repetitive and easy to understand.
+
+For our positive tests, we cover all combinations of list and
+vector, plus some cases of dimension mismatch. We expect
+\emph{add-a-vectors} to produce results for the minimum dimension of its
+inputs. Again, this looseness is by-design at this level of the
+overall solution.
+
+\begin{figure}[H]
+\label{add-a-vectors-test}
+\begin{verbatim}
+(deftest add-a-vectors-test
+  (testing "add-a-vectors")
+  (is (= #{"java.lang.IllegalArgumentException"}
+         (value-set add-a-vectors
+         (take 10 bad-ish-test-set))))
+  (is (thrown? java.lang.IllegalArgumentException
+       (add-a-vectors)))
+  (are [x y] (= x y)
+    (add-a-vectors [])    []
+    (add-a-vectors [1])   [1]
+    (add-a-vectors [1 1]) [1 1]
+
+    (add-a-vectors '())    '()
+    (add-a-vectors '(1))   '(1)
+    (add-a-vectors '(1 1)) '(1 1)
+
+    (add-a-vectors [1]   [2])   [3]
+    (add-a-vectors [1 2] [3 4]) [4 6]
+
+    (add-a-vectors '(1)   '(2))   '(3)
+    (add-a-vectors '(1 2) '(3 4)) '(4 6)
+
+    (add-a-vectors '(1)   [2])   [3]
+    (add-a-vectors '(1 2) [3 4]) [4 6]
+
+    (add-a-vectors [1]   '(2))   [3]
+    (add-a-vectors [1 2] '(3 4)) [4 6]
+
+    (add-a-vectors [1]   [2])   '(3)
+    (add-a-vectors [1 2] [3 4]) '(4 6)
+
+    (add-a-vectors '(1)   [2])   '(3)
+    (add-a-vectors '(1 2) [3 4]) '(4 6)
+
+    (add-a-vectors [1]   '(2))   '(3)
+    (add-a-vectors [1 2] '(3 4)) '(4 6)
+
+    (add-a-vectors [1]   [2 3])   [3]
+    (add-a-vectors [1 2] [3 4 5]) [4 6]
+
+    (add-a-vectors {})          {}
+    (add-a-vectors {:a 1})      {:a 1}
+    (add-a-vectors {:a 1 :b 2}) {:a 1 :b 2}
+
+    (add-a-vectors {:a 1})      {:a 1}
+    (add-a-vectors {:a 1 :b 2}) {:a 1 :b 2}
+  ) )
 \end{verbatim}
 \end{figure}
 
@@ -352,7 +509,8 @@ data; let's follow it to build add-data:
 \begin{verbatim}
 (defrecord ReversibleVector [a-vector]
   IReversibleAlgebraicVector
-  (add   [a b] {:left-prior a, :right-prior b,
+  (add   [a b & more]
+         {:priors a, :right-prior b,
                 :operation 'add, :a-vector (map + (get-a-vector a)
                                               (get-a-vector b))})
   (sub   [a b] nil)
