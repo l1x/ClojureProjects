@@ -107,6 +107,12 @@ casing.  Don't misread /IReversibleAlgebraicVector/ as ``irreversible
 algebraic vector,'' but rather read it as ``Interface to Reversible
 Algebraic Vector,'' where ``Interface'' is a synonym for ``protocol.''
 
+We want to add, subtract, and scale our reversible vectors, just as we
+can do with vectors in vector spaces and in linear algebra. We can add
+inner product because it is a common and useful operation. Then, we
+need to be able to undo and redo operations that have yielded a given
+vector.
+
 #+NAME: reversible-algebraic-vector-protocol
 #+BEGIN_SRC clojure :tangle no
 (defprotocol IReversibleAlgebraicVector
@@ -124,31 +130,31 @@ Algebraic Vector,'' where ``Interface'' is a synonym for ``protocol.''
 
 ** Implementing the Protocol for Vectors
 
-As a first cut, package algebraic vectors in hash-maps that contain
-enough information to reverse any computation.
+As a first cut, let us package algebraic vectors in hash-maps that
+contain enough information to reverse any computation.
 
 First, define the base case: collections that hold data that can be
 treated as ordinary, non-reversible vectors.  What kinds of things can
-hold ordinary vector data?  They be things we can operate on with /map/
-or /merge-with/ to perform the basic, vector-space operations.
-Therefore, the data must be a Clojure vector, list, or hash-map.
+hold ordinary vector data?  They must be things we can operate on with
+/map/ or /merge-with/ to perform the basic, vector-space operations.
+Therefore, they be Clojure vectors, lists, or hash-maps.
 
 The higher-level case is to store reversing information in hash-maps
 along with base-data. The base data will belong to the /:data/ key, by
 convention.
 
-\begin{mydefinition}[Reversible Algebraic Vector]
-A \textbf{reversible algebraic vector} is either a \textbf{base-data} collection
-or a hash-map containing a \texttt{:data} attribute. A base-data
-collection is either a Clojure vector, list, or hash-map that does
-not contain a \texttt{:data} attribute. If a reversible algebraic vector
-does contain a \texttt{:data} attribute, the value of that attribute
-is a base-data collection.
-\end{mydefinition}
 
-Here is a /fluent/, type-checking function that either returns its input
--- like the /identity/ function -- or throws an exception if something
-is wrong.
+\begin{mydefinition}[Reversible Algebraic Vector]
+A \textbf{reversible algebraic vector} is either a \textbf{base-data}
+collection or a hash-map containing a \texttt{:data} attribute. A
+base-data collection is either a Clojure vector, list, or hash-map that
+does not contain a \texttt{:data} attribute. If a reversible algebraic
+vector does contain a \texttt{:data} attribute, the value of that
+attribute is a base-data collection.  \end{mydefinition}
+
+Here is a /fluent/ type-checking function for base-data. It either
+returns its input -- like the /identity/ function -- or throws an
+exception if something is wrong.
 
 #+NAME: check-data-type
 #+BEGIN_SRC clojure :tangle no
@@ -157,24 +163,23 @@ is wrong.
     (if (or (= t (type []))
             (= t (type '()))  ; empty list is special
             (= t (type '(0))) ; this list is ordinary
-            (= t (type {})))
-      that
+            (and (= t (type {})) (not (contains? that :data))))
+      that ; ok -- otherwose:
       (throw (IllegalArgumentException.
         (str "This type of object can't hold vector data: " t))))))
 #+END_SRC
 
-Now we can formally define the reversible algebraic vector:
-
 Now we need a way to get the data out of any reversible algebraic
-vector. We must explicitly check for existence of /:data/ so that we can
-tell the difference between a hash-map that has /:data/ whose value is
-/nil/ and a hash-map that has no /:data/; the prettier code
+vector.
 
-#+BEGIN_SRC clojure :tangle no
-(:data that)
-#+END_SRC
-
-does not distinguish those two cases.
+If the input is a hash-map, we must explicitly check for existence of
+/:data/ so that we can tell the difference between a hash-map that has
+/:data/ whose value is /nil/, which is an illegal case, and a hash-map
+that has no /:data/, a legal case. We cannot simply apply the keyword
+/:data/ to the candidate reversible vector because that application
+would produce /nil/ in both cases. Instead, we apply /:data/ to the
+candidate after checking for existence of the key, and then we apply
+/check-data-type/, defined above.
 
 #+NAME: get-data-helper
 #+BEGIN_SRC clojure :tangle no
@@ -190,6 +195,11 @@ does not distinguish those two cases.
   (throw (IllegalArgumentException.
     (str "get-data doesn't like this food: " that))))
 #+END_SRC
+
+Now we write a test for all these cases. We require
+/IllegalArgumentExceptions/ for bases-data blocks that are not vectors,
+lists, or hash-maps or base-data blocks that contain
+reversible-vectors: our design does not want to nest such vectors.
 
 #+name: test-get-data-helper
 #+BEGIN_SRC clojure :results silent
@@ -212,6 +222,7 @@ does not distinguish those two cases.
       (get-data {:data #inst "2012Z"})
       (get-data {:data #{} })
       (get-data {:data nil })
+      (get-data {:data {:data 'foo} })
     )
     (are [x y] (= x y)
           [] (get-data  [])
