@@ -1,4 +1,4 @@
-% Created 2013-09-22 Sun 17:33
+% Created 2013-09-22 Sun 22:27
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -122,7 +122,7 @@ Clojure's word for
 because we want several implementations with the same reversible
 arithmetic: one implementation for vectors and lists, another
 implementation for hash-maps.  \emph{Protocols} let us ignore inessential
-differences: the protocol for reversible arithmetic on is the same for
+differences: the protocol for reversible arithmetic is the same for
 all compatible collection
 types.\footnote{including streams over time! Don't forget Rx and SRS.}
 
@@ -137,54 +137,55 @@ to Reversible Algebraic Vector,'' where the ``I'' abbreviates
 
 We want to add, subtract, and scale our reversible vectors, just as we
 can do with mathematical vectors.  \emph{Add} should be multiary, because
-that's intuitive. Multiary functions are written with ampersands
+that's intuitive.  Multiary functions are written with ampersands
 before all the optional parameters, which Clojure will package in a
-sequence. \emph{Sub} should be binary, because multiary sub is
-ambiguous. Include inner product, because it is likely to be useful.
+sequence. Unfortunately, protocol functions don't support ``rest''
+arguments,\footnote{\url{http://bit.ly/18kecbJ}} so we'll go with binary \emph{add}
+for now, and built up multiarity through functional programming mojo.
+
+\emph{Sub} should be binary, because multiary sub is ambiguous.
+
+Include inner product, because it is likely to be useful.
+
 Though we don't have immediate scenarios for subtraction, scaling, and
 inner product, the mathematics tells us they're fundamental. Putting
 them in our design \emph{now} affords two benefits:
 \begin{enumerate}
 \item when the need arises, we won't have to change the code
 \item their existence in the library may inspire usage scenarios
-\end{enumerate}
 
-
-
-\begin{description}
 \item[{Remark}] The choice to include operations in a library in the absense
-of scenarios is a philosophical
-choice,\footnote{\url{http://en.wikipedia.org/wiki/Design_philosophy}}
+of scenarios is
+philosophical,\footnote{\url{http://en.wikipedia.org/wiki/Design_philosophy}}
 perhaps more akin to \emph{Action-Centric} design or \emph{proactive}
-design as opposed to \emph{Hyper-Rationalist} or \emph{minimalist}
+design as opposed to \emph{Rationalist} or \emph{minimalist}
 design. The former philosophy promotes early inclusion of
 facilities likely to be useful or inspirational, whereas the
 latter philosophy demands ruthless rejection of facilities
-not known to be needed. Both buy into to removing facilities
+not known to be needed. Both require removing facilities
 \emph{known to be not needed}, of course. The former philosophy
 relies on intuition, taste, judgment, and experience; and
 the latter philosophy embraces ignorance of the future as a
 design principle. We thus prefer the former.
-\end{description}
-
-
+\end{enumerate}
 
 Finally, we need \emph{undo} and \emph{redo}, the differentiating features of
-reversible algebraic vectors. Here is our protocol design:
+reversible algebraic vectors. Unlike object-oriented programming,
+there is no implicit \emph{this} instance.  Here is our protocol design:
 
 \begin{figure}[H]
 \label{reversible-algebraic-vector-protocol}
 \begin{verbatim}
 (defprotocol IReversibleAlgebraicVector
   ;; binary operators
-  (add   [a b & more])
-  (sub   [a b])
-  (inner [a b])
+  (add   [this that])
+  (sub   [this that])
+  (inner [this that])
   ;; unary operators
-  (scale [a scalar])
+  (scale [this scalar])
   ;; reverse any operation
-  (undo [a])
-  (redo [a])
+  (undo [this])
+  (redo [this])
 )
 \end{verbatim}
 \end{figure}
@@ -232,7 +233,7 @@ something is wrong.
           (and (map? that) (not (contains? that :a-vector))))
       that ; ok -- otherwise:
       (throw (IllegalArgumentException.
-        (str "This type can't hold a-vector data: "
+        (str "; This type can't hold a-vector data: "
              (type that))))))
 \end{verbatim}
 \end{figure}
@@ -317,7 +318,7 @@ in order.
 \begin{verbatim}
 (defn- exception-to-name [fun expr]
   (try (fun expr)
-       (catch Exception e (re-find #"[^:]+" (str e)))))
+       (catch Exception e (re-find #"[^:;,]+" (str e)))))
 
 (defn- value-seq [fun exprs]
   (map (fn [x] (exception-to-name fun x)) exprs))
@@ -351,23 +352,7 @@ are illegal.
   (cond
     (or (vector? a) (list? a)) 'seq-ish
     (map? a)                   'map-ish
-    :default (throw (IllegalArgumentException. (str ": " a)))))
-\end{verbatim}
-\end{figure}
-
-Test \emph{one-type} on the type collections we made above.
-
-\begin{figure}[H]
-\label{one-type-test}
-\begin{verbatim}
-(deftest one-type-test
-  (testing "type-merging"
-    (is (= #{"java.lang.IllegalArgumentException"}
-           (value-set one-type atoms)))
-    (is (= #{'seq-ish}
-           (value-set one-type (concat lists vectors))))
-    (is (= #{'map-ish}
-           (value-set one-type maps))) ) )
+    :default (throw (IllegalArgumentException. (str a)))))
 \end{verbatim}
 \end{figure}
 
@@ -378,7 +363,7 @@ of all optional arguments.
 \begin{figure}[H]
 \label{add-a-vectors}
 \begin{verbatim}
-(defn all-types [& exprs] (set (map one-type exprs)))
+(defn- all-types [& exprs] (set (map one-type exprs)))
 (defmulti  add-a-vectors all-types)
 (defmethod add-a-vectors #{'seq-ish} [& those]
   (apply map + those))
@@ -386,7 +371,7 @@ of all optional arguments.
   (apply merge-with + those))
 (defmethod add-a-vectors :default    [& those]
   (throw (IllegalArgumentException.
-    (str "add-a-vectors doesn't like this food: " those))))
+    (str "; Illegal type combination: " (map type those)))))
 \end{verbatim}
 \end{figure}
 
@@ -414,8 +399,7 @@ do not need to test such cases here.
 (deftest add-a-vectors-test
   (testing "add-a-vectors")
   (is (= #{"java.lang.IllegalArgumentException"}
-         (value-set add-a-vectors atoms)
-         (take 10 bad-ish-test-collection))))
+         (value-set add-a-vectors atoms)))
   (are [expr] (thrown? java.lang.IllegalArgumentException expr)
        (add-a-vectors '()  {})
        (add-a-vectors  []  {})
@@ -483,24 +467,25 @@ do not need to test such cases here.
 \subsection{The ReversibleVector Type}
 \label{sec-4-6}
 
-We now have enough to implement the protocol.
+We now have enough to implement the \emph{add} method of the protocol.
 
 \begin{figure}[H]
 \label{reversible-algebraic-vector-on-vector}
 \begin{verbatim}
-(defrecord ReversibleVector [a-vector]
+(defrecord ReversibleVector [my-r-vector]
   IReversibleAlgebraicVector
-  (add   [a b & more]
-         (let [priors (concat [a b] more)]
-           {:priors    priors
-            :operation 'add,
-            :a-vector  (apply add-a-vectors
-                         (map get-a-vector priors))}))
-  (sub   [a b] nil)
-  (inner [a b] nil)
-  (scale [a scalar] nil)
-  (undo  [a] nil)
-  (redo  [b] nil))
+  (add   [this that]
+         (let [priors [(get-a-vector (.my-r-vector this))
+                       (get-a-vector (.my-r-vector that))]]
+           (->ReversibleVector
+             {:priors    priors
+              :operation 'add,
+              :a-vector  (apply add-a-vectors priors)})))
+  (sub   [this that] nil)
+  (inner [this that] nil)
+  (scale [this scalar] nil)
+  (undo  [this] nil)
+  (redo  [this] nil))
 \end{verbatim}
 \end{figure}
 \section{Unit-Tests}

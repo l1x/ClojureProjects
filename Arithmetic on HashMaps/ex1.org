@@ -106,7 +106,7 @@ The following line generates a benign error
   because we want several implementations with the same reversible
   arithmetic: one implementation for vectors and lists, another
   implementation for hash-maps.  /Protocols/ let us ignore inessential
-  differences: the protocol for reversible arithmetic on is the same for
+  differences: the protocol for reversible arithmetic is the same for
   all compatible collection
   types.[fn::including streams over time! Don't forget Rx and SRS.]
 
@@ -121,49 +121,52 @@ The following line generates a benign error
 
   We want to add, subtract, and scale our reversible vectors, just as we
   can do with mathematical vectors.  /Add/ should be multiary, because
-  that's intuitive. Multiary functions are written with ampersands
+  that's intuitive.  Multiary functions are written with ampersands
   before all the optional parameters, which Clojure will package in a
-  sequence. /Sub/ should be binary, because multiary sub is
-  ambiguous. Include inner product, because it is likely to be useful.
+  sequence. Unfortunately, protocol functions don't support ``rest''
+  arguments,[fn::http://bit.ly/18kecbJ] so we'll go with binary /add/
+  for now, and built up multiarity through functional programming mojo.
+
+  /Sub/ should be binary, because multiary sub is ambiguous.
+
+  Include inner product, because it is likely to be useful.
+
   Though we don't have immediate scenarios for subtraction, scaling, and
   inner product, the mathematics tells us they're fundamental. Putting
   them in our design /now/ affords two benefits:
   1. when the need arises, we won't have to change the code
   1. their existence in the library may inspire usage scenarios
 
-
-
 + Remark :: The choice to include operations in a library in the absense
-            of scenarios is a philosophical
-            choice,[fn::http://en.wikipedia.org/wiki/Design_philosophy]
+            of scenarios is
+            philosophical,[fn::http://en.wikipedia.org/wiki/Design_philosophy]
             perhaps more akin to /Action-Centric/ design or /proactive/
-            design as opposed to /Hyper-Rationalist/ or /minimalist/
+            design as opposed to /Rationalist/ or /minimalist/
             design. The former philosophy promotes early inclusion of
             facilities likely to be useful or inspirational, whereas the
             latter philosophy demands ruthless rejection of facilities
-            not known to be needed. Both buy into to removing facilities
+            not known to be needed. Both require removing facilities
             /known to be not needed/, of course. The former philosophy
             relies on intuition, taste, judgment, and experience; and
             the latter philosophy embraces ignorance of the future as a
             design principle. We thus prefer the former.
 
-
-
   Finally, we need /undo/ and /redo/, the differentiating features of
-  reversible algebraic vectors. Here is our protocol design:
+  reversible algebraic vectors. Unlike object-oriented programming,
+  there is no implicit /this/ instance.  Here is our protocol design:
 
 #+NAME: reversible-algebraic-vector-protocol
 #+BEGIN_SRC clojure :tangle no
 (defprotocol IReversibleAlgebraicVector
   ;; binary operators
-  (add   [a b & more])
-  (sub   [a b])
-  (inner [a b])
+  (add   [this that])
+  (sub   [this that])
+  (inner [this that])
   ;; unary operators
-  (scale [a scalar])
+  (scale [this scalar])
   ;; reverse any operation
-  (undo [a])
-  (redo [a])
+  (undo [this])
+  (redo [this])
 )
 #+END_SRC
 
@@ -435,33 +438,27 @@ The following line generates a benign error
 
 ** The ReversibleVector Type
 
-   We now have enough to implement the protocol.
+   We now have enough to implement the /add/ method of the protocol.
 
-#+NAME: reversible-algebraic-vector-on-vector
+#+NAME: reversible-algebraic-vector
 #+BEGIN_SRC clojure :tangle no
-(defrecord ReversibleVector [a-vector]
+(defrecord ReversibleVector [my-r-vector]
   IReversibleAlgebraicVector
-  (add   [a b & more]
-         (let [priors (concat [a b] more)]
-           {:priors    priors
-            :operation 'add,
-            :a-vector  (apply add-a-vectors
-                         (map get-a-vector priors))}))
-  (sub   [a b] nil)
-  (inner [a b] nil)
-  (scale [a scalar] nil)
-  (undo  [a] nil)
-  (redo  [b] nil))
+  (add   [this that]
+         (let [prior-a-vectors
+               [(get-a-vector (.my-r-vector this))
+                (get-a-vector (.my-r-vector that))]]
+           (->ReversibleVector
+             {:priors    [this that]
+              :operation 'add
+              :a-vector  (apply add-a-vectors prior-a-vectors)})))
+  (sub   [this that] nil)
+  (inner [this that] nil)
+  (scale [this scalar] nil)
+  (undo  [this] nil)
+  (redo  [this] nil))
 #+END_SRC
 
-#+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/README.md :exports none
-# ex1
-A Clojure library for reversible arithmetic on collections.
-## Usage
-TODO
-## License
-Copyright © 2013 TODO
-#+END_SRC
 #+BEGIN_SRC clojure :noweb yes :mkdirp yes :tangle ./ex1/project.clj :exports none
 (defproject ex1 "0.1.0-SNAPSHOT"
   :description "Project Fortune's Excel Processor"
@@ -486,11 +483,7 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 <<get-a-vector>>
 <<one-type>>
 <<add-a-vectors>>
-<<sub-data>>
-<<inner-product-data>>
-<<undo>>
-<<redo>>
-<<reversible-algebraic-vector-on-vector>>
+<<reversible-algebraic-vector>>
 #+END_SRC
 
 #+name: main-namespace
