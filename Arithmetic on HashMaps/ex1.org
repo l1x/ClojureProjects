@@ -36,7 +36,7 @@ The following line generates a benign error
   the result. We also want to /un-add/ so we can undo a mistake, roll
   back a provisional result, perform a backfill or allocation: in short,
   get back the original inputs. This paper presents a library supporting
-  reversible on a large class of collections in
+  reversible arithmetic on a large class of collections in
   Clojure.[fn::http://clojure.org]
 
 * Mathematical Background
@@ -175,12 +175,12 @@ The following line generates a benign error
 ** Defining /r-vectors/ and /a-vectors/
 
    What things represent algebraic vectors?  Things we can operate on
-   with /map/ or /merge-with/ to perform basic vector-space operations.
-   Therefore, they must be Clojure vectors, lists, or hash-maps.
+   with /map/ or /merge-with/.  Therefore, they must be Clojure vectors,
+   lists, or hash-maps.
 
-   The higher-level case wraps reversing information in a hash-map along
-   with base-case algebraic vector data. The base data will belong to
-   the /\mbox{:a-vector}/ key, by convention.
+   The higher-level case wraps the reversing information in a hash-map
+   along with base-case algebraic vector data. The base-case data will
+   belong to the /\mbox{:a-vector}/ key, by convention.
 
 
 \begin{mydefinition}[Algebraic Vector (a-vector)]
@@ -274,14 +274,13 @@ The following line generates a benign error
    The first exception will terminate the entire /map/ operation, but we
    want to test that they all throw exceptions.
 
-   One way to defeat eager evaluation is with a higher-order function.
-   [fn::another, more complicated way is with a /macro/, which rewrites
+   One way to defeat eager evaluation is with a higher-order function.[fn::another, more complicated way is with a /macro/, which rewrites
    expressions at compile time. Macrros should be avoided when
    functional alternatives exist because they are hard to develop and
    debug.]  Pass /get-a-vector/ as a function to another function that
    wraps it in a /try/ that converts an exception into a string.
    Collect all bad-ish strings into a hash-set and test that the
-   hash-set contain just the string
+   hash-set contain only the string
    ``\emph{java.lang.IllegalArgumentException}.'' For the /good-ish/
    test set, map the values into a sequence that should match the inputs
    in order.
@@ -331,9 +330,9 @@ The following line generates a benign error
     :default (throw (IllegalArgumentException. (str a)))))
 #+END_SRC
 
-   To dispatch on collection type, test the types of all inputs. Here,
-   again, we see ampersands before a parameter representing a sequence
-   of all optional arguments.
+   To dispatch on collection type, test the types of all inputs. Here we
+   see ampersands before a parameter that represents a sequence of all
+   optional arguments.
 
 #+NAME: add-a-vectors
 #+BEGIN_SRC clojure :tangle no

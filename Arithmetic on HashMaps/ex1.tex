@@ -1,4 +1,4 @@
-% Created 2013-09-22 Sun 22:27
+% Created 2013-09-23 Mon 05:53
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -58,7 +58,7 @@ adding the corresponding elements and creating a new virtual row from
 the result. We also want to \emph{un-add} so we can undo a mistake, roll
 back a provisional result, perform a backfill or allocation: in short,
 get back the original inputs. This paper presents a library supporting
-reversible on a large class of collections in
+reversible arithmetic on a large class of collections in
 Clojure.\footnote{\url{http://clojure.org}}
 \section{Mathematical Background}
 \label{sec-2}
@@ -196,12 +196,12 @@ there is no implicit \emph{this} instance.  Here is our protocol design:
 \label{sec-4-1}
 
 What things represent algebraic vectors?  Things we can operate on
-with \emph{map} or \emph{merge-with} to perform basic vector-space operations.
-Therefore, they must be Clojure vectors, lists, or hash-maps.
+with \emph{map} or \emph{merge-with}.  Therefore, they must be Clojure vectors,
+lists, or hash-maps.
 
-The higher-level case wraps reversing information in a hash-map along
-with base-case algebraic vector data. The base data will belong to
-the \emph{\mbox{:a-vector}} key, by convention.
+The higher-level case wraps the reversing information in a hash-map
+along with base-case algebraic vector data. The base-case data will
+belong to the \emph{\mbox{:a-vector}} key, by convention.
 
 
 \begin{mydefinition}[Algebraic Vector (a-vector)]
@@ -301,14 +301,13 @@ eagerly.\footnote{\url{http://en.wikipedia.org/wiki/Evaluation_strategy#Applicat
 The first exception will terminate the entire \emph{map} operation, but we
 want to test that they all throw exceptions.
 
-One way to defeat eager evaluation is with a higher-order function.
-\footnote{another, more complicated way is with a \emph{macro}, which rewrites
+One way to defeat eager evaluation is with a higher-order function.\footnote{another, more complicated way is with a \emph{macro}, which rewrites
    expressions at compile time. Macrros should be avoided when
    functional alternatives exist because they are hard to develop and
    debug.}  Pass \emph{get-a-vector} as a function to another function that
 wraps it in a \emph{try} that converts an exception into a string.
 Collect all bad-ish strings into a hash-set and test that the
-hash-set contain just the string
+hash-set contain only the string
 ``\emph{java.lang.IllegalArgumentException}.'' For the \emph{good-ish}
 test set, map the values into a sequence that should match the inputs
 in order.
@@ -356,9 +355,9 @@ are illegal.
 \end{verbatim}
 \end{figure}
 
-To dispatch on collection type, test the types of all inputs. Here,
-again, we see ampersands before a parameter representing a sequence
-of all optional arguments.
+To dispatch on collection type, test the types of all inputs. Here we
+see ampersands before a parameter that represents a sequence of all
+optional arguments.
 
 \begin{figure}[H]
 \label{add-a-vectors}
@@ -470,17 +469,18 @@ do not need to test such cases here.
 We now have enough to implement the \emph{add} method of the protocol.
 
 \begin{figure}[H]
-\label{reversible-algebraic-vector-on-vector}
+\label{reversible-algebraic-vector}
 \begin{verbatim}
 (defrecord ReversibleVector [my-r-vector]
   IReversibleAlgebraicVector
   (add   [this that]
-         (let [priors [(get-a-vector (.my-r-vector this))
-                       (get-a-vector (.my-r-vector that))]]
+         (let [prior-a-vectors
+               [(get-a-vector (.my-r-vector this))
+                (get-a-vector (.my-r-vector that))]]
            (->ReversibleVector
-             {:priors    priors
-              :operation 'add,
-              :a-vector  (apply add-a-vectors priors)})))
+             {:priors    [this that]
+              :operation 'add
+              :a-vector  (apply add-a-vectors prior-a-vectors)})))
   (sub   [this that] nil)
   (inner [this that] nil)
   (scale [this scalar] nil)
