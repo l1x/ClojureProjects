@@ -29,3 +29,5 @@ rxjava/expt1/maven_repository/local/rxjava-clojure/maven-metadata.xml
 big-prime/.lein-repl-history
 
 *.log
+
+*.so
