@@ -4,6 +4,12 @@
             [basic-metronome.setup :as dynamic-setup]
             [quil.core :as qc]))
 
+(defmethod print-method clojure.lang.PersistentQueue
+  [q, w]
+  (print-method '<- w)
+  (print-method (seq q) w)
+  (print-method '-< w))
+
 (defn on-close-sketch []
   ;;(stop)
   )
@@ -24,4 +30,3 @@
 ;;(qc/sketch-stop the-sketch)
 ;;(qc/sketch-start the-sketch)
 ;;(qc/sketch-close the-sketch)
-
