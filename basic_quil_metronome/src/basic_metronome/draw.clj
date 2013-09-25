@@ -13,12 +13,13 @@
 (defn- ty [ang]      (mx (qc/height) ang))
 
 (defn- parm
-  "Converts x into a fractional distance from \"lo\" to \"hi\"."
+  "Converts x, which must be in the same units of measure as \"lo\" and
+  \"hi\", into a fractional distance from \"lo\" to \"hi\"."
   [x lo hi] (/ (- x lo) (- hi lo)))
 
 (defn- lirp
-  "Given a fractional distance from \"lo\" to \"hi\", produce
-   a scaled position."
+  "Given a fractional distance from \"lo\" to \"hi\", produce a position
+   scaled to the units of measure of \"lo\" and \"hi\"."
   [t lo hi] (+ lo (* t (- hi lo))))
 
 (defn- half [x] (* 0.5 x))
@@ -36,7 +37,7 @@
         _ (dorun (for [j (range lo hi)
                        t [(* 0.05 j)]]
                    (do
-                     (qc/fill (qc/map-range j lo hi 64 255) 0 0)
+                     (qc/fill 0 (qc/map-range j lo hi 64 255) 0)
                      ;(qc/fill (lirp (parm j lo hi) 64 255) 0 0)
                      (qc/ellipse (tx t) (ty (* 1.1 t)) 20 20))))
         ]
