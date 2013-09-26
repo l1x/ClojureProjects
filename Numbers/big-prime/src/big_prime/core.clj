@@ -83,15 +83,18 @@
      (apply concat found)
      )))
 
-(defn sieve [xs]
-  (if (empty? xs)
-    ()
-    (let [x (first xs)]
-      (cons x
-            (lazy-seq (sieve
-                       (filter (partial does-not-divide? x)
-                               (rest xs))))))))
+(defn magic [x y]
+  (lazy-seq (cons y (magic y (+ x y)))))
 
+(def fibs (magic 1 1))
+
+(defn sieve [[x & xs]]
+  (if (empty? xs)
+    (list x)
+    (cons x
+          (lazy-seq (sieve
+                     (filter (partial does-not-divide? x)
+                             xs))))))
 (defn factors
   "Factor the integer n using p potentially parallel threads. Parallel-mapper-flag is treated as a soft Boolean -- any non-nil, non-false value will be \"true\" (current experiments suggest that speed does not depend on the parallel-mapper-flag)."
   [n p & parallel-mapper-flag]
@@ -125,7 +128,7 @@
 (defn big-rand
   [digits]
   (bigint
-   (read-string 
+   (read-string
     (apply
      str
      (let [ds
@@ -136,5 +139,3 @@
          (list (rand-digit))
          ds)        ; in case the drop-while returns empty (all zeros)
        )))))
-
-
