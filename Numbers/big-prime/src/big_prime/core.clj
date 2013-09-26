@@ -86,15 +86,15 @@
 (defn magic [x y]
   (lazy-seq (cons y (magic y (+ x y)))))
 
-(def fibs (magic 1 1))
+(def fibs (magic 1N 1N))
 
-(defn sieve [[x & xs]]
+(defn sieve [xs]
   (if (empty? xs)
-    (list x)
-    (cons x
+    ()
+    (cons (first xs)
           (lazy-seq (sieve
-                     (filter (partial does-not-divide? x)
-                             xs))))))
+                     (filter (partial does-not-divide? (first xs))
+                             (rest xs)))))))
 (defn factors
   "Factor the integer n using p potentially parallel threads. Parallel-mapper-flag is treated as a soft Boolean -- any non-nil, non-false value will be \"true\" (current experiments suggest that speed does not depend on the parallel-mapper-flag)."
   [n p & parallel-mapper-flag]
