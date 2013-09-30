@@ -29,7 +29,7 @@
 ;;; :dependencies in the project.clj file, which specifies the libraries and
 ;;; packages to download that contain these namespaces:
 
-(ns expt1.core
+(ns expt1.repro
   (:require [expt1.k2                :as k2     ]
             [clojure.zip             :as zip    ]
             [clojure.xml             :as xml    ]
@@ -413,9 +413,9 @@
         ]
     (sb `(-> ~es ~@qs subscribe-collectors pdump ))))
 
-(let [source "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
-      queries ["(.mapMany (rx.lang.clojure.interop/fn* (comp expt1.core/from-seq expt1.core/string-explode)))"
-               "expt1.core/distinct-until-changed"
+(let [source "(expt1.repro/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
+      queries ["(.mapMany (rx.lang.clojure.interop/fn* (comp expt1.repro/from-seq expt1.repro/string-explode)))"
+               "expt1.repro/distinct-until-changed"
               ]
       ]
   (run-jailed-queries source queries))
@@ -531,7 +531,7 @@
                      ;; After sending all values, complete the sequence:
                      (-> observer .onCompleted))]
        ;; Return a subscription that cancels the future:
-       (Subscriptions/create (rx/action [] (future-cancel f)))))))
+       (Subscriptions/create #(future-cancel f))))))
 
 (-> (asynchronous-observable (range 50))
     (.map    (rx/fn* #(str "AsynchronousValue_" %)))
@@ -570,7 +570,7 @@
                ;; after sending response to onNext, complete the sequence
                (-> observer .onCompleted))]
        ;; a subscription that cancels the future if unsubscribed
-       (Subscriptions/create (rx/action [] (future-cancel f)))))))
+       (Subscriptions/create #(future-cancel f))))))
 
 (defn zip-str [s]
   (zip/xml-zip

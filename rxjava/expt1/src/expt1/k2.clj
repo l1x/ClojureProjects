@@ -12,7 +12,7 @@
 
 (defn hello
   [& args]
-  (-> (Observable/toObservable args)
+  (-> (Observable/from args)
     (.subscribe #(println (str "Hello " % "!")))))
 
 ; To see output
@@ -24,20 +24,20 @@
 ; --------------------------------------------------
 
 (defn existingDataFromNumbers []
-  (Observable/toObservable [1 2 3 4 5 6]))
+  (Observable/from [1 2 3 4 5 6]))
 
 (defn existingDataFromNumbersUsingFrom []
   (Observable/from [1 2 3 4 5 6]))
 
 (defn existingDataFromObjects []
-  (Observable/toObservable ["a" "b" "c"]))
+  (Observable/from ["a" "b" "c"]))
 
 (defn existingDataFromObjectsUsingFrom []
   (Observable/from ["a" "b" "c"]))
 
 (defn existingDataFromList []
   (let [list [5, 6, 7, 8]]
-    (Observable/toObservable list)))
+    (Observable/from list)))
 
 (defn existingDataFromListUsingFrom []
   (let [list [5, 6, 7, 8]]
