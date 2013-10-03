@@ -33,12 +33,12 @@
   (let [theta (* 0.05 @tick)
         lo    (- @tick 20)
         hi    @tick
-        _ (dorun (for [j (range lo hi)
-                       t [(* 0.05 j)]]
-                   (do
-                     (qc/fill (qc/map-range j lo hi 64 255) 0 0)
-                     ;(qc/fill (lirp (parm j lo hi) 64 255) 0 0)
-                     (qc/ellipse (tx t) (ty (* 1.1 t)) 20 20))))
+        _     (dorun (for [j (range lo hi)
+                           t [(* 0.05 j)]]
+                       (do
+                         (qc/fill 0 (qc/map-range j lo hi 64 255) 0 )
+                         ;(qc/fill (lirp (parm j lo hi) 64 255) 0 0)
+                         (qc/ellipse (tx t) (ty (* 1.1 t)) 20 20))))
         ]
     (qc/fill 255 0 0)
     (qc/ellipse (tx (inc theta)) (ty (* 1.1 (inc theta))) 20 20)
