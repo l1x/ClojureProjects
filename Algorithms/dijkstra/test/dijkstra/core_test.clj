@@ -13,7 +13,7 @@
     (is (= 1 1))))
 
 (def ^:private a-graph
-  (DirectedGraph. 
+  (DirectedGraph.
    {:s {:v 1, :w 4}
     :v {:w 2, :t 6}
     :w {:t 3 }
@@ -75,7 +75,7 @@
   (is (= (seq-graph-bfs c-graph :1  (comp square kw-to-int)) [1 4 9 16]))
   )
 
-(deftest corner-cases-test 
+(deftest corner-cases-test
   (-> (= [] (seq-graph-dfs {} :1)) is)
   (-> (= [] (seq-graph-bfs {} :1)) is)
 
@@ -89,12 +89,15 @@
   (-> (= [:1] (seq-graph-bfs {:1 [:1]} :1)) is)
   )
 
+(defn- with-resource [resource]
+  (io/resource resource))
+
 (defn- with-bfg-1 [op]
-  (with-open [rdr (io/reader "./data/wiki-Vote.txt")]
+  (with-open [rdr (io/reader (io/resource "wiki-Vote.txt"))]
     (op (line-seq rdr))))
 
 (def ^:private bfg-1-pairs
-  (with-open [rdr (io/reader "./data/wiki-Vote.txt")]
+  (with-open [rdr (io/reader (io/resource "wiki-Vote.txt"))]
     (let [edges
           (doall (for [line (line-seq rdr)
                        :when (not (re-find #"^#" line))]
@@ -130,7 +133,7 @@
 ;;;    Execution time lower quantile : 265.749136 ms ( 2.5%)
 ;;;    Execution time upper quantile : 268.267255 ms (97.5%)
 ;;;                    Overhead used : 114.433129 ns
-;;; 
+;;;
 ;;; Found 1 outliers in 60 samples (1.6667 %)
 ;;; 	low-severe	 1 (1.6667 %)
 ;;;  Variance from outliers : 1.6389 % Variance is slightly inflated by outliers
@@ -143,7 +146,7 @@
 ;;;    Execution time lower quantile : 1.629214 sec ( 2.5%)
 ;;;    Execution time upper quantile : 1.716874 sec (97.5%)
 ;;;                    Overhead used : 114.433129 ns
-;;; 
+;;;
 ;;; Found 10 outliers in 60 samples (16.6667 %)
 ;;; 	low-severe	 3 (5.0000 %)
 ;;; 	low-mild	 7 (11.6667 %)
