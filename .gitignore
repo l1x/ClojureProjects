@@ -33,3 +33,5 @@ big-prime/.lein-repl-history
 *.so
 
 Algorithms/dijkstra/.idea/workspace.xml
+
+*.iml
