@@ -47,21 +47,39 @@
                                             secure-tester
                                             ]])
   (:refer-clojure :exclude [distinct])
-  (:import [rx Observable subscriptions.Subscriptions #_Subject])
+  (:import [rx
+            Observable
+            subscriptions.Subscriptions
+            subjects.Subject
+            subjects.PublishSubject])
   )
+
+;;; Set this to 'false' or 'nil' during development so we don't hit wikipedia
+;;; too much.
+
+(def hit-wikipedia false)
 
 ;;; The following is a debugging macro that acts like the identity function.
 ;;; It returns whatever you pass to it, and pretty-prints the input and
 ;;; output by side-effect in the repl or on the console:
 
 (defmacro pdump [x]
-  `(let [x# ~x]
+  `(let [x#  ~x]
      (do (println "----------------")
          (clojure.pprint/pprint '~x)
          (println "~~>")
          (clojure.pprint/pprint x#)
-         (println "----------------")
+         #_(println "----------------")
          x#)))
+
+;;; TODO: investigate why the following variant fails when the "catch"
+;;; clause is present.
+
+#_(defmacro pdump [x]
+  `(let [x# (try ~x #_(catch Exception e# (str e#)) (finally (print '~x "~~> ")))]
+     (do (clojure.pprint/pprint x#)
+       (println "")
+       x#)))
 
 ;;; TODO -- move most of this to the unit-test file.
 
@@ -578,16 +596,17 @@
     (java.io.ByteArrayInputStream.
      (.getBytes s)))))
 
-(->>
- ((subscribe-collectors
-   (asynchWikipediaArticle
-    [(rand-nth ["Atom" "Molecule" "Quark" "Boson" "Fermion"])
-     "NonExistentTitle"
-     (rand-nth ["Lion" "Tiger" "Bear" "Shark"])])
-   5000)
-  :onNext)
- (map #(html/select % [:title]))
- pdump)
+(when hit-wikipedia
+  (->>
+   ((subscribe-collectors
+     (asynchWikipediaArticle
+      [(rand-nth ["Atom" "Molecule" "Quark" "Boson" "Fermion"])
+       "NonExistentTitle"
+       (rand-nth ["Lion" "Tiger" "Bear" "Shark"])])
+     5000)
+    :onNext)
+   (map #(html/select % [:title]))
+   pdump))
 
 ;;;  _  _     _    __ _ _      __   ___    _
 ;;; | \| |___| |_ / _| (_)_ __ \ \ / (_)__| |___ ___ ___
@@ -606,7 +625,7 @@
                    (-> observer .onCompleted)
                    (catch Exception e (-> observer (.onError e))))) ]
          ;; a subscription that cancels the future if unsubscribed
-         (Subscriptions/create #(future-cancel f)))))))
+         (Subscriptions/create f))))))
 
 (defn getUser [userId]
   "Asynchronously fetch user data. Returns Observable<Map>"
@@ -1148,6 +1167,14 @@
                       :onNext)}
          )))
   )
+
+;;;    ____     __     _         __
+;;;   / __/_ __/ /    (_)__ ____/ /_
+;;;  _\ \/ // / _ \  / / -_) __/ __/
+;;; /___/\_,_/_.__/_/ /\__/\__/\__/
+;;;              |___/
+
+(let [o (PublishSubject/create)])
 
 ;;;           __ _        _   _
 ;;;  _ _ ___ / _| |___ __| |_(_)___ _ _
