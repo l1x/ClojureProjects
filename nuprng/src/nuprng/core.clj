@@ -3,7 +3,7 @@
   (:require [clojure.math.numeric-tower :as mathEx]))
 
 ;;; This is the form of data returned by "frequencies,"
-(def loaded-die {:A 37, :B 0, :C 17, :D 5, :E 12, :F 11})
+(def loaded-die {:A 37, :B 0, :C 17, :D 5, :E 12, :F 11 :G 42})
 
 (defn total [frqs] (apply + (map second frqs)))
 
@@ -70,4 +70,3 @@
                            (redistribute (H loaded-die)
                                          (beefed loaded-die)))))
                  }))
-
