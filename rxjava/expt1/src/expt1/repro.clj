@@ -47,19 +47,18 @@
 #_(find-re #"^onNext" (PublishSubject/create))
 #_(find-re #"^onNext" (PublishSubject/create (rx/fn mySubscribe [obr])))
 
-(let [obl1 (Observable/create (rx/fn [obr]
-                                (.onNext obr 42)
-                                (.onCompleted obr)))
-      [subscription reporter] (subscribe-collectors obl1)]
-  (reporter))
-
 (let [obl1 (PublishSubject/create)]
-  #_(find-re #"^onNext" obl1)
+
   (.onNext obl1 41)
 
   (let [obl2 (-> obl1
                  (.map (rx/fn [x] (+ 100 x)))
                  (.filter (rx/fn* even?))
+                 (.mapMany (rx/fn [obn]
+                             (Observable/create (rx/fn [obr]
+                                                  (.onNext obr obn)
+                                                  (.onNext obr (* obn obn))
+                                                  (.onCompleted obr)))))
                  )
         [subscription reporter] (subscribe-collectors obl2)]
 
