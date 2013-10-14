@@ -5,10 +5,10 @@
             )
   (:import [rx
             Observable
+            Observer
             subscriptions.Subscriptions
             subjects.Subject
-            subjects.PublishSubject])
-  )
+            subjects.PublishSubject]))
 
 (defmacro pdump [x]
   `(let [x# (try ~x (catch Exception e# (str e#)))]
@@ -25,27 +25,53 @@
         onNextCollector      (agent    [])
         onErrorCollector     (atom    nil)
         onCompletedCollector (promise    )]
-    (let [collect-next      (rx/action [item] (send onNextCollector
-                                                    (fn [state] (conj state item))))
+    (let [collect-next      (rx/action [item] (send    onNextCollector      (fn [state] (conj state item))))
           collect-error     (rx/action [excp] (reset!  onErrorCollector     excp))
           collect-completed (rx/action [    ] (deliver onCompletedCollector true))
           report-collectors (fn [    ]
-                              {:onCompleted (deref onCompletedCollector wait-time false)
-                               :onNext      (do (await-for wait-time onNextCollector)
-                                                @onNextCollector)
-                               :onError     @onErrorCollector
-                               })]
-      (-> obl
-          (.subscribe collect-next collect-error collect-completed))
-      (report-collectors))))
+                              (pdump
+                               {:onCompleted (deref onCompletedCollector wait-time false)
+                                :onNext      (do (await-for wait-time onNextCollector)
+                                                 @onNextCollector)
+                                :onError     @onErrorCollector
+                                }))]
+      [(.subscribe obl collect-next collect-error collect-completed)
+       report-collectors])))
 
-(let [o1 (PublishSubject/create
-          (rx/fn [obr]
-            (.onNext obr 42)
-            (.onNext obr 43)
-            (.onNext obr 44)
-            ))]
-  (pdump (.onNext o1 45))
-  (-> o1
-      subscribe-collectors
-      pdump))
+(defn find-re [re obj]
+  (pdump
+   (filter
+    #(re-find re (str %))
+    (sort (map :name (:members (r/reflect obj :ancestors true)))))))
+
+#_(find-re #"^onNext" (PublishSubject/create))
+#_(find-re #"^onNext" (PublishSubject/create (rx/fn mySubscribe [obr])))
+
+(let [obl1 (Observable/create (rx/fn [obr]
+                                (.onNext obr 42)
+                                (.onCompleted obr)))
+      [subscription reporter] (subscribe-collectors obl1)]
+  (reporter))
+
+(let [obl1 (PublishSubject/create)]
+  #_(find-re #"^onNext" obl1)
+  (.onNext obl1 41)
+
+  (let [obl2 (-> obl1
+                 (.map (rx/fn [x] (+ 100 x)))
+                 (.filter (rx/fn* even?))
+                 )
+        [subscription reporter] (subscribe-collectors obl2)]
+
+    (.onNext obl1 42)
+    (.onNext obl1 43)
+    (.onNext obl1 44)
+
+    (.unsubscribe subscription)
+
+    (.onNext obl1 45)
+    (.onNext obl1 46)
+
+    (.onCompleted obl1)
+
+    (reporter)))

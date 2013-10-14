@@ -24,21 +24,20 @@
            (onError     [this e] (println "[0] onError"     e))
            (onCompleted [this  ] (println "[0] onCompleted"  )))]
   (find-re #"[Ss]ubscribe" o2)
-  (pdump (.subscribe o2 (rx/action* println)))
-  )
+  (pdump (.subscribe o2 (rx/action* println))))
 
 (let [obl (rx.subjects.PublishSubject/create)
-      o1 (reify Observer
+      obr1 (reify Observer
            (onNext      [this v] (println "[1] onNext"      v))
            (onError     [this e] (println "[1] onError"     e))
            (onCompleted [this  ] (println "[1] onCompleted"  )))
-      o2 (reify Observer
+      obr2 (reify Observer
            (onNext      [this v] (println "[2] onNext"      v))
            (onError     [this e] (println "[2] onError"     e))
            (onCompleted [this  ] (println "[2] onCompleted" )))]
-    (.subscribe   obl o1)
-    (.onNext      obl "one")
-    (.onNext      obl "two")
-    (.subscribe   obl o2)
+    (.subscribe   obl  obr1  )
+    (.onNext      obl "one"  )
+    (.onNext      obl "two"  )
+    (.subscribe   obl  obr2  )
     (.onNext      obl "three")
-    (.onCompleted obl))
+    (.onCompleted obl        ))
