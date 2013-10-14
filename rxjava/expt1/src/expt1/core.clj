@@ -39,7 +39,7 @@
             clojure.string
             clojure.pprint
             [clojure.reflect         :as r      ]
-            [rx.lang.clojure.interop :as rx]
+            [rx.lang.clojure.interop :as rx     ]
             )
   (:use     [clojail.core            :only [sandbox]]
             [clojail.testers         :only [blacklist-symbols
@@ -64,22 +64,22 @@
 ;;; output by side-effect in the repl or on the console:
 
 (defmacro pdump [x]
+  `(let [x# (try ~x (catch Exception e# (str e#)))]
+     (do (println "----------------")
+         (clojure.pprint/pprint '~x)
+         (println "~~>")
+         (clojure.pprint/pprint x#)
+         x#)))
+
+;;; We need a 'catch-less' variant to run inside the jail:
+
+(defmacro catchless-pdump [x]
   `(let [x#  ~x]
      (do (println "----------------")
          (clojure.pprint/pprint '~x)
          (println "~~>")
          (clojure.pprint/pprint x#)
-         #_(println "----------------")
          x#)))
-
-;;; TODO: investigate why the following variant fails when the "catch"
-;;; clause is present.
-
-#_(defmacro pdump [x]
-  `(let [x# (try ~x #_(catch Exception e# (str e#)) (finally (print '~x "~~> ")))]
-     (do (clojure.pprint/pprint x#)
-       (println "")
-       x#)))
 
 ;;; TODO -- move most of this to the unit-test file.
 
@@ -412,6 +412,7 @@
 ;;;  | (_) | || / -_) '_| / -_|_-<
 ;;;   \__\_\\_,_\___|_| |_\___/__/
 
+
 ;;; Be sure to set a .java.policy file in the appropriate directory
 ;;; (HOME if you are running this as an ordinary user). Here is a very
 ;;; liberal policy file:
@@ -422,6 +423,8 @@
 ;;;
 ;;; Note that user-supplied symbols must be fully qualified for the
 ;;; Clojail sandbox.
+;;;
+;;; Cannot inject a 'catch' into the sandbox; hence the catchless-dump.
 
 (defn run-jailed-queries
   [source queries]
@@ -429,7 +432,7 @@
         es (read-string source)
         qs (map read-string queries)
         ]
-    (sb `(-> ~es ~@qs subscribe-collectors pdump ))))
+    (sb `(-> ~es ~@qs subscribe-collectors catchless-pdump ))))
 
 (let [source "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
       queries ["(.mapMany (rx.lang.clojure.interop/fn* (comp expt1.core/from-seq expt1.core/string-explode)))"
@@ -449,6 +452,7 @@
 ;;; | (_) | '_ (_-</ -_) '_\ V / _` | '_ \ / -_)
 ;;;  \___/|_.__/__/\___|_|  \_/\__,_|_.__/_\___|
 ;;;
+
 
 ;;; An observable has a "subscribe" method, which is a function of an
 ;;; observer. When called, the subscribe method subscribes the observer to the
@@ -537,6 +541,7 @@
 ;;;  \___/|_.__/__/\___|_|  \_/\__,_|_.__/_\___|
 ;;;
 
+
 (defn asynchronous-observable [the-seq]
   "A custom Observable whose 'subscribe' method returns immediately and whose
    other actions -- namely, onNext, onCompleted, onError -- occur on another
@@ -565,6 +570,7 @@
 ;;;  / _ \ (_-< || | ' \/ _| ' \   \ \/\/ / -_) '_ \ |  _/ _` / _` / -_|_-<
 ;;; /_/ \_\/__/\_, |_||_\__|_||_|   \_/\_/\___|_.__/ |_| \__,_\__, \___/__/
 ;;;            |__/                                           |___/
+
 
 (defn asynchWikipediaArticle [names]
   "Fetch a list of Wikipedia articles asynchronously
@@ -612,6 +618,7 @@
 ;;; | \| |___| |_ / _| (_)_ __ \ \ / (_)__| |___ ___ ___
 ;;; | .` / -_)  _|  _| | \ \ /  \ V /| / _` / -_) _ (_-<
 ;;; |_|\_\___|\__|_| |_|_/_\_\   \_/ |_\__,_\___\___/__/
+
 
 (defn simulatedSlowMapObjectObservable [nullaryFnToMapObject & optionalDelayMSec]
   (let [delay (or-default optionalDelayMSec 50)]
@@ -709,6 +716,7 @@
 ;;; | __|_ _____ _ _ __(_)___ ___ ___
 ;;; | _|\ \ / -_) '_/ _| (_-</ -_|_-<
 ;;; |___/_\_\___|_| \__|_/__/\___/__/
+
 
 ;;;    ____                 _           ____
 ;;;   / __/_ _____ ________(_)__ ___   / __/
@@ -1168,13 +1176,55 @@
          )))
   )
 
+;;;    _  __           __             _____
+;;;   / |/ /_ ____ _  / /  ___ ____  / ___/__ ___ _  ___ ___
+;;;  /    / // /  ' \/ _ \/ -_) __/ / (_ / _ `/  ' \/ -_|_-<
+;;; /_/|_/\_,_/_/_/_/_.__/\__/_/    \___/\_,_/_/_/_/\__/___/
+
+
+(defn magic [x y]
+  (lazy-seq (cons y (magic y (+ x y)))))
+
+(def fibs (magic 1N 1N))
+
+(pdump (first (drop 1000 fibs)))
+
+(defn divides?
+  "Tests whether k divides n; the order of the arguments is in the sense of
+   an infix operator: read (divides? k n) as \"k divides? n\"."
+  [k n] (== 0 (rem n k)))
+
+(def does-not-divide? (complement divides?))
+
+(defn sieve [xs]
+  (if (empty? xs)
+    ()
+    (cons (first xs)
+          (lazy-seq (sieve
+                     (filter (partial does-not-divide? (first xs))
+                             (rest xs)))))))
+
+(def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
+
 ;;;    ____     __     _         __
 ;;;   / __/_ __/ /    (_)__ ____/ /_
 ;;;  _\ \/ // / _ \  / / -_) __/ __/
 ;;; /___/\_,_/_.__/_/ /\__/\__/\__/
 ;;;              |___/
 
-(let [o (PublishSubject/create)])
+
+(let [o1 (PublishSubject/create
+          (rx/fn [obr]
+            (.onNext obr 42)
+            (.onNext obr 43)
+            (.onNext obr 44)
+            ))]
+  ;;; The following message gets lost because it's "sent" before our
+  ;;; subscriber listens.
+  (pdump (.onNext o1 45))
+  (-> o1
+      subscribe-collectors
+      pdump))
 
 ;;;           __ _        _   _
 ;;;  _ _ ___ / _| |___ __| |_(_)___ _ _
@@ -1191,12 +1241,3 @@
                    (filter
                     :exception-types
                     (:members (r/reflect Observable)))))))
-
-(defn magic [x y]
-  (lazy-seq (cons y (magic y (+ x y)))))
-
-(def fibs (magic 1N 1N))
-
-(pdump (first (drop 1000 fibs)))
-
-#_(-> Observable/Subject.)
