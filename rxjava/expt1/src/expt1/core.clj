@@ -49,6 +49,7 @@
   (:refer-clojure :exclude [distinct])
   (:import [rx
             Observable
+            Observer
             subscriptions.Subscriptions
             subjects.Subject
             subjects.PublishSubject])
@@ -57,7 +58,7 @@
 ;;; Set this to 'false' or 'nil' during development so we don't hit wikipedia
 ;;; too much.
 
-(def hit-wikipedia false)
+(def hit-wikipedia true)
 
 ;;; The following is a debugging macro that acts like the identity function.
 ;;; It returns whatever you pass to it, and pretty-prints the input and
@@ -140,7 +141,6 @@
       ;; completion event and on the draining of the message queue to the
       ;; onNext-agent.
       (report-collectors))))
-
 
 ;;;  ___ _        _      _   _
 ;;; / __| |_  _ _(_)_ _ | |_(_)_ _  __ _
@@ -1213,18 +1213,53 @@
 ;;;              |___/
 
 
-(let [o1 (PublishSubject/create
-          (rx/fn [obr]
-            (.onNext obr 42)
-            (.onNext obr 43)
-            (.onNext obr 44)
-            ))]
-  ;;; The following message gets lost because it's "sent" before our
-  ;;; subscriber listens.
-  (pdump (.onNext o1 45))
-  (-> o1
-      subscribe-collectors
-      pdump))
+(defn subscribe-collectors-2 [obl & optional-wait-time]
+  (let [wait-time (or-default optional-wait-time 1000)
+        onNextCollector      (agent    [])
+        onErrorCollector     (atom    nil)
+        onCompletedCollector (promise    )]
+    (let [collect-next      (rx/action [item] (send onNextCollector
+                                                    (fn [state] (conj state item))))
+          collect-error     (rx/action [excp] (reset!  onErrorCollector     excp))
+          collect-completed (rx/action [    ] (deliver onCompletedCollector true))
+          report-collectors (fn [    ]
+                              {:onCompleted (deref onCompletedCollector wait-time false)
+                               :onNext      (do (await-for wait-time onNextCollector)
+                                                @onNextCollector)
+                               :onError     @onErrorCollector
+                               })]
+      {:subscription (.subscribe obl collect-next collect-error collect-completed)
+       :reporter     report-collectors})))
+
+
+(pdump
+ (let [obl1 (PublishSubject/create)]
+
+   (.onNext obl1 41)
+
+   (let [obl2 (-> obl1
+                  (.map (rx/fn [x] (+ 100 x)))
+                  (.filter (rx/fn* even?))
+                  (.mapMany (rx/fn [obn]
+                              (Observable/create (rx/fn [obr]
+                                                   (.onNext obr obn)
+                                                   (.onNext obr (* obn obn))
+                                                   (.onCompleted obr))))))
+         result (subscribe-collectors-2 obl2)]
+
+     (.onNext obl1 42)
+     (.onNext obl1 43)
+     (.onNext obl1 44)
+
+     (.unsubscribe (:subscription result))
+
+     (.onNext obl1 45)
+     (.onNext obl1 46)
+
+     (.onCompleted obl1)
+
+     ((:reporter result))
+     )))
 
 ;;;           __ _        _   _
 ;;;  _ _ ___ / _| |___ __| |_(_)___ _ _
@@ -1240,4 +1275,4 @@
                    :name
                    (filter
                     :exception-types
-                    (:members (r/reflect Observable)))))))
+                    (:members (r/reflect Observable :ancestors true)))))))
