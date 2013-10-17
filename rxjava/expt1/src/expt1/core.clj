@@ -586,7 +586,7 @@
                        (.onNext
                         (html/html-resource
                          (java.net.URL.
-                          (str "http://en.wikipedia.org/wiki/" name))))
+                          (str "https://en.wikipedia.org/wiki/" name))))
                        ;; Netflix originally used strings, but...
                        ))
                  ;; (catch Exception e (prn "exception")))
