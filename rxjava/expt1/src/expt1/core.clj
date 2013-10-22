@@ -417,6 +417,7 @@
 
     ;; We now have a singleton obl containing representatives of runs of non-
     ;; distinct characters. Slurp it back into the monad:
+
     (.mapMany (rx/fn* from-seq))
 
     subscribe-collectors
@@ -512,7 +513,7 @@
                "expt1.core/distinct-until-changed"
               ]
       ]
-  (run-jailed-queries source queries))
+  ((:reporter (run-jailed-queries source queries))))
 
 
 ;;;  ___              _
