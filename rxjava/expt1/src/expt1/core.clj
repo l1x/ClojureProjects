@@ -345,8 +345,8 @@
 ;;; \__,_|_/__/\__|_|_||_\__|\__|
 
 
-;;; Rx is has a couple of operators: "disinct" and "distinctUntilChanged",
-;;; but RxJava 0.9.0 doesn't have them yet. Fake them as follows:
+;;; Rx is has a couple of operators: "disinct" and "distinctUntilChanged."
+;;; Fake them as follows:
 
 (-> (from-seq ["one" "two" "three"])
     (.mapMany (rx/fn* (comp from-seq string-explode)))
@@ -354,10 +354,12 @@
     ;; The following two implement "distinct".
 
     (.reduce #{} (rx/fn* conj))
+
     ;; We now have a set of unique characters. To promote this back into an
     ;; obl of chars, do:
 
     (.mapMany (rx/fn* from-seq))
+
     ;; This is ok because "distinct" MUST consume the entire obl sequence
     ;; before producing its values. The operator "distinct" won't work on a
     ;; non-finite obl sequence.
@@ -368,8 +370,8 @@
 
 ;;; Package and test.
 
-(defn distinct [oseq]
-  (-> oseq
+(defn distinct [obl]
+  (-> obl
       (.reduce #{} (rx/fn* conj))
       (.mapMany (rx/fn* from-seq))))
 
@@ -381,8 +383,8 @@
     )
 
 ;;; Notice that distinct is "unstable" in the sense that it reorders its
-;;; input. TODO: a stable implementation: use the set to check uniqueness
-;;; and build a vector to keep order.
+;;; input. EXERCISE: a stable implementation. HINT: use the set to check
+;;; uniqueness and build a vector to keep order.
 
 ;;;     _ _    _   _         _
 ;;;  __| (_)__| |_(_)_ _  __| |_
@@ -446,9 +448,9 @@
 
 ;;; Package and test:
 
-(defn distinct-until-changed [oseq]
+(defn distinct-until-changed [obl]
   (let [last-container (ref [])]
-    (-> oseq
+    (-> obl
         (.mapMany (rx/fn [x]
                     (dosync
                      (let [l (last @last-container)]
