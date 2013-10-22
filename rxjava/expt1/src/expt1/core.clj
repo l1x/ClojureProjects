@@ -97,6 +97,10 @@
 (defn- or-default [val default] (if val (first val) default))
 
 (defn subscribe-collectors [obl & optional-wait-time]
+  ;; Recognize that the observable 'obl' may run on another thread:
+  ;; Therefore, produce results that wait, with timeouts, on both the
+  ;; completion event and on the draining of the message queue to the
+  ;; onNext-agent.
   (let [wait-time (or-default optional-wait-time 1000)
         ;; Keep a sequence of all values sent:
         onNextCollector      (agent    [])
@@ -134,13 +138,12 @@
                                 ;; If we ever saw an error, here it is:
                                 :onError     @onErrorCollector
                                 }))]
-      ;; Recognize that the observable 'obl' may run on another thread:
-      (-> obl
-          (.subscribe collect-next collect-error collect-completed))
-      ;; Therefore, produce results that wait, with timeouts, on both the
-      ;; completion event and on the draining of the message queue to the
-      ;; onNext-agent.
-      (report-collectors))))
+      {:subscription (.subscribe obl collect-next collect-error collect-completed)
+       :reporter     report-collectors}
+      )))
+
+(defn report [subscribed-collectors]
+  (pdump ((:reporter subscribed-collectors))))
 
 ;;;  ___ _        _      _   _
 ;;; / __| |_  _ _(_)_ _ | |_(_)_ _  __ _
@@ -155,9 +158,9 @@
 ;;; often shortens sequences.
 
 (-> (Observable/from [1 2 3])   ; an obl of length 3
-    (.take 2)                           ; an obl of length 2
-    subscribe-collectors                ; waits for completion
-    pdump                               ; pretty-prints
+    (.take 2)                   ; an obl of length 2
+    subscribe-collectors        ; waits for completion
+    report                      ; pretty-prints
     )
 
 ;;; Now, filter out the odd numbers and keep just the first two of that
@@ -165,9 +168,9 @@
 
 (-> (Observable/from [1 2 3 4 5 6])
     (.filter (rx/fn [n] (== 0 (mod n 2)))) ; passes only evens along
-    (.take 2)                           ; keeps only the first two
+    (.take 2)                              ; keeps only the first two
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;;   ___                _
@@ -190,7 +193,7 @@
     (.mapMany                           ; convert each number to a vector
      (rx/fn* #(Observable/from (map (partial + %) [42 43 44]))))
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;; Look at an observable sequence of strings, shortening it now, because
@@ -199,7 +202,7 @@
 (-> (Observable/from ["one" "two" "three"])
     (.take 2)
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;; "seq" explodes strings into lazy sequences of characters:
@@ -215,7 +218,7 @@
 (-> (Observable/from ["one" "two" "three"])
     (.mapMany (rx/fn* #(Observable/from (string-explode %))))
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;;   __
@@ -237,7 +240,7 @@
 (-> (from-seq ["one" "two" "three"])
     (.mapMany (rx/fn* (comp from-seq string-explode)))
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;; Theoretically, both Clojure's sequences and Rx's observables are
@@ -265,7 +268,7 @@
     (.mapMany (rx/fn* (comp from-seq string-explode)))
     (.mapMany (rx/fn* return))
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;;     _ _    _   _         _
@@ -292,7 +295,7 @@
     ;; non-finite obl sequence.
 
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;; Package and test.
@@ -306,7 +309,7 @@
     (.mapMany (rx/fn* (comp from-seq string-explode)))
     distinct
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;; Notice that distinct is "unstable" in the sense that it reorders its
@@ -347,7 +350,7 @@
     (.mapMany (rx/fn* from-seq))
 
     subscribe-collectors
-    pdump)
+    report)
 
 ;;; Better is to keep a mutable buffer of length one. It could be an atom if
 ;;; we had the opposite of "compare-and-set!." We want an atomic primitive
@@ -371,7 +374,7 @@
                          (ref-set last-container [x])
                          (return x)))))))
       subscribe-collectors
-      pdump))
+      report))
 
 ;;; Package and test:
 
@@ -391,7 +394,7 @@
      (.mapMany (rx/fn* (comp from-seq string-explode)))
      distinct-until-changed
      subscribe-collectors
-     pdump
+     report
      )
 
 ;;; It's well-behaved on an empty input:
@@ -400,7 +403,7 @@
      (.mapMany (rx/fn* (comp from-seq string-explode)))
      distinct-until-changed
      subscribe-collectors
-     pdump
+     report
      )
 
 ;;;  ___               _          _
@@ -490,7 +493,7 @@
     (.map    (rx/fn [[a b]] [a (Integer/parseInt b)])) ; converts seconds
     (.filter (rx/fn [[a b]] (= 0 (mod b 7)))) ; keeps only multiples of 7
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;; Compare rxjava's ".map" with Clojure's "map". The biggest difference is
@@ -562,7 +565,7 @@
     (.map    (rx/fn [[a b]] [a (Integer/parseInt b)]))
     (.filter (rx/fn [[a b]] (= 0 (mod b 7))))
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;;    _                    _     __      __   _      ___
@@ -604,12 +607,12 @@
 
 (when hit-wikipedia
   (->>
-   ((subscribe-collectors
-     (asynchWikipediaArticle
-      [(rand-nth ["Atom" "Molecule" "Quark" "Boson" "Fermion"])
-       "NonExistentTitle"
-       (rand-nth ["Lion" "Tiger" "Bear" "Shark"])])
-     5000)
+   (((:reporter (subscribe-collectors
+                 (asynchWikipediaArticle
+                  [(rand-nth ["Atom" "Molecule" "Quark" "Boson" "Fermion"])
+                   "NonExistentTitle"
+                   (rand-nth ["Lion" "Tiger" "Bear" "Shark"])])
+                 5000)))
     :onNext)
    (map #(html/select % [:title]))
    pdump))
@@ -705,7 +708,7 @@
 
 (-> (getVideoForUser 12345 78965)
     subscribe-collectors
-    pdump
+    report
     )
 
 ;;;     _       __            _  _               _
@@ -747,7 +750,7 @@
     (.map (rx/fn [vid] {:id (vid "id") :title (vid "title")}))
 
     subscribe-collectors
-    pdump)
+    report)
 
 ;;; in JavsScript, interpret "pair" to mean "an object with two
 ;;; properties"
@@ -791,7 +794,7 @@
     (.map    (rx/fn [vid]  (vid "id")))
 
     subscribe-collectors
-    pdump)
+    report)
 
 ;;;  Javascript
 ;;;
@@ -838,7 +841,7 @@
     (.map (rx/fn [vid] (vid "id")))
 
     subscribe-collectors
-    pdump)
+    report)
 
 ;;; Javascript
 ;;;
@@ -884,7 +887,7 @@
                                        :url   (art "url")})))))
 
     subscribe-collectors
-    pdump)
+    report)
 
 ;;;
 ;;; Javascript
@@ -965,7 +968,7 @@
                 ))
 
     subscribe-collectors
-    pdump)
+    report)
 
 ;;; Javascript
 ;;;
@@ -1165,7 +1168,7 @@
               ))
 
       subscribe-collectors
-      pdump
+      report
       :onNext
       ((flip map)
        (fn [lyst]
@@ -1213,25 +1216,6 @@
 ;;;              |___/
 
 
-(defn subscribe-collectors-2 [obl & optional-wait-time]
-  (let [wait-time (or-default optional-wait-time 1000)
-        onNextCollector      (agent    [])
-        onErrorCollector     (atom    nil)
-        onCompletedCollector (promise    )]
-    (let [collect-next      (rx/action [item] (send onNextCollector
-                                                    (fn [state] (conj state item))))
-          collect-error     (rx/action [excp] (reset!  onErrorCollector     excp))
-          collect-completed (rx/action [    ] (deliver onCompletedCollector true))
-          report-collectors (fn [    ]
-                              {:onCompleted (deref onCompletedCollector wait-time false)
-                               :onNext      (do (await-for wait-time onNextCollector)
-                                                @onNextCollector)
-                               :onError     @onErrorCollector
-                               })]
-      {:subscription (.subscribe obl collect-next collect-error collect-completed)
-       :reporter     report-collectors})))
-
-
 (pdump
  (let [obl1 (PublishSubject/create)]
 
@@ -1245,7 +1229,7 @@
                                                    (.onNext obr obn)
                                                    (.onNext obr (* obn obn))
                                                    (.onCompleted obr))))))
-         result (subscribe-collectors-2 obl2)]
+         result (subscribe-collectors obl2)]
 
      (.onNext obl1 42)
      (.onNext obl1 43)
