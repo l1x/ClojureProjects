@@ -151,17 +151,59 @@
 ;;; |___/_||_|_| |_|_||_|_\_\_|_||_\__, |
 ;;;                                |___/
 
+;;; When working with collections of objects distributed in space, we
+;;; have familiar higher-order operators for reducing the number of
+;;; elements in the collection. For instance, we can take some number
+;;; from the front of a sequence.
 
-;;; There is a class of operators for shrinking a sequence. They include
-;;; "take", "takeUntil", etc.; "skip*"; and "filter". To start, take the
-;;; first two numbers out of an obl. This illustrates "take", a method that
-;;; often shortens sequences.
+(->> [1 2 3]
+    (take 2))
+
+;;; This also works for infinite, lazy sequences:
+
+(->> (repeat 42)
+     (take 2))
+
+;;; The BIG IDEA of reactive programming is that COLLECTIONS OF DATA
+;;; DISTRIBUTED IN TIME ACT VERY MUCH LIKE COLLECTIONS DISTRIBUTED IN
+;;; SPACE.  We should expect that the same operators are available.
+
+;;; Another view of this is that it's COORDINATE-FREE PROGRAMMING. In
+;;; functional programming, we replace index-loops with higher-order
+;;; operators.  The higher-order operators take function arguments
+;;; (lambda expressions or closures).  The function arguments operate on
+;;; the values in the collection.  We replace expressions like
+;;;
+;;;     for (i = 0; i < ARRAY_LEN; i++)
+;;;         println(array[i]);
+;;;
+;;; with expressions like
+;;;
+;;;     array.map(element => println(element))
+;;;
+;;; We replace the oordinate-full expression array[i] with the
+;;; coordinate-free expression "element," which is a funtion parameter
+;;; that is iteratively *bound* to the values in the collection (the
+;;; array).
+;;;
+;;; When the collection is distributed over time, we can expect to
+;;; receive values in function arguments rather than in some collection
+;;; explicitly indexed by a time coordinate as in "collection[t]."  Now,
+;;; however the functions are callbacks invoked by the observable.
 
 (-> (Observable/from [1 2 3])   ; an obl of length 3
     (.take 2)                   ; an obl of length 2
     subscribe-collectors        ; waits for completion
     report                      ; pretty-prints
     )
+
+;;; Don't call "Observable/from" on an infinite sequence; it realizes
+;;; the whole thing.
+
+(-> (Observable/from (take 100 (repeat 42)))
+    (.take 2)
+    subscribe-collectors
+    report)
 
 ;;; Now, filter out the odd numbers and keep just the first two of that
 ;;; intermediate result.
@@ -170,8 +212,19 @@
     (.filter (rx/fn [n] (== 0 (mod n 2)))) ; passes only evens along
     (.take 2)                              ; keeps only the first two
     subscribe-collectors
-    report
-    )
+    report)
+
+(-> (Observable/from [1 2 3 4 5 6])
+    (.filter (rx/fn* even?))
+    (.take 2)
+    subscribe-collectors
+    report)
+
+;;; Here is the space version:
+
+(->> (range 1 7)
+     (filter even?)
+     (take 2))
 
 ;;;   ___                _
 ;;;  / __|_ _ _____ __ _(_)_ _  __ _
@@ -188,13 +241,23 @@
 ;;; many Rx documents (.e.g., http://bit.ly/18Bot23) and is similar to
 ;;; Clojure's "mapcat", up to order of parameters.
 
+(->> [1 2 3]
+     (take 2)
+     ;; For each x in the collection, map a function over the fixed
+     ;; vector [42 43 44].  The function will be something that adds x
+     ;; to its input; that is, the function is a closure over x. mapcat
+     ;; takes care of flattening the results just once.
+     (mapcat (fn [x] (map (partial + x) [42 43 44]))))
+
 (-> (Observable/from [1 2 3])
     (.take 2)
-    (.mapMany                           ; convert each number to a vector
-     (rx/fn* #(Observable/from (map (partial + %) [42 43 44]))))
+    ;; With a collection distributed over time, the function must
+    ;; produce a nested observable, which rxjava will flatten exactly
+    ;; once:
+    (.mapMany            ; convert each number to an obl of more numbers
+     (rx/fn [x] (Observable/from (map (partial + x) [42 43 44]))))
     subscribe-collectors
-    report
-    )
+    report)
 
 ;;; Look at an observable sequence of strings, shortening it now, because
 ;;; that's familiar.
@@ -209,7 +272,7 @@
 
 (seq "one")
 
-;;; For self-documenting code, define an alias:
+;;; Define an alias, since we have a specific purpose in mind:
 
 (def string-explode seq)
 
@@ -228,7 +291,7 @@
 ;;;                                 |_|
 
 
-;;; Clean up the repeated, ugly #(Observable/from ...) into a
+;;; Clean up the repeated, ugly (Observable/from ...) calls into a
 ;;; composition, but we can't (comp Observable/from ...) since it's
 ;;; a Java method and does not implement Clojure IFn. Fix this by wrapping
 ;;; it in a function:
@@ -266,6 +329,11 @@
 
 (-> (from-seq ["one" "two" "three"])
     (.mapMany (rx/fn* (comp from-seq string-explode)))
+    ;; Here, it's harmless, but illustrates the point that all
+    ;; higher-order function arguments to mapMany have the same, special
+    ;; signature as (does "return.").  Functions like this have monadic
+    ;; signature: they take a value and return values-in-a-box, where
+    ;; the box refers to the prevailing monad, known from context.
     (.mapMany (rx/fn* return))
     subscribe-collectors
     report
