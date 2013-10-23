@@ -2,36 +2,37 @@
 ;;; 'project.clj' in it) and saying 'lein repl'.
 
 ;;; If you're using emacs with nrepl (see
-;;; http://clojure-doc.org/articles/tutorials/emacs.html for setup info),
-;;; run this entire file by first "jacking in" (Ctrl-c, Meta-j), then
-;;; evaluating the whole file (Ctrl-c, Ctrl-k). Eval individual expressions
-;;; by placing the cursor after the last closing-parenthesis and typing
-;;; Ctrl-c, Ctrl-e (for "evaluate"). Access documentation for any Clojure
-;;; primitive by putting the cursor (which emacs calls "point") inside or
-;;; behind the primitive and typing Ctrl-c, Ctrl-d. Find the help for the
-;;; rest of the nrepl mode by typing Ctrl-h, m.
+;;; http://clojure-doc.org/articles/tutorials/emacs.html for setup
+;;; info), run this entire file by first "jacking in" (Ctrl-c, Meta-j),
+;;; then evaluating the whole file (Ctrl-c, Ctrl-k).  Eval individual
+;;; expressions by placing the cursor after the last closing-parenthesis
+;;; and typing Ctrl-c, Ctrl-e (for "evaluate").  Access documentation
+;;; for any Clojure primitive by putting the cursor (which emacs calls
+;;; "point") inside or behind the primitive and typing Ctrl-c,
+;;; Ctrl-d. Find the help for the rest of the nrepl mode by typing
+;;; Ctrl-h, m.
 
-;;; With emqcs, the most important thing to learn is "Paredit." It takes most
-;;; of the pain out of parentheses and nesting. There is a lot of info about
-;;; it on the web (see http://emacsrocks.com/e14.html particularly), and the
-;;; help is good. The two biggies are paredit-forward-slurp-sexp, whose help
-;;; you can find by typing Ctrl-h, k, Ctrl-Shift-) and paredit-splice-sexp
-;;; (Ctrl-h, k, Meta-s). Take the time to learn them. Slurp has three friends:
-;;; paredit-forward-barf-sexp (Ctrl-h, k, Ctrl-Shift-} ) and the backwards
-;;; versions of slurp and barf. They're next most important.
+;;; With emqcs, the most important thing to learn is "Paredit."  It
+;;; takes most of the pain out of parentheses and nesting.  There is a
+;;; lot of info about it on the web (see http://emacsrocks.com/e14.html
+;;; particularly), and the help is good.  The two biggies are
+;;; paredit-forward-slurp-sexp, whose help you can find by typing
+;;; Ctrl-h, k, Ctrl-Shift-) and paredit-splice-sexp (Ctrl-h, k, Meta-s).
+;;; Take the time to learn them.  Slurp has three friends:
+;;; paredit-forward-barf-sexp (Ctrl-h, k, Ctrl-Shift-} ) and the
+;;; backwards versions of slurp and barf.  They're next most important.
 
-;;; You can re-indent any Clojure code that gets deranged by putting point
-;;; at the beginning of the code and typing Ctrl-Alt-Q. You can move around
-;;; at the expression level by typing Ctrl-Alt-F (forward) and Ctrl-Alt-B
-;;; (backward); Ctrl-Alt-D (down a level) and Ctrl-Alt-U (up a level).
+;;; Re-indent deranged code by putting point at the beginning of the
+;;; code and typing Ctrl-Alt-Q.  Move around at the expression level by
+;;; Ctrl-Alt-F (forward) and Ctrl-Alt-B (backward); Ctrl-Alt-D
+;;; (down a level) and Ctrl-Alt-U (up a level).
 
-;;; Here are the namespaces we're going to use; compare this list with the
-;;; :dependencies in the project.clj file, which specifies the libraries and
-;;; packages to download that contain these namespaces:
+;;; Here are the namespaces we use; compare this list with the
+;;; :dependencies in the project.clj file, which specifies the libraries
+;;; and packages to download that contain these namespaces:
 
 (ns expt1.core
-  (:require [expt1.k2                :as k2     ]
-            [clojure.zip             :as zip    ]
+  (:require [clojure.zip             :as zip    ]
             [clojure.xml             :as xml    ]
             [net.cgrand.enlive-html  :as html   ]
             [clj-http.client         :as http   ]
@@ -55,14 +56,14 @@
             subjects.PublishSubject])
   )
 
-;;; Set this to 'false' or 'nil' during development so we don't hit wikipedia
-;;; too much.
+;;; Set this to 'false' or 'nil' during development so we don't hit
+;;; wikipedia too much.
 
 (def hit-wikipedia true)
 
-;;; The following is a debugging macro that acts like the identity function.
-;;; It returns whatever you pass to it, and pretty-prints the input and
-;;; output by side-effect in the repl or on the console:
+;;; The following is a debugging macro that acts like the identity
+;;; function.  It returns whatever you pass to it, and pretty-prints the
+;;; input and output by side-effect in the repl or on the console:
 
 (defmacro pdump [x]
   `(let [x# (try ~x (catch Exception e# (str e#)))]
@@ -90,57 +91,89 @@
 ;;;  \__/\___|_||_\___|_| |_\__|  \___/|_.__/__/\___|_|  \_/\___|_|
 ;;;
 
-;;; The current rx library has no co-monadic operators such as "first" and
-;;; "last". Let us make atomic, external collectors for extracting items
-;;; from an obl (observable) by mutating side-effects.
+;;; Fetch optional values from function arguments preceded by & (and
+;;; therefore packaged in sequences, hence the "first").
 
 (defn- or-default [val default] (if val (first val) default))
 
+;;; The current rx library has no co-monadic operators such as "first"
+;;; and "last".  Let us make atomic, external collectors for extracting
+;;; items from an obl (observable) by mutating side-effects.
+
 (defn subscribe-collectors [obl & optional-wait-time]
+
   ;; Recognize that the observable 'obl' may run on another thread:
   ;; Therefore, produce results that wait, with timeouts, on both the
   ;; completion event and on the draining of the message queue to the
   ;; onNext-agent.
+
   (let [wait-time (or-default optional-wait-time 1000)
+
         ;; Keep a sequence of all values sent:
-        onNextCollector      (agent    [])
+
+        onNextCollector      (agent [])
+
         ;; Only need one value if the observable errors out:
-        onErrorCollector     (atom    nil)
+
+        onErrorCollector     (atom  nil)
+
         ;; Use a promise for 'completed' so we can wait for it on
         ;; another thread:
-        onCompletedCollector (promise    )]
+
+        onCompletedCollector (promise)]
+
     (let [ ;; When observable sends a value, relay it to our agent:
-          collect-next      (rx/action [item] (send onNextCollector
-                                                    (fn [state] (conj state item))))
+
+          collect-next
+          (rx/action [item] (send onNextCollector
+                                  (fn [state] (conj state item))))
+
           ;; If observable errors out, just set our exception;
-          collect-error     (rx/action [excp] (reset!  onErrorCollector     excp))
+
+          collect-error
+          (rx/action [excp] (reset! onErrorCollector excp))
+
           ;; When observable completes, deliver on the promise:
-          collect-completed (rx/action [    ] (deliver onCompletedCollector true))
+
+          collect-completed
+          (rx/action [    ] (deliver onCompletedCollector true))
+
           ;; In all cases, report out the back end with this:
-          report-collectors (fn [    ]
-                              (identity ;; pdump ;; for verbose output, use pdump.
-                               { ;; Wait at most "wait-time" for the promise to complete; if
-                                ;; it does not complete, then produce 'false'. We must wait
-                                ;; on the onCompleted BEFORE waiting on the onNext because
-                                ;; the onNext-agent's await-for only waits for messages sent
-                                ;; to the agent from THIS thread, and our asynchronous
-                                ;; observable may be sending messages to the agent from
-                                ;; another thread. The onNext-agent's await-for will return
-                                ;; too quickly, allowing this onCompleted await to return,
-                                ;; losing some messages. This code depends on
-                                ;; order-of-evaluation assumptions in the map.
-                                :onCompleted (deref onCompletedCollector wait-time false)
-                                ;; Wait for everything that has been sent to the agent
-                                ;; to drain (presumably internal message queues):
-                                :onNext      (do (await-for wait-time onNextCollector)
-                                                 ;; Then produce the results:
-                                                 @onNextCollector)
-                                ;; If we ever saw an error, here it is:
-                                :onError     @onErrorCollector
-                                }))]
-      {:subscription (.subscribe obl collect-next collect-error collect-completed)
-       :reporter     report-collectors}
-      )))
+
+          report-collectors
+          (fn [    ]
+            (identity ;; pdump ;; for verbose output, use pdump.
+             { ;; Wait at most "wait-time" for the promise to complete;
+               ;; if it does not complete, produce 'false'.  We must
+               ;; wait on onCompleted BEFORE waiting on onNext because
+               ;; the onNext-agent's await-for only waits for messages
+               ;; sent to the agent from THIS thread, and our
+               ;; asynchronous observable may be sending messages to the
+               ;; agent from another thread.  The onNext-agent's
+               ;; await-for will return too quickly.  When the
+               ;; onCompleted deref-await returns, some of the agent's
+               ;; messages will be lost.  This code depends on
+               ;; order-of-evaluation assumptions in the map.
+
+              :onCompleted (deref onCompletedCollector wait-time false)
+
+              ;; Wait for everything that has been sent to the agent
+              ;; to drain (presumably internal message queues):
+
+              :onNext      (do (await-for wait-time onNextCollector)
+                               ;; Then produce the results:
+                               @onNextCollector)
+
+              ;; If we ever saw an error, here it is:
+
+              :onError     @onErrorCollector
+
+              }))]
+      {:subscription
+       (.subscribe obl collect-next collect-error collect-completed)
+
+       :reporter
+       report-collectors})))
 
 (defn report [subscribed-collectors]
   (pdump ((:reporter subscribed-collectors))))
@@ -1384,6 +1417,12 @@ observable of a hash-map."
 ;;; /___/\_,_/_.__/_/ /\__/\__/\__/
 ;;;              |___/
 
+;;; This enables mapping of the reactive scheme to REST.  Transformed
+;;; observables are "Subjects:" both observers and observables.  As
+;;; observers, they subscribe (in a privileged subscriber list) to their
+;;; antecedents.  As observables, they are ordinary.  They may suffer
+;;; additional transformations, becoming antecedents of other
+;;; observables.  Or they may be simply observed by egress observers.
 
 (pdump
  (let [obl1 (PublishSubject/create)]
@@ -1419,8 +1458,8 @@ observable of a hash-map."
 ;;; | '_/ -_)  _| / -_) _|  _| / _ \ ' \
 ;;; |_| \___|_| |_\___\__|\__|_\___/_||_|
 
-;;; The following is an example of how to use reflection to print the
-;;; current members of the Observable class.
+;;; The following shows how to print the current members of the
+;;; Observable class.
 
 (pdump (into #{}
              (map (comp #(% 1) first)
