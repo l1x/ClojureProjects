@@ -724,11 +724,17 @@
 
        (Subscriptions/create (rx/action [] (future-cancel f)))))))
 
+;;; The following is a left-over reminder that we can use the "zipper"
+;;; to traverse and modify the html.  Powerful mojo; worth the reminder
+;;; here.
+
 (defn zip-str [s]
   (zip/xml-zip
    (xml/parse
     (java.io.ByteArrayInputStream.
      (.getBytes s)))))
+
+;;; Have a develop-time switch so we don't pound the site too much.
 
 (when hit-wikipedia
   (->>
@@ -748,22 +754,29 @@
 ;;; |_|\_\___|\__|_| |_|_/_\_\   \_/ |_\__,_\___\___/__/
 
 
-(defn simulatedSlowMapObjectObservable [nullaryFnToMapObject & optionalDelayMSec]
+(defn simulatedSlowMapObjectObservable
+  [nullaryFnToMapObject & optionalDelayMSec]
+
   (let [delay (or-default optionalDelayMSec 50)]
     (Observable/create
      (rx/fn [observer]
        (let [f (future
                  (try
-                   ;; simulate fetching user data via network service call with latency
+
+                   ;; simulate fetching user data via network service
+                   ;; call with latency
+
                    (Thread/sleep delay)
                    (-> observer (.onNext (nullaryFnToMapObject)))
                    (-> observer .onCompleted)
                    (catch Exception e (-> observer (.onError e))))) ]
+
          ;; a subscription that cancels the future if unsubscribed
+
          (Subscriptions/create f))))))
 
 (defn getUser [userId]
-  "Asynchronously fetch user data. Returns Observable<Map>"
+  "Asynchronously fetch user data. Returns observable of a hash-map."
   (simulatedSlowMapObjectObservable
    (fn []
      {:user-id userId
@@ -772,16 +785,18 @@
    60))
 
 (defn getVideoBookmark [userId, videoId]
-  "Asynchronously fetch bookmark for video. Returns Observable<Integer>"
+  "Asynchronously fetch bookmark for video. Returns observable of an
+integer."
   (simulatedSlowMapObjectObservable
    (fn []
      {:video-id videoId
-      ;; 50/50 chance of giving back position 0 or 0-2500
+      ;; 50% chance of giving back position 0 or 0-2500
       :position (if (= 0 (rand-int 2)) 0 (rand-int 2500))})
    20))
 
 (defn getVideoMetadata [videoId, preferredLanguage]
-  "Asynchronously fetch movie metadata for a given language. Return Observable<Map>"
+  "Asynchronously fetch movie metadata for a given language. Return
+observable of a hash-map."
   (simulatedSlowMapObjectObservable
    (fn []
      {:video-id videoId
@@ -798,7 +813,7 @@
   - video metadata
   - video bookmark position
   - user data
-  Returns Observable<Map>"
+  Returns observable of a hash-map."
   (let [user-observable
         (-> (getUser userId)
             (.map (rx/fn [user] {:user-name (:name user)
@@ -809,6 +824,7 @@
 
         ;; getVideoMetadata requires :language from user-observable; nest
         ;; inside map function
+
         video-metadata-observable
         (-> user-observable
             (.mapMany
@@ -816,14 +832,24 @@
              ;; received
              (rx/fn [user-map]
                (getVideoMetadata videoId (:language user-map)))))]
-    ;; now combine 3 async sequences using zip
+
     (-> (Observable/zip
-         bookmark-observable video-metadata-observable user-observable
+
+         ;; "zip" takes N observables ...
+
+         bookmark-observable
+         video-metadata-observable
+         user-observable
+
+         ;; and an N-ary function ...
+
          (rx/fn [bookmark-map metadata-map user-map]
            {:bookmark-map bookmark-map
             :metadata-map metadata-map
             :user-map user-map}))
-        ;; and transform into a single response object
+
+        ;; and produces a single response observable
+
         (.map (rx/fn [data]
                 {:video-id       videoId
                  :user-id        userId
@@ -845,6 +871,8 @@
 ;;; | _|\ \ / -_) '_/ _| (_-</ -_|_-<
 ;;; |___/_\_\___|_| \__|_/__/\___/__/
 
+;;; Compare-contrast Java, JavaScript, and Datapath (a dialect of
+;;; mini-Kanren)
 
 ;;;    ____                 _           ____
 ;;;   / __/_ _____ ________(_)__ ___   / __/
@@ -854,7 +882,7 @@
 ;;; Exercise 5: Use map() to project an array of videos into an array of
 ;;; {id,title} pairs For each video, project a {id,title} pair.
 
-;;; (in Clojure, iterpret "pair" to mean "a map with two elements")
+;;; (in Clojure, iterpret "pair" to mean "a hash-map with two elements")
 
 (defn jslurp [filename]
   (-> (str "./src/expt1/" filename)
@@ -864,13 +892,16 @@
       ))
 
 (-> (jslurp "Exercise_5.json")
+
     ;; Make all levels asynchronous (maximize fuggliness):
+
     asynchronous-observable
 
-    ;; The following line is the one that should be compared / contrasted with
-    ;; JavaScript & Datapath -- the surrounding lines are just input & output.
-    ;; I do likewise with all the other exercises: surrounding the "meat" in
-    ;; the sandwich with blank lines.
+    ;; The following line is the one that should be compared /
+    ;; contrasted with JavaScript & Datapath -- the surrounding lines
+    ;; are just input & output.  I do likewise with all the other
+    ;; exercises: surrounding the "meat" in the sandwich with blank
+    ;; lines.
 
     (.map (rx/fn [vid] {:id (vid "id") :title (vid "title")}))
 
@@ -907,8 +938,8 @@
 ;;;  / _/ \ \ / -_) __/ __/ (_-</ -_) / _  |
 ;;; /___//_\_\\__/_/  \__/_/___/\__/  \___/
 
-;;; Exercise 8: Chain filter and map to collect the ids of videos that have a
-;;; rating of 5.0
+;;; Exercise 8: Chain filter and map to collect the ids of videos that
+;;; have a rating of 5.0
 
 ;;; Select all videos with a rating of 5.0 and project the id field.
 
@@ -950,7 +981,7 @@
 ;;; /___//_\_\\__/_/  \__/_/___/\__/  /_//_/
 
 ;;; Exercise 11: Use map() and mergeAll() to project and flatten the
-;;; movieLists into an array of video ids
+;;; movie lists into an array of video ids.
 
 ;;; Produce a flattened list of video ids from all movie lists.
 
@@ -960,9 +991,12 @@
 (-> (jslurp "Exercise_11.json")
     asynchronous-observable
 
+    ;; Fetch the "videos" key out of each genre.
     (.map (rx/fn [genre] (asynchronous-observable (genre "videos"))))
 
     (Observable/merge)
+
+    ;; Fetch the "id" key out of each vid.
     (.map (rx/fn [vid] (vid "id")))
 
     subscribe-collectors
@@ -990,23 +1024,26 @@
 ;;;  / _/ \ \ / -_) __/ __/ (_-</ -_)  / /_  _/
 ;;; /___//_\_\\__/_/  \__/_/___/\__/  /_/ /_/
 
-;;; Exercise 14: Use mapMany() to retrieve id, title, and 150x200 box art url
-;;; for every video.
+;;; Exercise 14: Use mapMany() to retrieve id, title, and 150x200 box
+;;; art url for every video.
 ;;;
-;;; I changed the original slightly so that "Chamber" has no 150x200 box art
-;;; (to test the case where some input does not pass the filter) and so that
-;;; "Fracture" has two 150x200 boxarts (to test that they're not improperly
-;;; nested)
+;;; I changed the original slightly so that "Chamber" has no 150x200 box
+;;; art (to test the case where some input does not pass the filter) and
+;;; so that "Fracture" has two 150x200 boxarts (to test that they're not
+;;; improperly nested)
 
 (-> (jslurp "Exercise_14.json")
     asynchronous-observable
 
-    (.mapMany (rx/fn [genres] (-> (genres "videos") asynchronous-observable)))
+    (.mapMany (rx/fn [genres] (-> (genres "videos")
+                                  asynchronous-observable)))
 
-    (.mapMany (rx/fn [vid]    (-> (vid "boxarts")   asynchronous-observable
-                                  (.filter (rx/fn [art] (and (== 150 (art "width"))
-                                                             (== 200 (art "height")))))
-                              (.map (rx/fn [art] ;; note the closure over "vid"
+    (.mapMany (rx/fn [vid]    (-> (vid "boxarts")
+                                  asynchronous-observable
+                                  (.filter (rx/fn [art]
+                                             (and (== 150 (art "width"))
+                                                  (== 200 (art "height")))))
+                              (.map (rx/fn [art] ;; note closure over "vid"
                                       {:id    (vid "id")
                                        :title (vid "title")
                                        :url   (art "url")})))))
@@ -1054,22 +1091,22 @@
 ;;;          title: (. v "title"),
 ;;;          boxart: (. x "url")
 ;;;        }
-;;;     )
-;;;   )
-;;; )
+;;;     )))
+
 
 ;;;    ____                 _           ___ ____
 ;;;   / __/_ _____ ________(_)__ ___   |_  / / /
 ;;;  / _/ \ \ / -_) __/ __/ (_-</ -_) / __/_  _/
 ;;; /___//_\_\\__/_/  \__/_/___/\__/ /____//_/
 
-;;; Exercise 24: Retrieve each video's id, title, middle interesting moment
-;;; time, and smallest box art url.
+;;; Exercise 24: Retrieve each video's id, title, middle interesting
+;;; moment time, and smallest box art url.
 
 (-> (jslurp "Exercise_24.json")
     asynchronous-observable
 
-    (.mapMany (rx/fn [genre] (-> (genre "videos") asynchronous-observable)))
+    (.mapMany (rx/fn [genre] (-> (genre "videos")
+                                 asynchronous-observable)))
     (.mapMany (rx/fn [vid]
                 (let [arts (-> (vid "boxarts")
                                asynchronous-observable
@@ -1079,11 +1116,14 @@
                                             c p))))
                       moments (-> (vid "interestingMoments")
                                   asynchronous-observable
-                                  (.filter (rx/fn [moment] (= (moment "type") "Middle"))))
+                                  (.filter (rx/fn [moment]
+                                             (= (moment "type") "Middle"))))
                       ]
                   (Observable/zip
+
                    arts
                    moments
+
                    (rx/fn [art moment]
                      {:id    (vid    "id")
                       :title (vid    "title")
@@ -1152,20 +1192,19 @@
 ;;;          url: (. boxart "url"),
 ;;;          time: (. moment "time")
 ;;;        })
-;;;   )
-;;; )
+;;;   ))
 
 ;;;    ____                 _           ___  ____
 ;;;   / __/_ _____ ________(_)__ ___   |_  |/ __/
 ;;;  / _/ \ \ / -_) __/ __/ (_-</ -_) / __//__ \
 ;;; /___//_\_\\__/_/  \__/_/___/\__/ /____/____/
 
-;;; Exercise 25: Converting from Arrays to Trees
+;;; Exercise 25: Join Arrays to Tree
 
-;;; We have 2 arrays each containing lists, and videos respectively. Each
-;;; video has a listId field indicating its parent list. We want to build an
-;;; array of list objects, each with a name and a videos array. The videos
-;;; array will contain the video's id and title.
+;;; We have 2 arrays containing genre ids and videos respectively.  Each
+;;; video has a listId field indicating its genre.  We want an array of
+;;; genres, each with a name and a videos array.  The videos array will
+;;; contain the video's id and title.
 
 ;;; Input
 
@@ -1286,23 +1325,26 @@
               {:name (lyst "name")
                :videos
                (-> videos
+                   ;; The following contains the "join condition."
                    (.filter (rx/fn [vid] (== (vid "listId") (lyst "id"))))
-                   (.map    (rx/fn [vid] {:id (vid "id") :title (vid "title")}))
+                   (.map    (rx/fn [vid] {:id (vid "id")
+                                          :title (vid "title")}))
                    )
-               }
-              ))
+               }))
 
       subscribe-collectors
       report
       :onNext
+
       ((flip map)
        (fn [lyst]
          {:name (lyst :name)
           :videos (-> (lyst :videos)
                       subscribe-collectors
-                      :onNext)}
-         )))
-  )
+                      report
+                      :onNext)
+          }))
+      pdump))
 
 ;;;    _  __           __             _____
 ;;;   / |/ /_ ____ _  / /  ___ ____  / ___/__ ___ _  ___ ___
@@ -1333,6 +1375,8 @@
                              (rest xs)))))))
 
 (def primes (sieve (cons 2 (iterate (partial + 2N) 3))))
+
+(pdump (first (drop 1000 primes)))
 
 ;;;    ____     __     _         __
 ;;;   / __/_ __/ /    (_)__ ____/ /_
