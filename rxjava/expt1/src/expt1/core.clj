@@ -159,20 +159,15 @@
 (->> [1 2 3]
     (take 2))
 
-;;; This also works for infinite, lazy sequences:
-
-(->> (repeat 42)
-     (take 2))
-
 ;;; The BIG IDEA of reactive programming is that COLLECTIONS OF DATA
-;;; DISTRIBUTED IN TIME ACT VERY MUCH LIKE COLLECTIONS DISTRIBUTED IN
-;;; SPACE.  We should expect that the same operators are available.
+;;; DISTRIBUTED IN TIME ACT JUST LIKE COLLECTIONS DISTRIBUTED IN SPACE.
+;;; We should expect to have the same operators.
 
-;;; Another view of this is that it's COORDINATE-FREE PROGRAMMING. In
-;;; functional programming, we replace index-loops with higher-order
-;;; operators.  The higher-order operators take function arguments
-;;; (lambda expressions or closures).  The function arguments operate on
-;;; the values in the collection.  We replace expressions like
+;;; Another view is COORDINATE-FREE PROGRAMMING. In functional
+;;; programming, we replace index-loops with higher-order operators.
+;;; The higher-order operators take arguments that are functions (lambda
+;;; expressions or closures).  The functions operate individually on the
+;;; values in the collection.  We replace expressions like
 ;;;
 ;;;     for (i = 0; i < ARRAY_LEN; i++)
 ;;;         println(array[i]);
@@ -181,15 +176,28 @@
 ;;;
 ;;;     array.map(element => println(element))
 ;;;
-;;; We replace the oordinate-full expression array[i] with the
-;;; coordinate-free expression "element," which is a funtion parameter
-;;; that is iteratively *bound* to the values in the collection (the
-;;; array).
+;;; We replace the oordinate-FULL expression array[i] with the
+;;; coordinate-free expression "element," which is a parameter that is
+;;; iteratively *bound* to the values in the collection (the array).
+;;; The lambda expression is a "callback" invoked by the higher-order
+;;; operator "map."  "Map" is called "higher-order" because it is a
+;;; function that takes functions as arguments.
 ;;;
-;;; When the collection is distributed over time, we can expect to
-;;; receive values in function arguments rather than in some collection
-;;; explicitly indexed by a time coordinate as in "collection[t]."  Now,
-;;; however the functions are callbacks invoked by the observable.
+;;; Once the coordinates are gone, there is nothing in the expression to
+;;; say where the value came from.  Thus, the expression can, in
+;;; principle, be used over any collection independently of the
+;;; "coordinate system" used to index the values.  We can easily shift
+;;; from a space coordinate system to a time coordinate system without
+;;; changing the "business logic" underneath, often without changing the
+;;; code at all (Dave Ray from netflix has a short video on this).  This
+;;; abstraction away from coordinates or indices is the principal
+;;; abstraction of functional -- and therefore reactive -- programming.
+;;;
+;;; This is the "monadic" abstraction.  Our values are "in a monad"
+;;; rather than in an indexed collection of this or that kind.  This
+;;; abstraction affords many very powerful generalizations, only one of
+;;; which is reactive programming.
+;;;
 
 (-> (Observable/from [1 2 3])   ; an obl of length 3
     (.take 2)                   ; an obl of length 2
@@ -197,8 +205,20 @@
     report                      ; pretty-prints
     )
 
-;;; Don't call "Observable/from" on an infinite sequence; it realizes
-;;; the whole thing.
+;;; The "take" in the sequence monad also works for infinite, lazy
+;;; sequences.  These are an intermediate step between sequences fully
+;;; realized in memory and sequences that produce values over time.
+;;; Lazy sequences produce values over time, driven by internal forces.
+;;; Observables produce values over time, driven by anything, including
+;;; external forces.
+
+(->> (repeat 42)
+     (take 2))
+
+;;; Operating on infinite sequences works in the observable monad, but
+;;; it's harder to demonstrate in our toy examples.  Don't call
+;;; "Observable/from" on an infinite lazy sequence; it realizes the
+;;; whole thing.
 
 (-> (Observable/from (take 100 (repeat 42)))
     (.take 2)
@@ -206,13 +226,23 @@
     report)
 
 ;;; Now, filter out the odd numbers and keep just the first two of that
-;;; intermediate result.
+;;; intermediate result.  Here, we write the prediction
+;;; function-argument of the higher-order "filter" operator as an
+;;; anonymous "rxjava" function.  Since java doesn't (yet) have
+;;; first-class anonymous functions, we must declare it with an rx/fn
+;;; rather than with the standard, Clojure "fn."  This is a gargoyle
+;;; that I hope will go away soon (because it limits our claim that
+;;; EXACTLY the same code can run iteratively as reactively).
 
 (-> (Observable/from [1 2 3 4 5 6])
     (.filter (rx/fn [n] (== 0 (mod n 2)))) ; passes only evens along
     (.take 2)                              ; keeps only the first two
     subscribe-collectors
     report)
+
+;;; Here is another way of doing the same thing, only with a named
+;;; predicate-function argument.  "rx/fn*" converts a first-class
+;;; Clojure function into a rxjava function.
 
 (-> (Observable/from [1 2 3 4 5 6])
     (.filter (rx/fn* even?))
@@ -222,7 +252,7 @@
 
 ;;; Here is the space version:
 
-(->> (range 1 7)
+(->> [1 2 3 4 5 6 7]
      (filter even?)
      (take 2))
 
@@ -232,35 +262,35 @@
 ;;;  \___|_| \___/\_/\_/|_|_||_\__, |
 ;;;                            |___/
 
+;;; Filtering removes values.  Mapping transforms values.  How do we
+;;; make a collection bigger?
 
-;;; Let's transform each number x into a vector of numbers, adding x to some
-;;; familiar constants, then flattening the results exactly one time. This
-;;; is a way to grow a shorter sequence into a longer one. Filters typically
-;;; shorten sequences; maps leave sequences the same length. Most methods
-;;; that lengthen sequences rely on mapMany, which is called "SelectMany" in
-;;; many Rx documents (.e.g., http://bit.ly/18Bot23) and is similar to
-;;; Clojure's "mapcat", up to order of parameters.
+;;; Let's transform each number x into a vector of numbers, adding x to
+;;; some familiar constants, then flattening the results exactly one
+;;; time.  Most methods that lengthen sequences rely on mapMany, called
+;;; "SelectMany" in many Rx documents (.e.g., http://bit.ly/18Bot23) and
+;;; is similar to Clojure's "mapcat", up to order of parameters.
 
 (->> [1 2 3]
      (take 2)
      ;; For each x in the collection, map a function over the fixed
-     ;; vector [42 43 44].  The function will be something that adds x
-     ;; to its input; that is, the function is a closure over x. mapcat
-     ;; takes care of flattening the results just once.
+     ;; vector [42 43 44].  The function will add its argument x to its
+     ;; input; that is, the function is a closure over x. mapcat takes
+     ;; care of flattening the results just once.
      (mapcat (fn [x] (map (partial + x) [42 43 44]))))
 
 (-> (Observable/from [1 2 3])
     (.take 2)
     ;; With a collection distributed over time, the function must
-    ;; produce a nested observable, which rxjava will flatten exactly
-    ;; once:
+    ;; produce a nested observable, which rxjava's mapMany will flatten
+    ;; exactly once:
     (.mapMany            ; convert each number to an obl of more numbers
      (rx/fn [x] (Observable/from (map (partial + x) [42 43 44]))))
     subscribe-collectors
     report)
 
-;;; Look at an observable sequence of strings, shortening it now, because
-;;; that's familiar.
+;;; Look at an observable sequence of strings, back to shortening it
+;;; now, because that's familiar.
 
 (-> (Observable/from ["one" "two" "three"])
     (.take 2)
@@ -292,9 +322,9 @@
 
 
 ;;; Clean up the repeated, ugly (Observable/from ...) calls into a
-;;; composition, but we can't (comp Observable/from ...) since it's
-;;; a Java method and does not implement Clojure IFn. Fix this by wrapping
-;;; it in a function:
+;;; composition, but we can't (comp Observable/from ...) since it's a
+;;; Java method and does not implement Clojure IFn.  Fix this by
+;;; wrapping it in a function:
 
 (defn from-seq [s] (Observable/from s))
 
@@ -306,10 +336,6 @@
     report
     )
 
-;;; Theoretically, both Clojure's sequences and Rx's observables are
-;;; sequences, in the sense of an ordered collection. We sometimes use the
-;;; term "sequence" to mean just Clojure's sequences.
-
 ;;;          _
 ;;;  _ _ ___| |_ _  _ _ _ _ _
 ;;; | '_/ -_)  _| || | '_| ' \
@@ -319,21 +345,25 @@
 ;;; Monadic "return" lifts a value into a collection of length 1 so that the
 ;;; collection can be composed with others via the standard query operators.
 ;;; This and "mapMany" are the two primitive operators in the library, and
-;;; all the others can be built in terms of them.
+;;; almost all the others can be built in terms of them.
 ;;;
-;;; Return is missing from "rxjava 0.9.0". Add it as follows. This does some
-;;; junk-work -- puts the item in a vector just so we can take it out again
-;;; into an obl. A native implementation would be preferable.
+;;; Let's add "return" as follows.  This does some junk-work -- puts the
+;;; item into the vector monad just so we can take it out again into an
+;;; obl.  A native implementation would be preferable.
 
 (defn return [item] (from-seq [item]))
 
 (-> (from-seq ["one" "two" "three"])
     (.mapMany (rx/fn* (comp from-seq string-explode)))
-    ;; Here, it's harmless, but illustrates the point that all
-    ;; higher-order function arguments to mapMany have the same, special
-    ;; signature as (does "return.").  Functions like this have monadic
-    ;; signature: they take a value and return values-in-a-box, where
-    ;; the box refers to the prevailing monad, known from context.
+
+    ;; Here, return acts like the identity.  In fact, it *is* the
+    ;; identity function in any monad.  It illustrates the point that
+    ;; all higher-order function arguments to mapMany have the same,
+    ;; special signature as does "return.".  Functions like this have
+    ;; "monadic signature": they take a value and return
+    ;; values-in-a-box, where the box refers to the prevailing monad,
+    ;; known from context.
+
     (.mapMany (rx/fn* return))
     subscribe-collectors
     report
@@ -346,7 +376,7 @@
 
 
 ;;; Rx is has a couple of operators: "disinct" and "distinctUntilChanged."
-;;; Fake them as follows:
+;;; Fake them as follows, to show how to build new operators in Clojure.
 
 (-> (from-seq ["one" "two" "three"])
     (.mapMany (rx/fn* (comp from-seq string-explode)))
@@ -355,8 +385,10 @@
 
     (.reduce #{} (rx/fn* conj))
 
-    ;; We now have a set of unique characters. To promote this back into an
-    ;; obl of chars, do:
+    ;; We now have a hash-set of unique characters.  Because Clojure
+    ;; hash-sets are automatically seq'able, that is, convertible into
+    ;; the sequence monad, promote the hash-set back into an obl of
+    ;; chars as follows:
 
     (.mapMany (rx/fn* from-seq))
 
@@ -382,8 +414,8 @@
     report
     )
 
-;;; Notice that distinct is "unstable" in the sense that it reorders its
-;;; input. EXERCISE: a stable implementation. HINT: use the set to check
+;;; Distinct is "unstable" in the sense that it reorders its input.
+;;; EXERCISE: a stable implementation.  HINT: use the set to check
 ;;; uniqueness and build a vector to keep order.
 
 ;;;     _ _    _   _         _
@@ -400,10 +432,10 @@
 ;;; DistinctUntilChanged collapses runs of the same value in a sequence into
 ;;; single instances of each value. [a a a x x x a a a] becomes [a x a].
 ;;;
-;;; The following solution is correct but unacceptable because it consumes
-;;; the entire source obl seq before producing values. Such is not necessary
-;;; with distinct-until-changed: we only need to remember one back. Still,
-;;; to make the point:
+;;; The following solution is correct but unacceptable because it
+;;; consumes the entire source obl seq before producing values.  Such is
+;;; not necessary with distinct-until-changed: we only need to remember
+;;; one back.  Still, as a step to a better solution:
 
 (-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
 
@@ -412,25 +444,27 @@
     (.reduce [] (rx/fn [acc x]
                   (let [l (last acc)]
                     (if (and l (= x l)) ; accounts for legit nils
-                      acc
+                      acc               ; nil is "falsey"
                       (conj acc x)))))
 
-    ;; We now have a singleton obl containing representatives of runs of non-
-    ;; distinct characters. Slurp it back into the monad:
+    ;; We now have a fully realized, non-lazy, singleton obl containing
+    ;; representatives of runs of non-distinct characters.  Slurp it
+    ;; back into the monad:
 
     (.mapMany (rx/fn* from-seq))
 
     subscribe-collectors
     report)
 
-;;; Better is to keep a mutable buffer of length one. It could be an atom if
-;;; we had the opposite of "compare-and-set!." We want an atomic primitive
-;;; that sets the value only if it's NOT equal to its current value.
-;;; "compare-and set!" sets the atom to a new val if its current value is
-;;; EQUAL to an old val. It's easy enough to get the desired semantics with a
-;;; Ref and software-transactional memory, the only wrinkle being that the
-;;; container must be defined outside the function that mapMany applies.
-;;; However, this solution will not materialize the entire input sequence.
+;;; Better is to keep a mutable buffer of length one. It could be an
+;;; atom if we had the opposite of "compare-and-set!."  We want an
+;;; atomic primitive that sets the value only if it's NOT equal to its
+;;; current value.  "compare-and set!" sets the atom to a new val if its
+;;; current value is EQUAL to an old val.  It's easy enough to get the
+;;; desired semantics with a Ref and software-transactional memory, the
+;;; only wrinkle being that the container must be defined outside the
+;;; function that mapMany applies.  However, this solution will not
+;;; materialize the entire input sequence.
 
 (let [exploded (-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
                    (.mapMany (rx/fn* (comp from-seq string-explode))))
@@ -440,7 +474,7 @@
                   (dosync
                    (let [l (last @last-container)]
                      (if (and l (= x l))
-                       (Observable/empty)
+                       (Observable/empty) ; shiny-new! like [] or ()
                        (do
                          (ref-set last-container [x])
                          (return x)))))))
@@ -488,15 +522,12 @@
 
 
 ;;; Be sure to set a .java.policy file in the appropriate directory
-;;; (HOME if you are running this as an ordinary user). Here is a very
-;;; liberal policy file:
+;;; (HOME if you are running this as an ordinary user; in a configured
+;;; directory on a server).  Here is a very liberal policy file:
 ;;;
 ;;; grant {
 ;;;   permission java.security.AllPermission;
 ;;; };
-;;;
-;;; Note that user-supplied symbols must be fully qualified for the
-;;; Clojail sandbox.
 ;;;
 ;;; Cannot inject a 'catch' into the sandbox; hence the catchless-dump.
 
@@ -507,6 +538,9 @@
         qs (map read-string queries)
         ]
     (sb `(-> ~es ~@qs subscribe-collectors catchless-pdump ))))
+
+;;; Symbols must be fully qualified (no implicit namespaces) in the
+;;; sandbox.
 
 (let [source "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
       queries ["(.mapMany (rx.lang.clojure.interop/fn* (comp expt1.core/from-seq expt1.core/string-explode)))"
@@ -529,51 +563,63 @@
 
 
 ;;; An observable has a "subscribe" method, which is a function of an
-;;; observer. When called, the subscribe method subscribes the observer to the
-;;; observable sequence of values produced by the observable.
+;;; observer.  When called, the subscribe method subscribes the observer
+;;; to the observations (a.k.a. "messages," "events," "notifications"):
+;;; the values produced by the observable.
 
 (defn synchronous-observable [the-seq]
   "A custom Observable whose 'subscribe' method does not return until
-   the observable completes, that is, a 'blocking' observable.
-
-  returns Observable<String>"
+   the observable completes, that is, a 'blocking' observable."
   (Observable/create
    (rx/fn [observer]
-     ;; This subscribe method just calls the observer's "onNext" handler until
-     ;; exhausted.
+
+     ;; Just call the observer's "onNext" handler until exhausted.
+
      (doseq [x the-seq] (-> observer (.onNext x)))
+
      ;; After sending all values, complete the sequence:
+
      (-> observer .onCompleted)
-     ;; Return a NoOpSubsription. Since this observable does not return from
-     ;; its subscription call until it sends all messages and completes, the
-     ;; thread receiving the "subscription" can't unsubscribe until the
-     ;; observable completes, at which time there is no value in
-     ;; unsubscribing. We say that this observable "blocks."
+
+     ;; Return a no-op subscription.  Since this observable does not
+     ;; return from its subscription call until it sends all messages
+     ;; and completes, the thread receiving the "subscription" can't
+     ;; unsubscribe until the observable completes, at which time there
+     ;; is no point in unsubscribing.  We say that this observable
+     ;; "blocks."  The returned subscription is pro-forma only.
+
      (Subscriptions/empty))))
 
-;;; Flip is always needed in functional programming! It takes a function and
-;;; produces a new function that calls the old function with arguments in the
-;;; opposite order.
-(defn flip [f2] (fn [x y] (f2 y x)))
+;;; Test and Demo:
+
+;;; Flip is always needed in functional programming!  It takes a
+;;; function and produces a new function that calls the old function
+;;; with arguments in the opposite order.
+
+(defn flip [g] (fn [x y] (g y x)))
 
 ;;; Test the synchronous observable:
 
 (-> (synchronous-observable (range 50)) ; produces 0, 1, 2, ..., 50
-    (.map    (rx/fn* #(str "SynchronousValue_" %))) ; produces strings
-    (.map    (rx/fn* (partial (flip clojure.string/split) #"_"))) ; splits at "_"
-    (.map    (rx/fn [[a b]] [a (Integer/parseInt b)])) ; converts seconds
-    (.filter (rx/fn [[a b]] (= 0 (mod b 7)))) ; keeps only multiples of 7
+    (.map    (rx/fn* #(str "SynchronousValue_" %)))
+    (.map    (rx/fn* (partial (flip clojure.string/split) #"_")))
+    (.map    (rx/fn [[a b]] [a (Integer/parseInt b)]))
+    (.filter (rx/fn [[a b]] (= 0 (mod b 7))))
     subscribe-collectors
     report
     )
 
-;;; Compare rxjava's ".map" with Clojure's "map". The biggest difference is
-;;; that Rx's .map takes the collection in the privileged first position. Such
-;;; makes "fluent composition" with the "->" macro easy. Clojure's map takes
-;;; the function in the first argument slot. This difference complicates the
-;;; translation of fluent code from Clojure into fluent code for rxjava,
-;;; though "flip" can help. Ditto rxjava/.filter and core/filter: their
-;;; argument lists are the flips of one another.
+;;; Compare rxjava's ".map" with Clojure's "map".  The biggest
+;;; difference is that Rx's .map takes the collection in the privileged
+;;; first position -- the privilege borrowed from object-oriented
+;;; programming, where "this" implicitly appears there.
+;;;
+;;; This small difference "fluent composition" with the "->" macro easy.
+;;; Clojure's map takes the function in the first argument slot.  This
+;;; difference complicates the translation of fluent code from Clojure
+;;; into fluent code for rxjava, though "flip" can help.  Ditto
+;;; rxjava/.filter and core/filter: their argument lists are the flips
+;;; of one another.
 
 ;;; Consider the example above, and write a non-reactive version of it.
 
@@ -585,10 +631,13 @@
     pdump
     )
 
-;;; The code above looks very similar to the reactive code-block prior to it.
-;;; Specifically, the arguments are identical. The device used to bring the
-;;; collection arguments into first position is "flip". To make the
-;;; resemblance even more complete, we might do the following
+;;; The code above looks very similar to the reactive code-block prior
+;;; to it.  Specifically, the arguments are identical (up to the
+;;; "fn"-"rx/fn" dichotomy mentioned above).  The device used to bring
+;;; the collection arguments into first position is "flip".  To make the
+;;; resemblance even more complete, we might do the following (this is
+;;; the opposite of Dave Ray's demonstration -- he makes Rx look like
+;;; Clojure; we make Clojure look like Rx.)
 
 (let [-map    (flip map)
       -filter (flip filter)]
@@ -598,11 +647,10 @@
       (-map    (fn [[a b]] [a (Integer/parseInt b)]))
       (-filter (fn [[a b]] (= 0 (mod b 7))))
       pdump
-      )
-  )
+      ))
 
 ;;; With these local definitions, "-map" and "-filter", the non-reactive
-;;; version looks just like the reactive version.
+;;; version looks almost just like the reactive version.
 
 ;;;    _                    _
 ;;;   /_\   ____  _ _ _  __| |_  _ _ ___ _ _  ___ _  _ ___
@@ -617,17 +665,19 @@
 
 
 (defn asynchronous-observable [the-seq]
-  "A custom Observable whose 'subscribe' method returns immediately and whose
-   other actions -- namely, onNext, onCompleted, onError -- occur on another
-   thread.
-
-  returns Observable<String>"
+  "A custom Observable whose 'subscribe' method returns immediately and
+   whose other actions -- namely, onNext, onCompleted, onError -- occur
+   on another thread."
   (Observable/create
-   (rx/fn [observer]
+   (rx/fn [observer]                    ; this is "subscribe"
      (let [f (future (doseq [x the-seq] (-> observer (.onNext x)))
+
                      ;; After sending all values, complete the sequence:
+
                      (-> observer .onCompleted))]
+
        ;; Return a subscription that cancels the future:
+
        (Subscriptions/create (rx/action [] (future-cancel f)))))))
 
 (-> (asynchronous-observable (range 50))
@@ -647,10 +697,8 @@
 
 
 (defn asynchWikipediaArticle [names]
-  "Fetch a list of Wikipedia articles asynchronously
-   with proper error handling.
-
-   return Observable<String> of HTML"
+  "Fetch a sequence of Wikipedia articles asynchronously with proper
+   error handling."
   (Observable/create
    (rx/fn [observer]
      (let [f (future
@@ -661,13 +709,19 @@
                         (html/html-resource
                          (java.net.URL.
                           (str "https://en.wikipedia.org/wiki/" name))))
+
                        ;; Netflix originally used strings, but...
+
                        ))
-                 ;; (catch Exception e (prn "exception")))
+
                  (catch Exception e (-> observer (.onError e))))
+
                ;; after sending response to onNext, complete the sequence
+
                (-> observer .onCompleted))]
+
        ;; a subscription that cancels the future if unsubscribed
+
        (Subscriptions/create (rx/action [] (future-cancel f)))))))
 
 (defn zip-str [s]
