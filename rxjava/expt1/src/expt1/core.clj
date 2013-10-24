@@ -192,6 +192,8 @@
 (->> [1 2 3]
     (take 2))
 
+(take 2 [1 2 3])
+
 ;;; The BIG IDEA of reactive programming is that COLLECTIONS OF DATA
 ;;; DISTRIBUTED IN TIME ACT JUST LIKE COLLECTIONS DISTRIBUTED IN SPACE.
 ;;; We should expect to have the same operators.
