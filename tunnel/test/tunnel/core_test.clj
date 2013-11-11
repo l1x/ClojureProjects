@@ -1,7 +1,7 @@
-(ns server-1.test.handler
+(ns tunnel.core-test
   (:use clojure.test
         ring.mock.request
-        server-1.handler))
+        tunnel.core))
 
 (deftest test-app
   (testing "main route"
