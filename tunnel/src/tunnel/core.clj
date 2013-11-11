@@ -22,9 +22,14 @@
 
 (let [rsub (PublishSubject/create)
       ssub (-> rsub
-               (.filter (rx/fn [j] (even? (read-string (j :x)))))
-               (.map (rx/fn [j] (let [x (read-string (j :x))]
-                                    {:x x, :x2 (* x x)}))))]
+               (.map     (rx/fn [j] (let [x (read-string (j :x))]
+                                      {:x (str (+ 100 x))})))
+               (.filter  (rx/fn [j] (even? (read-string (j :x)))))
+               (.mapMany (rx/fn [j] (let [x (read-string (j :x))]
+                                      (Observable/create (rx/fn [obr]
+                                                           (.onNext obr {:x (str x)})
+                                                           (.onNext obr {:x (str (* x x))})
+                                                           (.onCompleted obr)))))))]
   (.subscribe rsub (rx/action [obn] (pp/pprint (str "Observed!: " obn))))
   (.subscribe ssub (rx/action [obn] (pp/pprint (str "Transformed!: " obn))))
   (defroutes app-routes
