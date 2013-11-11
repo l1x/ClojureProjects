@@ -10,9 +10,9 @@
       (is (= (:body response) "Hello World"))))
 
   (testing "main post"
-    (let [res (app (request :post "/"))]
+    (let [res (app (request :post "/" "{\"x\":\"42\"}"))]
       (is (= (:stauts res 200)))
-      (is (= (:body res) "Hello Post"))))
+      (is (= (:body res) "{\"x\":\"42\"}"))))
 
   (testing "not-found route"
     (let [response (app (request :get "/invalid"))]
