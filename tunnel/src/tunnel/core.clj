@@ -20,8 +20,13 @@
         (apply str v)
         (recur (.read r) (conj v (char b)))))))
 
-(let [rsub (PublishSubject/create)]
+(let [rsub (PublishSubject/create)
+      ssub (-> rsub
+               (.filter (rx/fn [j] (even? (read-string (j :x)))))
+               (.map (rx/fn [j] (let [x (read-string (j :x))]
+                                    {:x x, :x2 (* x x)}))))]
   (.subscribe rsub (rx/action [obn] (pp/pprint (str "Observed!: " obn))))
+  (.subscribe ssub (rx/action [obn] (pp/pprint (str "Transformed!: " obn))))
   (defroutes app-routes
     (GET "/"  [] "Hello World")
     (POST "/" {payload :body}
