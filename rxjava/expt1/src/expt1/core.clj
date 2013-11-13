@@ -165,13 +165,13 @@
 ;;; Clojure higher-order operators take collection arguments in last
 ;;; position and produce collections of the same kind).
 
-(pdump
- (->> [1 2 3]
-      (take 2)))
+(->> [1 2 3]
+     (take 2)
+     pdump)
 
-(pdump
- (->> [1 2 3]
-      (filter even?)))
+(->> [1 2 3]
+     (filter even?)
+     pdump)
 
 ;;;  _   _                                         _           _ _ _
 ;;; | |_(_)_ __  ___ ___ ____ __  __ _ __ ___   __| |_  _ __ _| (_) |_ _  _
@@ -225,17 +225,15 @@
 ;;; abstraction of functional -- and therefore reactive -- programming.
 ;;;
 
-(pdump
- (-> (Observable/from [1 2 3])          ; an obl of length 3
-     (.take 2)                          ; an obl of length 2
-     subscribe-collectors               ; waits for completion
-     report))                           ; produce results
+(-> (Observable/from [1 2 3])          ; an obl of length 3
+    (.take 2)                          ; an obl of length 2
+    subscribe-collectors               ; waits for completion
+    report)                            ; produce results
 
-(pdump
- (-> (Observable/from [1 2 3])
-     (.filter (rx/fn* even?))
-     subscribe-collectors
-     report))
+(-> (Observable/from [1 2 3])
+    (.filter (rx/fn* even?))
+    subscribe-collectors
+    report)
 
 ;;; The '->' operator shoves its predecessor into the FIRST position of
 ;;; its successor because most rxjava operators take collection
@@ -251,19 +249,18 @@
 ;;; Observables produce values over time, driven by anything, including
 ;;; external forces.
 
-(pdump
- (->> (repeat 42)
-      (take 2)))
+(->> (repeat 42)
+     (take 2)
+     pdump)
 
 ;;; Observables can produce infinite sequences, but it's harder to
 ;;; demonstrate in examples.  Don't call "Observable/from" on an
 ;;; infinite lazy sequence; it realizes the whole thing.
 
-(pdump
- (-> (Observable/from (take 100 (repeat 42)))
-     (.take 2)
-     subscribe-collectors
-     report))
+(-> (Observable/from (take 100 (repeat 42)))
+    (.take 2)
+    subscribe-collectors
+    report)
 
 ;;; Filter out odd numbers and keep the first two of that intermediate
 ;;; result.  Write the predicate function-argument of the higher-order
@@ -273,30 +270,28 @@
 ;;; is a gargoyle that I hope will go away soon because it limits our
 ;;; claim that EXACTLY the same code can run iteratively as reactively).
 
-(pdump
- (-> (Observable/from [1 2 3 4 5 6])
-     (.filter (rx/fn [n] (== 0 (mod n 2)))) ; same as "even?"
-     (.take 2)                              ; keeps only the first two
-     subscribe-collectors
-     report))
+(-> (Observable/from [1 2 3 4 5 6])
+    (.filter (rx/fn [n] (== 0 (mod n 2)))) ; same as "even?"
+    (.take 2)                              ; keeps only the first two
+    subscribe-collectors
+    report)
 
 ;;; Here is another way of doing the same thing, only with a named
 ;;; predicate-function argument.  "rx/fn*" converts a first-class
 ;;; Clojure function into a rxjava function.
 
-(pdump
- (-> (Observable/from [1 2 3 4 5 6])
-     (.filter (rx/fn* even?))
-     (.take 2)
-     subscribe-collectors
-     report))
+(-> (Observable/from [1 2 3 4 5 6])
+    (.filter (rx/fn* even?))
+    (.take 2)
+    subscribe-collectors
+    report)
 
 ;;; Here is the space version:
 
-(pdump
- (->> [1 2 3 4 5 6]
-      (filter even?)
-      (take 2)))
+(->> [1 2 3 4 5 6]
+     (filter even?)
+     (take 2)
+     pdump)
 
 ;;;   ___                _
 ;;;  / __|_ _ _____ __ _(_)_ _  __ _
@@ -314,31 +309,30 @@
 ;;; "SelectMany" in many Rx documents (.e.g., http://bit.ly/18Bot23) and
 ;;; is similar to Clojure's "mapcat", up to order of parameters.
 
-(pdump
- (->> [1 2 3]
-      (take 2)
-      ;; For each x in the collection, map a function of one parameter
-      ;; over the fixed vector [42 43 44].  The function will add its
-      ;; argument to x; that is, the function is a closure over x.  The
-      ;; function produces a vector; mapcat flattens the results just
-      ;; once.
-      (mapcat
-       (fn [x]
-         (map (partial + x)
-              [42 43 44])))))
+(->> [1 2 3]
+     (take 2)
+     ;; For each x in the collection, map a function of one parameter
+     ;; over the fixed vector [42 43 44].  The function will add its
+     ;; argument to x; that is, the function is a closure over x.  The
+     ;; function produces a vector; mapcat flattens the results just
+     ;; once.
+     (mapcat
+      (fn [x]
+        (map (partial + x)
+             [42 43 44])))
+     pdump)
 
-(pdump
- (-> (Observable/from [1 2 3])
-     (.take 2)
-     ;; With an observervable, mapMany's function argument must produce
-     ;; a nested observable, which mapMany will flatten exactly once:
-     (.mapMany
-      (rx/fn [x]
-        (Observable/from
-         (map (partial + x)
-              [42 43 44]))))
-     subscribe-collectors
-     report))
+(-> (Observable/from [1 2 3])
+    (.take 2)
+    ;; With an observervable, mapMany's function argument must produce
+    ;; a nested observable, which mapMany will flatten exactly once:
+    (.mapMany
+     (rx/fn [x]
+       (Observable/from
+        (map (partial + x)
+             [42 43 44]))))
+    subscribe-collectors
+    report)
 
 ;;;  ___ _       _                  _
 ;;; / __| |_ _ _(_)_ _  __ _   _ __| |__ _ _  _ ___
@@ -348,16 +342,15 @@
 
 ;;; Shortening first.
 
-(pdump
- (->> ["one" "two" "three"]
-      (take 2)))
+(->> ["one" "two" "three"]
+     (take 2)
+     pdump)
 
-(pdump
- (-> (Observable/from ["one" "two" "three"])
-     (.take 2)
-     subscribe-collectors
-     report
-     ))
+(-> (Observable/from ["one" "two" "three"])
+    (.take 2)
+    subscribe-collectors
+    report
+    )
 
 ;;; "seq" explodes strings into lazy sequences of characters:
 
@@ -370,16 +363,13 @@
 
 ;;; Now, growing:
 
-(pdump
- (->> ["one" "two" "three"]
-      (mapcat string-explode)))
+(->> ["one" "two" "three"]
+     (mapcat string-explode))
 
-(pdump
- (-> (Observable/from ["one" "two" "three"])
-     (.mapMany (rx/fn [string] (Observable/from (string-explode string))))
-     subscribe-collectors
-     report
-     ))
+(-> (Observable/from ["one" "two" "three"])
+    (.mapMany (rx/fn [string] (Observable/from (string-explode string))))
+    subscribe-collectors
+    report)
 
 ;;;   __
 ;;;  / _|_ _ ___ _ __ ___ ___ ___ __ _
@@ -400,12 +390,10 @@
 
 ;;; Now we have a pretty function we can compose with string-explode:
 
-(pdump
- (-> (from-seq ["one" "two" "three"])
-     (.mapMany (rx/fn* (comp from-seq string-explode)))
-     subscribe-collectors
-     report
-     ))
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
+    subscribe-collectors
+    report)
 
 ;;;     _ _    _   _         _
 ;;;  __| (_)__| |_(_)_ _  __| |_
@@ -416,28 +404,26 @@
 ;;; Rx is has a couple of operators: "disinct" and "distinctUntilChanged."
 ;;; Fake them as follows, to show how to build new operators in Clojure.
 
-(pdump
- (-> (from-seq ["one" "two" "three"])
-     (.mapMany (rx/fn* (comp from-seq string-explode)))
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
 
-     ;; The following two implement "distinct".
+    ;; The following two implement "distinct".
 
-     (.reduce #{} (rx/fn* conj))
+    (.reduce #{} (rx/fn* conj))
 
-     ;; We now have an observable containing a hash-set of unique
-     ;; characters.  Because Clojure hash-sets are automatically
-     ;; seq'able, promote the hash-set back into an obl of chars as
-     ;; follows:
+    ;; We now have an observable containing a hash-set of unique
+    ;; characters.  Because Clojure hash-sets are automatically
+    ;; seq'able, promote the hash-set back into an obl of chars as
+    ;; follows:
 
-     (.mapMany (rx/fn* from-seq))
+    (.mapMany (rx/fn* from-seq))
 
-     ;; This is ok because "distinct" MUST consume the entire obl
-     ;; sequence before producing its values.  "Distinct" can't work on
-     ;; a non-finite obl sequence.
+    ;; This is ok because "distinct" MUST consume the entire obl
+    ;; sequence before producing its values.  "Distinct" can't work on
+    ;; a non-finite obl sequence.
 
-     subscribe-collectors
-     report
-     ))
+    subscribe-collectors
+    report)
 
 ;;; Package and test.
 
@@ -446,13 +432,11 @@
       (.reduce #{} (rx/fn* conj))
       (.mapMany (rx/fn* from-seq))))
 
-(pdump
- (-> (from-seq ["one" "two" "three"])
-     (.mapMany (rx/fn* (comp from-seq string-explode)))
-     distinct
-     subscribe-collectors
-     report
-     ))
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
+    distinct
+    subscribe-collectors
+    report)
 
 ;;; Distinct is "unstable" in the sense that it reorders its input.
 ;;; EXERCISE: a stable implementation.  HINT: use the set to check
@@ -483,20 +467,17 @@
 
 ;;; With space-collections, "vector" and "list" act like "return."
 
-(pdump
- (->>
-  ["one" "two" "three"]
-  (mapcat string-explode)
-  (mapcat vector)                       ; acts like "identity" here
-  ))
+(->>
+ ["one" "two" "three"]
+ (mapcat string-explode)
+ (mapcat vector)                       ; acts like "identity" here
+ )
 
-(pdump
- (-> (from-seq ["one" "two" "three"])
-     (.mapMany (rx/fn* (comp from-seq string-explode)))
-     (.mapMany (rx/fn* return))         ; acts like "identity" here
-     subscribe-collectors
-     report
-     ))
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
+    (.mapMany (rx/fn* return))         ; acts like "identity" here
+    subscribe-collectors
+    report)
 
 
 ;;;     _ _    _   _         _
@@ -518,25 +499,24 @@
 ;;; we only need to remember one back.  Still, as a step to a better
 ;;; solution:
 
-(pdump
- (-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
+(-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
 
-     (.mapMany (rx/fn* (comp from-seq string-explode)))
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
 
-     (.reduce [] (rx/fn [acc x]
-                   (let [l (last acc)]
-                     (if (and l (= x l)) ; accounts for legit nils
-                       acc               ; don't accumulate
-                       (conj acc x)))))
+    (.reduce [] (rx/fn [acc x]
+                  (let [l (last acc)]
+                    (if (and l (= x l)) ; accounts for legit nils
+                      acc               ; don't accumulate
+                      (conj acc x)))))
 
-     ;; We now have a fully realized, non-lazy, singleton observable
-     ;; containing a sequence containing representatives of runs of
-     ;; non-distinct characters.  Flatten it out exatly once:
+    ;; We now have a fully realized, non-lazy, singleton observable
+    ;; containing a sequence containing representatives of runs of
+    ;; non-distinct characters.  Flatten it out exatly once:
 
-     (.mapMany (rx/fn* from-seq))
+    (.mapMany (rx/fn* from-seq))
 
-     subscribe-collectors
-     report))
+    subscribe-collectors
+    report)
 
 ;;;           __    __ _         _             _
 ;;;  _ _ ___ / _|  / _(_)_ _  __| |___  __ _  | |_  ___ _ __  ___
@@ -553,21 +533,20 @@
 ;;; function that mapMany applies.  However, this solution will not
 ;;; materialize the entire input sequence.
 
-(pdump
- (let [exploded (-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
-                    (.mapMany (rx/fn* (comp from-seq string-explode))))
-       last-container (ref [])]
-   (-> exploded
-       (.mapMany (rx/fn [obn]
-                   (dosync
-                    (let [l (last @last-container)]
-                      (if (and l (= obn l))
-                        (Observable/empty) ; shiny-new! like [] or ()
-                        (do
-                          (ref-set last-container [obn])
-                          (return obn))))))) ; shiny-new!
-       subscribe-collectors
-       report)))
+(let [exploded (-> (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
+                   (.mapMany (rx/fn* (comp from-seq string-explode))))
+      last-container (ref [])]
+  (-> exploded
+      (.mapMany (rx/fn [obn]
+                  (dosync
+                   (let [l (last @last-container)]
+                     (if (and l (= obn l))
+                       (Observable/empty) ; shiny-new! like [] or ()
+                       (do
+                         (ref-set last-container [obn])
+                         (return obn))))))) ; shiny-new!
+      subscribe-collectors
+      report))
 
 ;;; Package and test:
 
@@ -586,23 +565,19 @@
                            (ref-set last-container [obn])
                            (return obn))))))))))
 
-(pdump
- (->  (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
-      (.mapMany (rx/fn* (comp from-seq string-explode)))
-      distinct-until-changed
-      subscribe-collectors
-      report
-      ))
+(->  (from-seq ["onnnnne" "tttwo" "thhrrrrree"])
+     (.mapMany (rx/fn* (comp from-seq string-explode)))
+     distinct-until-changed
+     subscribe-collectors
+     report)
 
 ;;; It's well-behaved on an empty input:
 
-(pdump
- (->  (from-seq [])
-      (.mapMany (rx/fn* (comp from-seq string-explode)))
-      distinct-until-changed
-      subscribe-collectors
-      report
-      ))
+(->  (from-seq [])
+     (.mapMany (rx/fn* (comp from-seq string-explode)))
+     distinct-until-changed
+     subscribe-collectors
+     report)
 
 ;;;  ___               _          _
 ;;; | _ \___ _ __  ___| |_ ___ __| |
@@ -707,15 +682,13 @@
 
 ;;; Test the synchronous observable:
 
-(pdump
- (-> (synchronous-observable (range 50)) ; produces 0, 1, 2, ..., 50
-     (.map    (rx/fn* #(str "SynchronousValue_" %)))
-     (.map    (rx/fn* (partial (flip clojure.string/split) #"_")))
-     (.map    (rx/fn [[a b]] [a (Integer/parseInt b)]))
-     (.filter (rx/fn [[a b]] (= 0 (mod b 7))))
-     subscribe-collectors
-     report
-     ))
+(-> (synchronous-observable (range 50)) ; produces 0, 1, 2, ..., 50
+    (.map    (rx/fn* #(str "SynchronousValue_" %)))
+    (.map    (rx/fn* (partial (flip clojure.string/split) #"_")))
+    (.map    (rx/fn [[a b]] [a (Integer/parseInt b)]))
+    (.filter (rx/fn [[a b]] (= 0 (mod b 7))))
+    subscribe-collectors
+    report)
 
 
 ;;;  ___            _        __   ___                 ___
@@ -726,16 +699,14 @@
 
 ;;; Dave makes Rx look like Clojure; we make Clojure look like Rx.
 
-(pdump
- (let [-map    (flip map)
-       -filter (flip filter)]
-   (-> (range 50)
-       (-map    #(str "NonReactiveValue2.0_" %))
-       (-map    (partial (flip clojure.string/split) #"_"))
-       (-map    (fn [[a b]] [a (Integer/parseInt b)]))
-       (-filter (fn [[a b]] (= 0 (mod b 7))))
-       pdump
-       )))
+(let [-map    (flip map)
+      -filter (flip filter)]
+  (-> (range 50)
+      (-map    #(str "NonReactiveValue2.0_" %))
+      (-map    (partial (flip clojure.string/split) #"_"))
+      (-map    (fn [[a b]] [a (Integer/parseInt b)]))
+      (-filter (fn [[a b]] (= 0 (mod b 7))))
+      pdump))
 
 ;;; With these local definitions, "-map" and "-filter", the non-reactive
 ;;; version looks almost just like the reactive version.
@@ -769,15 +740,13 @@
                      (-> obr .onCompleted))]
        (future-cancelling-subscription f)))))
 
-(pdump
- (-> (asynchronous-observable (range 50))
-     (.map    (rx/fn* #(str "AsynchronousValue_" %)))
-     (.map    (rx/fn* (partial (flip clojure.string/split) #"_")))
-     (.map    (rx/fn [[a b]] [a (Integer/parseInt b)]))
-     (.filter (rx/fn [[a b]] (= 0 (mod b 7))))
-     subscribe-collectors
-     report
-     ))
+(-> (asynchronous-observable (range 50))
+    (.map    (rx/fn* #(str "AsynchronousValue_" %)))
+    (.map    (rx/fn* (partial (flip clojure.string/split) #"_")))
+    (.map    (rx/fn [[a b]] [a (Integer/parseInt b)]))
+    (.filter (rx/fn [[a b]] (= 0 (mod b 7))))
+    subscribe-collectors
+    report)
 
 ;;;  _   _   _             _ _         _
 ;;; | |_| |_| |_ _ __   __| (_)___ _ _| |_   __ _ ___
@@ -1419,8 +1388,7 @@
                       subscribe-collectors
                       report
                       :onNext)
-          }))
-      pdump))
+          }))))
 
 ;;;
 ;;; Javascript
@@ -1551,10 +1519,11 @@
 ;;; The following shows how to print the current members of the
 ;;; Observable class.
 
-(pdump (into #{}
-             (map (comp #(% 1) first)
-                  (sort-by
-                   :name
-                   (filter
-                    :exception-types
-                    (:members (r/reflect Observable :ancestors true)))))))
+(pdump
+ (into #{}
+       (map (comp #(% 1) first)
+            (sort-by
+             :name
+             (filter
+              :exception-types
+              (:members (r/reflect Observable :ancestors true)))))))
