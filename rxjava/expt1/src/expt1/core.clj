@@ -753,6 +753,11 @@
 ;;;  \___/|_.__/__/\___|_|  \_/\__,_|_.__/_\___|
 ;;;
 
+(defn- future-cancelling-subscription
+  "Create a future-cancelling subscription from a Clojure future."
+  [f]
+  (Subscriptions/create (rx/action [] (future-cancel f))))
+
 (defn asynchronous-observable
   "Transform a Clojure sequence into a custom Observable whose
    'subscribe' method returns immediately and whose other actions --
@@ -762,10 +767,7 @@
    (rx/fn [obr]                         ; this is "subscribe"
      (let [f (future (doseq [x the-seq] (-> obr (.onNext x)))
                      (-> obr .onCompleted))]
-
-       ;; Return a subscription that cancels the future:
-
-       (Subscriptions/create (rx/action [] (future-cancel f)))))))
+       (future-cancelling-subscription f)))))
 
 (pdump
  (-> (asynchronous-observable (range 50))
@@ -787,15 +789,7 @@
 ;;;     / _ \ '_ (_-</ -_) '_\ V / _` | '_ \ / -_)
 ;;;     \___/_.__/__/\___|_|  \_/\__,_|_.__/_\___|
 
-
-
-;;;    _                    _     __      __   _      ___
-;;;   /_\   ____  _ _ _  __| |_   \ \    / /__| |__  | _ \__ _ __ _ ___ ___
-;;;  / _ \ (_-< || | ' \/ _| ' \   \ \/\/ / -_) '_ \ |  _/ _` / _` / -_|_-<
-;;; /_/ \_\/__/\_, |_||_\__|_||_|   \_/\_/\___|_.__/ |_| \__,_\__, \___/__/
-;;;            |__/                                           |___/
-
-(defn asynchWikipediaArticle
+(defn asynch-wikipedia-article
   "Fetch a sequence of Wikipedia articles asynchronously with proper
    error handling."
   [names]
@@ -811,7 +805,7 @@
                           (str "https://en.wikipedia.org/wiki/" name))))))
                  (catch Exception e (-> obr (.onError e))))
                (-> obr .onCompleted))]
-       (Subscriptions/create (rx/action [] (future-cancel f)))))))
+       (future-cancelling-subscription f)))))
 
 ;;; The following is a left-over reminder from an earlier attempt that
 ;;; we can use the "zipper" to traverse and modify the html.  Powerful
@@ -828,8 +822,10 @@
 (when hit-wikipedia
   (->>
    (((:reporter (subscribe-collectors
-                 (asynchWikipediaArticle
-                  [(rand-nth ["Atom" "Molecule" "Quark" "Boson" "Fermion"])
+                 (asynch-wikipedia-article
+                  [(rand-nth ["Atom" "Molecule" "Quark" "Boson" "Fermion"
+                              "Electron" "Positron" "Muon" "Pion" "Kaon"
+                              "Hadron" "Lepton" "Mezon"])
                    "NonExistentTitle"
                    (rand-nth ["Lion" "Tiger" "Bear" "Shark"])])
                  5000)))
@@ -842,53 +838,61 @@
 ;;; | .` / -_)  _|  _| | \ \ /  \ V /| / _` / -_) _ (_-<
 ;;; |_|\_\___|\__|_| |_|_/_\_\   \_/ |_\__,_\___\___/__/
 
-(defn simulated-slow-map
-  [nullaryFnToMapObject & optionalDelayMSec]
-
-  (let [delay (or-default optionalDelayMSec 50)]
+(defn simulated-slow-thunk
+  "Simulate the timing of a slow operation."
+  [thunk & optional-delay]
+  (let [delay (or-default optional-delay 50)]
     (Observable/create
      (rx/fn [obr]
        (let [f (future
                  (try
-
-                   ;; simulate fetching user data via network service
-                   ;; call with latency
-
                    (Thread/sleep delay)
-                   (-> obr (.onNext (nullaryFnToMapObject)))
+                   (-> obr (.onNext (thunk)))
                    (-> obr .onCompleted)
                    (catch Exception e (-> obr (.onError e))))) ]
+         (future-cancelling-subscription f))))))
 
-         ;; a subscription that cancels the future if unsubscribed
+(defn- coin-toss
+  "Choose between two alternatives with equal probability."
+  [heads tails]
+  (if (= 0 (rand-int 2)) heads tails))
 
-         (Subscriptions/create f))))))
-
-(defn getUser [userId]
-  "Asynchronously fetch user data. Returns observable of a hash-map."
-  (simulated-slow-map
+(defn get-user
+  "Asynchronously fetch user data into an observable of a hash-map."
+  [user-id]
+  (simulated-slow-thunk
    (fn []
-     {:user-id userId
+     {:user-id user-id
       :name "Sam Harris"
-      :preferred-language (if (= 0 (rand-int 2)) "en-us" "es-us") })
+      :preferred-language (coin-toss "en-us" "es-us") })
    60))
 
-(defn getVideoBookmark [userId, videoId]
-  "Asynchronously fetch bookmark for video. Returns observable of an
-integer."
-  (simulated-slow-map
+(-> (get-user 8765)
+    subscribe-collectors
+    report)
+
+(defn get-video-bookmark
+  "Asynchronously fetch bookmark for video into observable of an
+  integer."
+  [user-id, video-id]
+  (simulated-slow-thunk
    (fn []
-     {:video-id videoId
-      ;; 50% chance of giving back position 0 or 0-2500
-      :position (if (= 0 (rand-int 2)) 0 (rand-int 2500))})
+     {:video-id video-id
+      :position (coin-toss 0 (rand-int 2500))})
    20))
 
-(defn getVideoMetadata [videoId, preferredLanguage]
-  "Asynchronously fetch movie metadata for a given language. Return
-observable of a hash-map."
-  (simulated-slow-map
+(-> (get-video-bookmark 8765 23459876)
+    subscribe-collectors
+    report)
+
+(defn get-video-metadata
+  "Asynchronously fetch movie metadata for a given language into
+  observable of a hash-map."
+  [video-id, preferred-language]
+  (simulated-slow-thunk
    (fn []
-     {:video-id videoId
-      :title (case preferredLanguage
+     {:video-id video-id
+      :title (case preferred-language
                "en-us" "House of Cards: Episode 1"
                "es-us" "Cámara de Tarjetas: Episodio 1"
                "no-title")
@@ -896,56 +900,56 @@ observable of a hash-map."
       :duration 3365})
    50))
 
-(defn getVideoForUser [userId videoId]
-  "Get video metadata for a given userId
+(-> (get-video-metadata 23459876 (coin-toss "en-us" "es-us"))
+    subscribe-collectors
+    report)
+
+(defn get-video-for-user
+  "Get video metadata for a given user-id
   - video metadata
   - video bookmark position
   - user data
-  Returns observable of a hash-map."
-  (let [user-observable
-        (-> (getUser userId)
+  Produces observable of a hash-map."
+  [user-id video-id]
+  (let [user-obl
+        (-> (get-user user-id)
             (.map (rx/fn [user] {:user-name (:name user)
-                                 :language (:preferred-language user)})))
-        bookmark-observable
-        (-> (getVideoBookmark userId videoId)
+                                 :language  (:preferred-language user)})))
+        bookmark-obl
+        (-> (get-video-bookmark user-id video-id)
             (.map (rx/fn [bookmark] {:viewed-position (:position bookmark)})))
 
-        ;; getVideoMetadata requires :language from user-observable; nest
-        ;; inside map function
-
-        video-metadata-observable
-        (-> user-observable
+        video-metadata-obl
+        (-> user-obl
             (.mapMany
-             ;; fetch metadata after a response from user-observable is
-             ;; received
-             (rx/fn [user-map]
-               (getVideoMetadata videoId (:language user-map)))))]
+             (rx/fn [user-hashmap]
+               (get-video-metadata video-id (:language user-hashmap)))))]
 
     (-> (Observable/zip
 
-         ;; "zip" takes N observables ...
+         ;; take N observables ...
 
-         bookmark-observable
-         video-metadata-observable
-         user-observable
+         bookmark-obl
+         video-metadata-obl
+         user-obl
 
          ;; and an N-ary function ...
 
          (rx/fn [bookmark-map metadata-map user-map]
            {:bookmark-map bookmark-map
             :metadata-map metadata-map
-            :user-map user-map}))
+            :user-map     user-map}))
 
-        ;; and produces a single response observable
+        ;; and convert format
 
         (.map (rx/fn [data]
-                {:video-id       videoId
-                 :user-id        userId
+                {:video-id       video-id
+                 :user-id        user-id
                  :video-metadata (:metadata-map    data)
                  :language       (:language        (:user-map data))
                  :bookmark       (:viewed-position (:bookmark-map data))})))))
 
-(-> (getVideoForUser 12345 78965)
+(-> (get-video-for-user 12345 78965)
     subscribe-collectors
     report
     )
@@ -959,8 +963,8 @@ observable of a hash-map."
 ;;; | _|\ \ / -_) '_/ _| (_-</ -_|_-<
 ;;; |___/_\_\___|_| \__|_/__/\___/__/
 
-;;; Compare-contrast Java, JavaScript, and Datapath (a dialect of
-;;; mini-Kanren)
+;;; Compare-contrast Java, JavaScript, and Datapath (an Amazon dialect
+;;; of mini-Kanren)
 
 ;;;    ____                 _           ____
 ;;;   / __/_ _____ ________(_)__ ___   / __/
@@ -968,7 +972,7 @@ observable of a hash-map."
 ;;; /___//_\_\\__/_/  \__/_/___/\__/ /____/
 
 ;;; Exercise 5: Use map() to project an array of videos into an array of
-;;; {id,title} pairs For each video, project a {id,title} pair.
+;;; {id,title} pairs.  For each video, project a {id,title} pair.
 
 ;;; (in Clojure, iterpret "pair" to mean "a hash-map with two elements")
 
@@ -981,45 +985,46 @@ observable of a hash-map."
 
 (-> (jslurp "Exercise_5.json")
 
-    ;; Make all levels asynchronous (maximize fuggliness):
+    ;; Make all levels asynchronous (fuggle):
 
     asynchronous-observable
 
     ;; The following line is the one that should be compared /
     ;; contrasted with JavaScript & Datapath -- the surrounding lines
-    ;; are just input & output.  I do likewise with all the other
-    ;; exercises: surrounding the "meat" in the sandwich with blank
-    ;; lines.
+    ;; are just input & output.
 
-    (.map (rx/fn [vid] {:id (vid "id") :title (vid "title")}))
+    (.map
+     (rx/fn [vid] {:id    (vid "id")
+                   :title (vid "title")
+                  }))
 
     subscribe-collectors
     report)
 
+;;;
 ;;; in JavsScript, interpret "pair" to mean "an object with two
 ;;; properties"
 
 ;;; return newReleases
 ;;;   .map(
 ;;;     function (r) {
-;;;       return {
-;;;         id: r.id,
-;;;         title: r.title
+;;;       return { id:    r.id,
+;;;                title: r.title
 ;;;       };
 ;;;     });
 
-;;; Datapath
 
-;;; (exist (r)
+;;;
+;;; Datapath
+;;;
+
+;;; (exist (r)                           ; declare your logic values
 ;;;   (and
-;;;     (.* newReleases r)
-;;;     (= result {
-;;;          id: (. r "id"),
-;;;          title: (. r "title"),
+;;;     (.* newReleases r)               ; the fact-base
+;;;     (= result { id:    (. r "id"),   ; unify
+;;;                 title: (. r "title"),
 ;;;        }
-;;;     )
-;;;   )
-;;; )
+;;; ) ) )
 
 ;;;    ____                 _           ___
 ;;;   / __/_ _____ ________(_)__ ___   ( _ )
@@ -1035,13 +1040,15 @@ observable of a hash-map."
     asynchronous-observable
 
     (.filter (rx/fn [vid] (== (vid "rating") 5.0)))
-    (.map    (rx/fn [vid]  (vid "id")))
+    (.map    (rx/fn [vid]     (vid "id"    )     ))
 
     subscribe-collectors
     report)
 
+;;;
 ;;;  Javascript
 ;;;
+
 ;;; return newReleases
 ;;;   .filter(
 ;;;     function(r) {
@@ -1053,15 +1060,17 @@ observable of a hash-map."
 ;;;     });
 
 
+;;;
 ;;;  Datapath
 ;;;
+
 ;;; (exist (r)
 ;;;   (and
 ;;;     (.* newReleases r)
 ;;;     (. r "rating" 5.0)
-;;;     (. r "id" id)
-;;;   )
-;;; )
+;;;     (. r "id" id)                    ; instantiate the variable id
+;;; ) )
+
 
 ;;;    ____                 _           ______
 ;;;   / __/_ _____ ________(_)__ ___   <  <  /
@@ -1071,7 +1080,8 @@ observable of a hash-map."
 ;;; Exercise 11: Use map() and mergeAll() to project and flatten the
 ;;; movie lists into an array of video ids.
 
-;;; Produce a flattened list of video ids from all movie lists.
+;;; Restatement: Produce a flattened list of video ids from all movie
+;;; lists.
 
 ;;; Remark: No "mergeAll" in rxjava / Clojure; look up "merge" here:
 ;;; http://netflix.github.io/RxJava/javadoc/rx/Observable.html
@@ -1080,7 +1090,8 @@ observable of a hash-map."
     asynchronous-observable
 
     ;; Fetch the "videos" key out of each genre.
-    (.map (rx/fn [genre] (asynchronous-observable (genre "videos"))))
+    (.map (rx/fn [genre]
+            (asynchronous-observable (genre "videos"))))
 
     (Observable/merge)
 
@@ -1090,8 +1101,10 @@ observable of a hash-map."
     subscribe-collectors
     report)
 
+;;;
 ;;; Javascript
 ;;;
+
 ;;; return movieLists
 ;;;   .map(
 ;;;     function(x) {
@@ -1103,9 +1116,16 @@ observable of a hash-map."
 ;;;       return x.id;
 ;;;     });
 
+
+;;;
 ;;; Datapath
 ;;;
-;;; (. (.* (. (.* movieLists) "videos")) "id" id)
+
+;;; (.
+;;;   (.*
+;;;     (.
+;;;       (.* movieLists) "videos") ) "id" id)
+
 
 ;;;    ____                 _           _______
 ;;;   / __/_ _____ ________(_)__ ___   <  / / /
@@ -1131,10 +1151,11 @@ observable of a hash-map."
                                   (.filter (rx/fn [art]
                                              (and (== 150 (art "width"))
                                                   (== 200 (art "height")))))
-                              (.map (rx/fn [art] ;; note closure over "vid"
-                                      {:id    (vid "id")
+                              (.map (rx/fn [art]
+                                      ;; note closure over "vid"
+                                      {:id    (vid "id"   )
                                        :title (vid "title")
-                                       :url   (art "url")})))))
+                                       :url   (art "url"  )})))))
 
     subscribe-collectors
     report)
@@ -1142,6 +1163,7 @@ observable of a hash-map."
 ;;;
 ;;; Javascript
 ;;;
+
 ;;; return movieLists
 ;;;   .mapMany(function(m) { return m.videos })
 ;;;   .mapMany(
@@ -1162,12 +1184,15 @@ observable of a hash-map."
 ;;;             };
 ;;;           });
 ;;;     });
+
+
+;;;
 ;;; Datapath
 ;;;
 
 ;;; Datapath avoids closure issues by instantiating all variables in a
 ;;; "unification" style. Bravo!
-
+;;;
 ;;; (exist (v x)
 ;;;   (and
 ;;;     (.* (. (.* movieLists) "videos") v)
@@ -1175,11 +1200,11 @@ observable of a hash-map."
 ;;;     (. x "width" 150)
 ;;;     (. x "height" 200)
 ;;;     (= result {
-;;;          id: (. v "id"),
-;;;          title: (. v "title"),
-;;;          boxart: (. x "url")
+;;;          id:     (. v "id"   ),
+;;;          title:  (. v "title"),
+;;;          boxart: (. x "url"  )
 ;;;        }
-;;;     )))
+;;; ) ) )
 
 
 ;;;    ____                 _           ___ ____
@@ -1207,24 +1232,27 @@ observable of a hash-map."
                                   (.filter (rx/fn [moment]
                                              (= (moment "type") "Middle"))))
                       ]
+
                   (Observable/zip
 
                    arts
                    moments
 
                    (rx/fn [art moment]
-                     {:id    (vid    "id")
+                     {:id    (vid    "id"   )
                       :title (vid    "title")
-                      :time  (moment "time")
-                      :url   (art    "url")}
+                      :time  (moment "time" )
+                      :url   (art    "url"  )}
                      )))
                 ))
 
     subscribe-collectors
     report)
 
+;;;
 ;;; Javascript
 ;;;
+
 ;;; return movieLists
 ;;;   .mapMany(
 ;;;     function(movieList) {
@@ -1257,8 +1285,11 @@ observable of a hash-map."
 ;;;         });
 ;;;     });
 
+
+;;;
 ;;; Datapath
 ;;;
+
 ;;; (exist (video boxart moment)
 ;;;   (and
 ;;;     (.* (. (.* movieLists) "videos") video)
@@ -1274,11 +1305,10 @@ observable of a hash-map."
 ;;;     (.* (. video "interestingMoments") moment)
 ;;;     (. moment "type" "Middle")
 ;;;     (= result
-;;;        {
-;;;          id: (. video "id"),
+;;;        { id:    (. video "id"   ),
 ;;;          title: (. video "title"),
-;;;          url: (. boxart "url"),
-;;;          time: (. moment "time")
+;;;          url:   (. boxart "url" ),
+;;;          time:  (. moment "time")
 ;;;        })
 ;;;   ))
 
@@ -1362,8 +1392,40 @@ observable of a hash-map."
 ;;;     }
 ;;; ]
 
+(let [lists  (-> (jslurp "Exercise_25_lists.json")  asynchronous-observable)
+      videos (-> (jslurp "Exercise_25_videos.json") asynchronous-observable)]
+
+  (-> lists
+      (.map (rx/fn [lyst]
+              {:name (lyst "name")
+               :videos
+               (-> videos
+                   ;; The following contains the "join condition."
+                   (.filter (rx/fn [vid] (== (vid "listId") (lyst "id"))))
+                   (.map    (rx/fn [vid] {:id    (vid "id"   )
+                                          :title (vid "title")}))
+                   )
+              }))
+
+      subscribe-collectors
+      report
+
+      :onNext
+
+      ((flip map)
+       (fn [lyst]
+         {:name   (lyst :name)
+          :videos (-> (lyst :videos)
+                      subscribe-collectors
+                      report
+                      :onNext)
+          }))
+      pdump))
+
+;;;
 ;;; Javascript
 ;;;
+
 ;;; return lists.map(
 ;;;   function (list) {
 ;;;     return {
@@ -1383,56 +1445,29 @@ observable of a hash-map."
 ;;;     };
 ;;;   });
 
+;;;
 ;;; Datapath
 ;;;
+
 ;;; (exist (list)
 ;;;   (and
 ;;;     (.* lists list)
 ;;;     (= result {
-;;;         name: (. list "name"),
-;;;         videos: (list (v)
-;;;           (exist (video)
-;;;             (and
-;;;               (.* videos video)
-;;;               (. video "listId" (. list "id"))
-;;;               (= v {
-;;;                   id: (. video "id"),
-;;;                   title: (. video "title")
-;;;                 })
-;;;             )
-;;;           ))
-;;;       })
-;;;   )
-;;; )
+;;;         name:   (. list "name"),
+;;;         videos:
+;;;           (list (v)
+;;;             (exist (video)
+;;;               (and
+;;;                 (.* videos video)
+;;;                 (. video "listId" (. list "id"))
+;;;                 (= v { id:    (. video "id"   ),
+;;;                        title: (. video "title")
+;;;                      }
+;;;           ) ) ) )
+;;;       }
+;;; ) ) )
 
-(let [lists  (-> (jslurp "Exercise_25_lists.json")  asynchronous-observable)
-      videos (-> (jslurp "Exercise_25_videos.json") asynchronous-observable)]
 
-  (-> lists
-      (.map (rx/fn [lyst]
-              {:name (lyst "name")
-               :videos
-               (-> videos
-                   ;; The following contains the "join condition."
-                   (.filter (rx/fn [vid] (== (vid "listId") (lyst "id"))))
-                   (.map    (rx/fn [vid] {:id (vid "id")
-                                          :title (vid "title")}))
-                   )
-               }))
-
-      subscribe-collectors
-      report
-      :onNext
-
-      ((flip map)
-       (fn [lyst]
-         {:name (lyst :name)
-          :videos (-> (lyst :videos)
-                      subscribe-collectors
-                      report
-                      :onNext)
-          }))
-      pdump))
 
 ;;;    _  __           __             _____
 ;;;   / |/ /_ ____ _  / /  ___ ____  / ___/__ ___ _  ___ ___
@@ -1472,12 +1507,12 @@ observable of a hash-map."
 ;;; /___/\_,_/_.__/_/ /\__/\__/\__/
 ;;;              |___/
 
-;;; This enables mapping of the reactive scheme to REST.  Transformed
-;;; observables are "Subjects:" both observers and observables.  As
-;;; observers, they subscribe (in a privileged subscriber list) to their
-;;; antecedents.  As observables, they are ordinary.  They may suffer
-;;; additional transformations, becoming antecedents of other
-;;; observables.  Or they may be simply observed by egress observers.
+;;; Enable reactive scheme on REST.  Transformed observables are
+;;; "Subjects:" both observers and observables.  As observers, they
+;;; subscribe (in a privileged subscriber list) to their antecedents.
+;;; As observables, they are ordinary.  They may suffer additional
+;;; transformations, becoming antecedents of other observables.  Or they
+;;; may be simply observed by egress observers.
 
 (pdump
  (let [obl1 (PublishSubject/create)]
