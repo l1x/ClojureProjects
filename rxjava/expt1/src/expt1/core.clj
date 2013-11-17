@@ -62,7 +62,7 @@
 (def hit-wikipedia
   "Set to 'false' or 'nil' during development to avoid hitting the web
    site too much"
-  false)
+  true)
 
 (defmacro pdump
   "Monitoring and debugging macro with semantics of 'identity'."
@@ -363,8 +363,9 @@
 
 ;;; Now, growing:
 
-(->> ["one" "two" "three"]
-     (mapcat string-explode))
+(pdump
+ (->> ["one" "two" "three"]
+      (mapcat string-explode)))
 
 (-> (Observable/from ["one" "two" "three"])
     (.mapMany (rx/fn [string] (Observable/from (string-explode string))))

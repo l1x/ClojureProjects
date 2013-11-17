@@ -1,11 +1,16 @@
 (ns tunnel.core
   (:use compojure.core)
-  (:require [compojure.handler       :as handler ]
-            [compojure.route         :as route   ]
-            [clojure.pprint          :as pp      ]
-            [clojure.data.json       :as json    ]
-            [clj-http.client         :as client  ]
-            [rx.lang.clojure.interop :as rx      ])
+  (:require [compojure.handler       :as   handler ]
+            [compojure.route         :as   route   ]
+            [clojure.pprint          :as   pp      ]
+            [clojure.data.json       :as   json    ]
+            [clj-http.client         :as   client  ]
+            [rx.lang.clojure.interop :as   rx      ])
+  (:use     [clojail.core            :only [sandbox]]
+            [clojail.testers         :only [blacklist-symbols
+                                            blacklist-objects
+                                            secure-tester
+                                            ]])
   (:import [rx
             Observable
             Observer
@@ -32,7 +37,8 @@
                      (rx/fn [obr]
                        (.onNext obr {:x (str x)})
                        (.onNext obr {:x (str (* x x))})
-                       (.onCompleted obr)))))))]
+                       (.onCompleted obr)))))))
+      ]
   (.subscribe rsub (rx/action [obn] (pp/pprint (str "Observed!: " obn))))
   (.subscribe ssub (rx/action [obn] (pp/pprint (str "Transformed!: " obn))))
   (defroutes app-routes
