@@ -1137,6 +1137,7 @@
    (= '(pasta e fagioli)
       (run* [x] (memberrevo x '(pasta e fagioli))))
    "frame 3-100")
+
 )
 
 ;;;   ___ _              _             _ _
@@ -1147,29 +1148,66 @@
 
 (test/deftest foo-test-04-1
 
+  (defn eq-car? [l x]
+    (cond
+     (empty? l)      false
+     (= x (first l)) true
+     true            false))
+
+  (defn mem [x l]
+    (cond
+     (empty? l)      false
+     (eq-car? l x)   l
+     true            (mem x (rest l))))
+
+  (test/is
+   (= '(tofu d peas e)
+      (mem 'tofu '(a b tofu d peas e)))
+   "frame 4-1")
+
+  (test/is
+   (= false
+      (mem 'tofu '(a b peas d peas e)))
+   "frame 4-2")
+
+  (test/is
+   (= '((tofu d peas e))
+      (run* [out] (== out (mem 'tofu '(a b tofu d peas e)))))
+   "frame 4-3")
+
+  (test/is
+   (= '(peas e)
+      (mem 'peas
+           (mem 'tofu '(a b tofu d peas e ))))
+   "frame 4-4")
+
   (test/is
    (= '((tofu d tofu e))
-      (run 1 [out] (memo 'tofu '(a b tofu d tofu e) out))))
+      (run 1 [out] (memo 'tofu '(a b tofu d tofu e) out)))
+   "frame 4-7")
 
   (test/is
    (= '((tofu d tofu e))
       (run 1 [out]
            (fresh [x]
-                  (memo 'tofu (list 'a 'b x 'd 'tofu 'e) out)))))
+                  (memo 'tofu (list 'a 'b x 'd 'tofu 'e) out))))
+   "frame 4-")
 
   (test/is
    (= '(tofu)
       (run* [r]
             (memo r
                   '(a b tofu d tofu e)
-                  '(tofu d tofu e)))))
+                  '(tofu d tofu e))))
+   "frame 4-")
 
   ;; Frame 4-17
   (test/is
    (= '((tofu d tofu e) (tofu e))
       (run* [out]
             (fresh [x]
-                   (memo 'tofu (list 'a 'b x 'd 'tofu 'e) out)))))
+                   (memo 'tofu (list 'a 'b x 'd 'tofu 'e) out))))
+   "frame 4-")
   (test/is
    (= (list '_0
             '_0
@@ -1179,7 +1217,8 @@
             (llist '_0 '_1 '_2 'tofu '_3))
       (run 6 (z)
            (fresh [u]
-                  (memo 'tofu (llist 'a 'b 'tofu 'd 'tofu 'e z) u)))))
+                  (memo 'tofu (llist 'a 'b 'tofu 'd 'tofu 'e z) u))))
+   "frame 4-")
 
   ;; Frame 4-30
   (test/is
@@ -1187,7 +1226,8 @@
       (run 1 [out]
            (fresh [y] (rembero 'peas
                                (list 'a 'b y 'd 'peas 'e)
-                               out)))))
+                               out))))
+   "frame 4-")
 
   ;; Looks like clojure.logic is doing something more sophisticated
   ;; than mini-Kanren does. Looking at the third inference,
@@ -1204,7 +1244,8 @@
         ((a b _0 d e) :- (!= (_0 a)) (!= (_0 b)) (!= (_0 _0)) (!= (_0 d))))
       (run* [out]
             (fresh [y z]
-                   (rembero y (list 'a 'b y 'd z 'e) out)))))
+                   (rembero y (list 'a 'b y 'd z 'e) out))))
+   "frame 4-")
 
   ;; Frame 4-49
   ;; This mystery is getting deeper; this result isn't anything like
@@ -1214,7 +1255,8 @@
       (run* [r]
             (fresh [y z]
                    (rembero y (list y 'd z 'e) (list y 'd 'e))
-                   (== (list y z) r)))))
+                   (== (list y z) r))))
+   "frame 4-")
 
   ;; Resolve this mystery by implementing our own rembero, called
   ;; rembero2, in the file utils.clj, according to the guidelines in
@@ -1226,5 +1268,6 @@
                     [( e  e)  e  e]
                     ) (run* [r y z]
                     (rembero2 y (list y 'd z 'e) (list y 'd 'e))
-                    (== (list y z) r))))
+                    (== (list y z) r)))
+           "frame 4-")
   )

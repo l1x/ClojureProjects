@@ -181,10 +181,11 @@ we don't have an order-preserving 'conde'."
   "Succeeds when out equals the sublist of l whose first (car) is x."
   [x l out]
   (conde
+   ((emptyo l)    u#)
    ((eq-caro l x) (== l out))
-   (s# (fresh [d]
-              (resto l d)
-              (memo x d out)))))
+   (s#            (fresh [d]
+                         (resto l d)
+                         (memo x d out)))))
 
 ;;; Frame 4-24
 (defn rembero2
