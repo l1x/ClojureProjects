@@ -144,11 +144,32 @@ unique solutions"
               (resto l d)
               (pmembero-3-86 x d)))))
 
-;;; Frame 3-95
-(defn memberrevo
-  "Succeeds if x is a member of proper list l, and produces all unique solutions in reverse order (however, this does not work in clojure since we don't have an order-preserving 'conde'."
+(defn pmembero-3-93
+  "Succeeds if x is a member of proper list l, and produces all
+unique solutions"
   [x l]
   (conde
+   ((emptyo l) u#)
+   ((eq-caro l x) (fresh [a d]
+                         (resto l (llist a d))))
+   ((eq-caro l x) (resto l ()))
+   (s# (fresh [d]
+              (resto l d)
+              (pmembero-3-93 x d)))))
+
+(defn first-value
+  "Produces a list containing the first value of the given list, l."
+  [l]
+  (run 1 [y] (membero y l))
+  )
+
+(defn memberrevo
+  "Succeeds if x is a member of proper list l, and produces all unique
+solutions in reverse order (however, this does not work in clojure since
+we don't have an order-preserving 'conde'."
+  [x l]
+  (conde
+   ((emptyo l) u#)
    (s# (fresh [d]
               (resto l d)
               (memberrevo x d)))

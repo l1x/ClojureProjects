@@ -1111,11 +1111,33 @@
       (map (comp str vector) (run 12 [l] (pmembero-3-86 'tofu l))))
    "frame 3-89")
 
+  (test/is
+   (= '("[(tofu _0 . _1)]"
+        "[(tofu)]"
+        "[(_0 tofu _1 . _2)]"
+        "[(_0 tofu)]"
+        "[(_0 _1 tofu _2 . _3)]"
+        "[(_0 _1 tofu)]"
+        "[(_0 _1 _2 tofu _3 . _4)]"
+        "[(_0 _1 _2 tofu)]"
+        "[(_0 _1 _2 _3 tofu _4 . _5)]"
+        "[(_0 _1 _2 _3 tofu)]"
+        "[(_0 _1 _2 _3 _4 tofu _5 . _6)]"
+        "[(_0 _1 _2 _3 _4 tofu)]")
+      (map (comp str vector) (run 12 [l] (pmembero-3-93 'tofu l))))
+         "frame 3-94")
+
+  (test/is (= '(pasta)
+              (first-value '(pasta e fagioli)))
+           "frame 3.96")
+
   ;; Frame 3-100 -- Our conde doesn't have the same order as the book's
   ;; conde.
   (test/is
    (= '(pasta e fagioli)
-      (run* [x] (memberrevo x '(pasta e fagioli))))))
+      (run* [x] (memberrevo x '(pasta e fagioli))))
+   "frame 3-100")
+)
 
 ;;;   ___ _              _             _ _
 ;;;  / __| |_  __ _ _ __| |_ ___ _ _  | | |
