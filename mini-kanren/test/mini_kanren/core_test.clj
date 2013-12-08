@@ -383,7 +383,7 @@
                     (conde
                      ((== true q) s#)
                      (s# (== false q)))))
-           "frame 1-60 (augmentation)")
+           "frame 1-60 (augment 1)")
 
   ;; Last clause in a conde gets a default u#:
   (test/is (= '(true false)
@@ -391,7 +391,7 @@
                 (conde
                  ((== true q) s#)
                  ((== false q) s#))))
-           "frame 1-60 (augmentation)")
+           "frame 1-60 (augment 2)")
 
   (test/is (= [false]
               (run* [q]
@@ -692,24 +692,71 @@
                 (pairo (lcons 'pear ()))
                 (== 'true q))
               '(true))
-           "frame 2-")
+           "frame 2-47")
+
+  (test/is (= (run* [q]
+                (firsto (lcons 'pear ()) q))
+              '(pear))
+           "frame 2-48")
 
   (test/is (= (run* [q]
                 (resto (lcons 'pear ()) q))
               '(()))
-           "frame 2-")
+           "frame 2-49")
+
+  (test/is (= '(())
+              (run* [q] (resto (lcons 'pear ()) q)))
+           "frame 2-50")
 
   (test/is (= (run* [x] (pairo x))
 
-              ;; The notation '(_0 . _1) ends up not being equal to
-              ;; the result of (pairo x), even though they look
-              ;; exactly the same.
+              ;; The notation '(_0 . _1) ends up not being equal to the
+              ;; result of (pairo x), even though they look exactly the
+              ;; same, because . is part of Clojure's Java-interop
+              ;; syntax.
 
               (run* [q]
                 (fresh [x y]
                   (== (lcons x y) q))))
-           "frame 2-")
-  )
+           "frame 2-??")
+
+  (test/is (= '("(_0 . _1)")
+              (map str
+                   (run* [q] (pairo q))))
+           "frame 2-??")
+
+  (test/is (= '("(_0 _1 . salad)")
+              (map str (run* [r]
+                             (fresh [x y]
+                                    (== (lcons x (lcons y 'salad)) r)))))
+           "frame 2-52")
+
+  (test/is (= '(true)
+              (run* [q]
+                    (== q true)
+                    (pairo (lcons q q))))
+           "frame 2-54")
+
+  (test/is (= '()  (run* [q]
+                         (== q true)
+                         (pairo '())))
+           "frame 2-55")
+
+  (test/is (= '()  (run* [q]
+                         (== q true)
+                         (pairo 'pair)))
+           "frame 2-56")
+
+  (test/is (= (map str (run* [q]
+                             (pairo q)))
+              '("(_0 . _1)"))
+           "frame 2-57")
+
+  (test/is (= '(_0)
+             (run* [r]
+                   (pairo (lcons r 'pear))))
+           "frame 2-58")
+)
 
 
 ;;;   ___ _              _             ____
@@ -721,50 +768,101 @@
 (test/deftest foo-test-03-1
   (test/is (= '(true)
               (run* [q]
-                (== (llist 'a 'b)
-                    (lcons 'a 'b))
-                (== q 'true)))
-           "frame 3-")
+                    (== (llist 'a 'b)
+                        (lcons 'a 'b))
+                    (== q 'true)))
+           "frame 3-??")
 
-  (test/is (= '(true) (run* [q] (listo ()) (== q 'true)))
-           "frame 3-")
+  (test/is (= '(true) (run* [q]
+                            (listo ())
+                            (== q 'true)))
+           "frame 3-??")
 
-  (test/is (= '([true _0]) (run* [q x] (listo '(a b x d)) (== q 'true)))
-           "frame 3-")
+  (test/is (= '([true _0])
+              (run* [q x]
+                    (listo '(a b x d))
+                    (== q 'true)))
+           "frame 3-7 (buggy)")
 
-  (test/is (= '([true _0]) (run* [q x] (listo (llist 'a 'b x 'd ())) (== q 'true)))
-           "frame 3-")
+  (test/is (= '([true _0])
+              (run* [q x]
+                    (listo `(a b ~x d))
+                    (== q 'true)))
+           "frame 3-7 (buggy)")
+
+  (test/is (= '([true _0])
+              (run* [q x]
+                    (listo (llist 'a 'b x 'd ()))
+                    (== q 'true)))
+           "frame 3-7 (augment 1)")
 
   ;; This next one is not a proper list
-  (test/is (= '() (run* [q x] (listo (llist 'a 'b x 'd)) (== q 'true)))
-           "frame 3-")
+  (test/is (= '()
+              (run* [q x]
+                    (listo (llist 'a 'b x 'd))
+                    (== q 'true)))
+           "frame 3-7 (augment 2)")
 
   ;; But it is a pair
-  (test/is (= '([true _0]) (run* [q x] (pairo (llist 'a 'b x 'd)) (== q 'true)))
-           "frame 3-")
+  (test/is (= '([true _0])
+              (run* [q x]
+                    (pairo (llist 'a 'b x 'd))
+                    (== q 'true)))
+           "frame 3-7 (augment 3)")
+
+  (test/is (= '(())
+              (run 1 [x]
+                   (listo (llist 'a 'b 'c x))))
+           "frame 3-11")
 
   ;; Don't run* the next one: it finds an infinite number of solutions
   ;; and does not terminate:
   (test/is (= '(() (_0) (_0 _1) (_0 _1 _2) (_0 _1 _2 _3))
               (run 5 [x] (listo (llist 'a 'b 'c x))))
-           "frame 3-")
+           "frame 3-14")
 
-  ;; One solution: the empty list:
-  (test/is (= (run 1 [l] (lolo l)) '(()))
-           "frame 3-")
+  (test/is (= '(())
+              (run 1 [l] (lolo l)))
+           "frame 3-20")
 
-  ;; Frame 22: emptyo always succeeds against a fresh var:
-  (test/is (= '(()) (run* [q] (emptyo q)))
-           "frame 3-")
+  (test/is (= [true]
+              (run* [q]
+                    (fresh [x y]
+                           (lolo (llist
+                                  (llist 'a 'b ())
+                                  (llist x 'c ())
+                                  (llist 'd y ())
+                                  ())))
+                    (== q true)))
+           "frame 3-21")
+
+  ;; Emptyo always succeeds against a fresh var:
+  (test/is (= '(())
+              (run* [q] (emptyo q)))
+           "frame 3-22")
+
+  (test/is (= '(())
+              (run 1 [x]
+                   (lolo
+                    (llist
+                     '(a b)
+                     '(c d)
+                     x))))
+           "frame 3-22")
 
   (test/is (=
             '(())
-            (run 1 [x] (lolo (llist '(a b) '(c d) x))))
-           "frame 3-")
+            (run 1 [x] (lolo
+                        (llist
+                         '(a b)
+                         '(c d)
+                         x))))
+           "frame 3-23")
 
   ;; Clojure.logic's conde really produces interleaved results, so it
   ;; gets around to solutions that TRS's conde never finds. See
   ;; http://bit.ly/1a8QmPJ .
+
   (test/is
    (= '(()
         (())
@@ -775,65 +873,83 @@
         ((_0) ())
         (() () ())
         ((_0 _1 _2)))
-      (run 9 [x] (lolo (llist '(a b) '(c d) x))))
-   "frame 3-")
+      (run 9 [x] (lolo (llist
+                        '(a b)
+                        '(c d)
+                        x))))
+   "frame 3-24")
+
+  (test/is
+   (= '(((a b) (c d) () () () ()))
+      (run* [y]
+            (fresh [x]
+                   (== x '(() () () ()))
+                   (== y (llist
+                          '(a b)
+                          '(c d)
+                          x)))))
+   "frame 3-25")
 
   ;; Checking an equivalence between conso and llist:
   (test/is
    (= (run 1 [q] (== q (llist 1 2)))
       (run 1 [q] (conso 1 2 q)))
-   "frame 3-")
+   "frame 3-25 (augment 1)")
 
-  ;; Frame 3-32
+  (test/is
+   (= '("(1 . 2)")
+      (map str (run* [q]
+                     (== q (llist 1 2))
+                     (conso 1 2 q))))
+   "frame 3-25 (augment 2)")
+
   (test/is
    (= '(true)
       (run* [q]
             (twinso '(tofu tofu))
             (== true q)))
-   "frame 3-")
+   "frame 3-32")
 
   (test/is
    (= '(true)
       (run* [q]
             (twinso (list 'tofu 'tofu))
             (== true q)))
-   "frame 3-")
+   "frame 3-32 (alternate 1)")
 
   (test/is
    (= '(true)
       (run* [q]
             (twinso (llist 'tofu 'tofu ()))
             (== true q)))
-   "frame 3-")
-
+   "frame 3-32 (alternate 2)")
 
   (test/is
    (= '(true)
       (run* [q]
             (twinso ['tofu 'tofu])
             (== true q)))
-   "frame 3-")
+   "frame 3-32 (alternate 3)")
 
-  ;; Frame 3-33
   (test/is
    (= '(tofu)
       (run* [q]
             (twinso (list q 'tofu))))
-   "frame 3-")
+   "frame 3-33")
 
   (test/is
    (= '(tofu)
       (run* [q]
             (twinso (list 'tofu q))))
-   "frame 3-")
+   "frame 3-33 (alternate 1)")
 
-  ;; Frame 3-37
   (test/is
-   (= '(())
-      (run 1 [z] (loto (llist '(g g) z))))
-   "frame 3-")
+   (= '(() ((_0 _0)))
+      (run 2 [z] (loto (llist
+                        '(g g)
+                        z))))
+   "frame 3-37")
 
-  ;; Frame 3-42
   (test/is
    (= '(()
         ((_0 _0))
@@ -841,10 +957,11 @@
         ((_0 _0) (_1 _1) (_2 _2))
         ((_0 _0) (_1 _1) (_2 _2) (_3 _3))
         )
-      (run 5 [z] (loto (llist '(g g) z))))
-   "frame 3-")
+      (run 5 [z] (loto (llist
+                        '(g g)
+                        z))))
+   "frame 3-42")
 
-  ;; Frame 3-45
   (test/is
    (= '((e (_0 _0) ())
         (e (_0 _0) ((_1 _1)))
@@ -854,12 +971,16 @@
         )
       (run 5 [r]
            (fresh [w x y z]
-                  (loto (llist '(g g) (list 'e w) (list x y) z))
-                  (== (list w (list x y) z) r)))
-      )
-   "frame 3-")
+                  (loto (llist '(g g)
+                               (list 'e w)
+                               (list x y)
+                               z))
+                  (== r
+                      (list w
+                            (list x y)
+                            z)))))
+   "frame 3-45")
 
-  ;; Frame 3-49
   (test/is
    (= '(((g g) (e e) (_0 _0))
         ((g g) (e e) (_0 _0) (_1 _1))
@@ -869,60 +990,64 @@
         )
       (run 5 [out]
            (fresh [w x y z]
-                  (== (llist '(g g) (list 'e w) (list x y) z) out)
+                  (== out
+                      (llist
+                       '(g g)
+                       (list 'e w)
+                       (list x y)
+                       z))
                   (listofo twinso out))))
-   "frame 3-")
+   "frame 3-49")
 
-  ;; Frame 3-57
   (test/is
    (= '(true)
       (run* [q]
             (membero 'olive '(virgin olive oil))
             (== true q)))
-   "frame 3-")
+   "frame 3-57")
 
-  ;; Frame 3-58
+  (test/is
+   (= '(hummus)
+      (run 1 [y]
+           (membero y '(hummus with pita))))
+   "frame 3-58")
+
   (test/is
    (= '(hummus with pita)
       (run 3 [y]
            (membero y '(hummus with pita))))
-   "frame 3-")
+   "frame 3-58 (alternate 1))")
 
   ;; I ask for three solutions, but there is only one.
   (test/is
    (= '(pita)
       (run 3 [y]
            (membero y '(pita))))
-   "frame 3-")
+   "frame 3-60")
 
-  ;; Frame 3-62
-  ;; Ask for all solutions.
   (test/is
    (= '(hummus with pita)
       (run* [y]
-           (membero y '(hummus with pita))))
-   "frame 3-")
+            (membero y '(hummus with pita))))
+   "frame 3-62")
 
-  ;; Frame 3-66
   (test/is
    (= '(e)
       (run* [x]
             (membero 'e (list 'pasta x 'fagioli))))
-   "frame 3-")
+   "frame 3-66")
 
-  ;; Frame 3-69
   (test/is
    (= '(_0)
       (run 1 [x]
            (membero 'e (list 'pasta 'e x 'fagioli))))
-   "frame 3-")
+   "frame 3-69")
 
-  ;; Frame 3-70
   (test/is
    (= '(e)
       (run 1 [x]
            (membero 'e (list 'pasta x 'e 'fagioli))))
-   "frame 3-")
+   "frame 3-70")
 
   (test/is
    (= '((e _0) (_0 e))
@@ -930,32 +1055,42 @@
             (fresh [x y]
                    (membero 'e (list 'pasta x 'fagioli y))
                    (== (list x y) r))))
-   "frame 3-")
+   "frame 3-71")
 
-  ;; Frame 3-76
+  ;; Remember we can't test equality against things with dots.
   (test/is
-   (= '((tofu . _0)
-        (_0 tofu . _1)
-        (_0 _1 tofu . _2)
-        (_0 _1 _2 tofu . _3)
-        (_0 _1 _2 _3 tofu . _4))
-      (run 5 [l] (membero 'tofu l)))
-   "frame 3-")
+   (= '("(tofu . _0)"
+        "(_0 tofu . _1)"
+        "(_0 _1 tofu . _2)"
+        "(_0 _1 _2 tofu . _3)"
+        "(_0 _1 _2 _3 tofu . _4)")
+      (map str (run 5 [l] (membero 'tofu l))))
+   "frame 3-76")
 
-  ;; Frame 3-76
   (test/is
    (= '((tofu)
         (_0 tofu)
         (_0 _1 tofu)
         (_0 _1 _2 tofu)
         (_0 _1 _2 _3 tofu))
-      (run 5 [l] (pmembero 'tofu l)))
-   "frame 3-")
+      (run 5 [l] (pmembero0 'tofu l)))
+   "frame 3-80")
 
-  ;; Frames 3-81 through 3-85
   (test/is
-   (= '(true true)
-      (run* [q] (pmembero 'tofu '(a b tofu d tofu)) (== q true))))
+   (= '(true)
+      (run* [q]
+            (pmembero-3-80 'tofu '(a b tofu d tofu))
+            (== q true)))
+   "frame 3-81")
+
+  (test/is
+   (= '(true true true)
+      (run* [q]
+            (pmembero-3-83 'tofu '(a b tofu d tofu))
+            (== q true)))
+   "frame 3-84")
+
+  (run 3 [l] (pmembero 'tofu l))
 
   ;; Frame 3-89
   (test/is
@@ -970,16 +1105,15 @@
         (_0 _1 _2 _3 tofu)
         (_0 _1 _2 _3 tofu _4 . _5)
         (_0 _1 _2 _3 _4 tofu)
-        (_0 _1 _2 _3 _4 tofu _5 . _6))))
-  (run 12 [l] (pmembero 'tofu l))
+        (_0 _1 _2 _3 _4 tofu _5 . _6))
+      (map seq (run 12 [l] (pmembero 'tofu l))))
+   "frame 3-89")
 
   ;; Frame 3-100 -- Our conde doesn't have the same order as the book's
   ;; conde.
   (test/is
    (= '(pasta e fagioli)
-      (run* [x] (memberrevo x '(pasta e fagioli)))))
-
-  )
+      (run* [x] (memberrevo x '(pasta e fagioli))))))
 
 ;;;   ___ _              _             _ _
 ;;;  / __| |_  __ _ _ __| |_ ___ _ _  | | |
@@ -1063,10 +1197,10 @@
   ;; Frame 4-24. TODO: examine the implementation of "rember" in
   ;; clojure.core/logic.
   (test/is (= '(  [( d  d)  d  d]
-                  [( d  d)  d  d]
-                  [(_0 _0) _0 _0]
-                  [( e  e)  e  e]
-                  ) (run* [r y z]
-                  (rembero2 y (list y 'd z 'e) (list y 'd 'e))
-                  (== (list y z) r))))
+                    [( d  d)  d  d]
+                    [(_0 _0) _0 _0]
+                    [( e  e)  e  e]
+                    ) (run* [r y z]
+                    (rembero2 y (list y 'd z 'e) (list y 'd 'e))
+                    (== (list y z) r))))
   )

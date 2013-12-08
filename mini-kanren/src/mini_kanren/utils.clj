@@ -45,7 +45,7 @@
    (s# u#)))
 
 (defn twinso
-  "Succeeds if l is a list of identical items."
+  "Succeeds if l is a list of two identical items."
   [l]
   (fresh [x y]
          (conso x y l)
@@ -54,7 +54,7 @@
 
 ;;; Frame 3-36
 (defn twinso
-  "Succeeds if l is a list of identical items."
+  "Succeeds if l is a list of two identical items."
   [l]
   (fresh [x]
          (== (list x x) l)
@@ -109,35 +109,35 @@
               (resto l d)
               (membero x d)))))
 
-;;; Frame 3-80
-(defn pmembero
-  "Succeeds if x is a member of proper list l."
+(defn pmembero-3-80
+  "Succeeds if x is a member of proper list l (frame 3-80)."
   [x l]
   (conde
-   #_((emptyo l) u) ; line unnecessary
+   ((emptyo l) u#)
    ((eq-caro l x) (resto l ()))
    (s# (fresh [d]
               (resto l d)
-              (pmembero x d)))))
+              (pmembero-3-80 x d)))))
 
-;;; Frame 3-83
-(defn pmembero
-  "Succeeds if x is a member of proper list l, and produces all solutions"
+(defn pmembero-3-83
+  "Succeeds if x is a member of proper list l, and produces all
+solutions"
   [x l]
   (conde
-   #_((emptyo l) u) ; line unnecessary
+   ((emptyo l) u#)
    ((eq-caro l x) (resto l ()))
    ((eq-caro l x)  s#)
    (s# (fresh [d]
               (resto l d)
-              (pmembero x d)))))
+              (pmembero-3-83 x d)))))
 
 ;;; Frame 3-86
 (defn pmembero
-  "Succeeds if x is a member of proper list l, and produces all unique solutions"
+  "Succeeds if x is a member of proper list l, and produces all
+unique solutions"
   [x l]
   (conde
-   #_((emptyo l) u) ; line unnecessary
+   ((emptyo l) u#)
    ((eq-caro l x) (resto l ()))
    ((eq-caro l x) (fresh [a d]
                          (resto l (llist a d))))
@@ -179,4 +179,3 @@
               (firsto l a)
               (conso a res out)
               ))))
-
