@@ -1264,23 +1264,41 @@
                   (memo 'tofu (llist 'a 'b 'tofu 'd 'tofu 'e z) u))))
    "frame 4-18")
 
-  ;; Frame 4-30
+  (defn rember [x l]
+    (cond
+     (empty? l) ()
+     (eq-car? l x) (rest l)
+     true (cons (first l) (rember x (rest l)))))
+
+  (test/is
+   (= '(a b d peas e)
+      (rember 'peas '(a b peas d peas e)))
+   "frame 4-23")
+
   (test/is
    (= '((a b d peas e))
       (run 1 [out]
            (fresh [y] (rembero 'peas
                                (list 'a 'b y 'd 'peas 'e)
                                out))))
-   "frame 4-")
+   "frame 4-30")
 
-  ;; Looks like clojure.logic is doing something more sophisticated
-  ;; than mini-Kanren does. Looking at the third inference,
-  ;; Clojure.logic infers that (rembero y (a b y d z e) is (a b d _0
-  ;; e) if ... looks like ... y (why is y _1?) is not a and y is not
-  ;; b, meaning that the first two inferences have been skipped. In
-  ;; the fourth inference, I think it's binding y to 'd, but it has an
-  ;; impossibility in its condition, namely (!= (_0 _0)). I'll leave
-  ;; this  a mystery for now.
+  (test/is
+   (= '((a b d peas e)
+        ((a b _0 d e) :- (!= (_0 peas))))
+      (run 2 [out]
+           (fresh [y] (rembero 'peas
+                               (list 'a 'b y 'd 'peas 'e)
+                               out))))
+   "frame 4-30 (alternate)")
+
+  ;; Looks like clojure.logic is doing something more sophisticated than
+  ;; mini-Kanren does. Looking at the third inference, Clojure.logic
+  ;; infers that (rembero y (a b y d z e) is (a b d _0 e) if 'y' is not
+  ;; 'a' and 'y' is not 'b', meaning that the first two inferences have
+  ;; been skipped. In the fourth inference, I think it's binding 'y' to
+  ;; 'd', but it has an impossibility in its condition, namely (!= (_0
+  ;; _0)). I'll leave this a mystery for now.
   (test/is
    (= '((b a d _0 e)
         (a b d _0 e)
@@ -1289,7 +1307,31 @@
       (run* [out]
             (fresh [y z]
                    (rembero y (list 'a 'b y 'd z 'e) out))))
-   "frame 4-")
+   "frame 4-31")
+
+  (test/is
+   (= '((b a d _0 e)
+        (a b d _0 e)
+        (a b d _0 e)
+        (a b d _0 e)
+        (a b _0 d e)
+        (a b e d _0)
+        (a b _0 d _1 e))
+      (run* [out]
+            (fresh [y z]
+                   (rembero2 y (list 'a 'b y 'd z 'e) out))))
+   "frame 4-31 (alternate 1)")
+
+  (test/is (= '([(b a d _0 e) a _0]
+                  [(a b d _0 e) b _0]
+                  [(a b d _0 e) _1 _0]
+                  [(a b d _0 e) d _0]
+                  [(a b _0 d e) _0 _0]
+                  [(a b e d _0) e _0]
+                  [(a b _0 d _1 e) _0 _1])
+              (run* [out y z]
+                    (rembero2 y (list 'a 'b y 'd z 'e) out)))
+           "frame 4-31 (alternate 2)")
 
   ;; Frame 4-49
   ;; This mystery is getting deeper; this result isn't anything like
@@ -1306,12 +1348,13 @@
   ;; rembero2, in the file utils.clj, according to the guidelines in
   ;; Frame 4-24. TODO: examine the implementation of "rember" in
   ;; clojure.core/logic.
-  (test/is (= '(  [( d  d)  d  d]
-                    [( d  d)  d  d]
-                    [(_0 _0) _0 _0]
-                    [( e  e)  e  e]
-                    ) (run* [r y z]
-                    (rembero2 y (list y 'd z 'e) (list y 'd 'e))
-                    (== (list y z) r)))
-           "frame 4-")
-  )
+  (test/is
+   (= '([( d  d)  d  d]
+          [( d  d)  d  d]
+          [(_0 _0) _0 _0]
+          [( e  e)  e  e]
+          )
+      (run* [r y z]
+            (rembero2 y (list y 'd z 'e) (list y 'd 'e))
+            (== (list y z) r)))
+   "frame 4-"))

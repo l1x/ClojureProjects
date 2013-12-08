@@ -189,7 +189,8 @@ we don't have an order-preserving 'conde'."
 
 ;;; Frame 4-24
 (defn rembero2
-  "Succeeds when out equals l with the first occurrence of x removed."
+  "Succeeds when 'out' equals 'l' with the first occurrence of 'x'
+removed."
   [x l out]
   (conde
    ((emptyo l) (== () out))
