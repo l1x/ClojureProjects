@@ -720,6 +720,14 @@
                   (== (lcons x y) q))))
            "frame 2-??")
 
+  ;; Here is a principle nice way of handling dot -- just boil things
+  ;; down to their elements.
+  (test/is (= (list (llist '_0 '_1))
+              (run* [q] (pairo q)))
+           "frame 2-??")
+
+  ;; Here is a trick that exploits stringification. It's visually nice,
+  ;; but it doesn't always work (as we shall see below)
   (test/is (= '("(_0 . _1)")
               (map str
                    (run* [q] (pairo q))))
@@ -1090,6 +1098,24 @@
             (== q true)))
    "frame 3-84")
 
+  ;; This is principled but hard to read.
+  (test/is
+   (= (list
+       (llist 'tofu ())
+       (llist 'tofu '_0 '_1)
+       (llist '_0 'tofu ())
+       (llist '_0 'tofu '_1 '_2)
+       (llist '_0 '_1 'tofu ())
+       (llist '_0 '_1 'tofu '_2 '_3)
+       (llist '_0 '_1 '_2 'tofu ())
+       (llist '_0 '_1 '_2 'tofu '_3 '_4)
+       (llist '_0 '_1 '_2 '_3 'tofu ())
+       (llist '_0 '_1 '_2 '_3 'tofu '_4 '_5)
+       (llist '_0 '_1 '_2 '_3 '_4 'tofu ())
+       (llist '_0 '_1 '_2 '_3 '_4 'tofu '_5 '_6))
+      (run 12 [l] (pmembero-3-86 'tofu l)))
+   "frame 3-89")
+
   ;; This is more tricky to test since core.logic produces lazy
   ;; sequences that are difficult to materialize internally. For now,
   ;; we'll work around this by calling "vector" on every solution, which
@@ -1125,7 +1151,7 @@
         "[(_0 _1 _2 _3 _4 tofu _5 . _6)]"
         "[(_0 _1 _2 _3 _4 tofu)]")
       (map (comp str vector) (run 12 [l] (pmembero-3-93 'tofu l))))
-         "frame 3-94")
+   "frame 3-94")
 
   (test/is (= '(pasta)
               (first-value '(pasta e fagioli)))
@@ -1136,9 +1162,7 @@
   (test/is
    (= '(pasta e fagioli)
       (run* [x] (memberrevo x '(pasta e fagioli))))
-   "frame 3-100")
-
-)
+   "frame 3-100"))
 
 ;;;   ___ _              _             _ _
 ;;;  / __| |_  __ _ _ __| |_ ___ _ _  | | |
@@ -1191,7 +1215,7 @@
       (run 1 [out]
            (fresh [x]
                   (memo 'tofu (list 'a 'b x 'd 'tofu 'e) out))))
-   "frame 4-")
+   "frame 4-11")
 
   (test/is
    (= '(tofu)
@@ -1199,15 +1223,35 @@
             (memo r
                   '(a b tofu d tofu e)
                   '(tofu d tofu e))))
-   "frame 4-")
+   "frame 4-12")
 
-  ;; Frame 4-17
+  (test/is
+   (= '(true)
+      (run* [q]
+            (memo 'tofu '(tofu e) '(tofu e))
+            (== q true)))
+   "frame 4-13")
+
+  (test/is
+   (= '()
+      (run* [q]
+            (memo 'tofu '(tofu e) '(tofu))
+            (== q true)))
+   "frame 4-14")
+
+  (test/is
+   (= '(tofu)
+      (run* [x]
+            (memo 'tofu '(tofu e) (list x 'e))))
+   "frame 4-15")
+
   (test/is
    (= '((tofu d tofu e) (tofu e))
       (run* [out]
             (fresh [x]
                    (memo 'tofu (list 'a 'b x 'd 'tofu 'e) out))))
-   "frame 4-")
+   "frame 4-17")
+
   (test/is
    (= (list '_0
             '_0
@@ -1218,7 +1262,7 @@
       (run 6 (z)
            (fresh [u]
                   (memo 'tofu (llist 'a 'b 'tofu 'd 'tofu 'e z) u))))
-   "frame 4-")
+   "frame 4-18")
 
   ;; Frame 4-30
   (test/is
