@@ -1073,7 +1073,7 @@
         (_0 _1 tofu)
         (_0 _1 _2 tofu)
         (_0 _1 _2 _3 tofu))
-      (run 5 [l] (pmembero0 'tofu l)))
+      (run 5 [l] (pmembero-3-80 'tofu l)))
    "frame 3-80")
 
   (test/is
@@ -1090,23 +1090,25 @@
             (== q true)))
    "frame 3-84")
 
-  (run 3 [l] (pmembero 'tofu l))
-
-  ;; Frame 3-89
+  ;; This is more tricky to test since core.logic produces lazy
+  ;; sequences that are difficult to materialize internally. For now,
+  ;; we'll work around this by calling "vector" on every solution, which
+  ;; introduces one level of meaningless brackets, but we'll live with
+  ;; it for testing purposes.
   (test/is
-   (= '((tofu)
-        (tofu _0 . _1)
-        (_0 tofu)
-        (_0 tofu _1 . _2)
-        (_0 _1 tofu)
-        (_0 _1 tofu _2 . _3)
-        (_0 _1 _2 tofu)
-        (_0 _1 _2 tofu _3 . _4)
-        (_0 _1 _2 _3 tofu)
-        (_0 _1 _2 _3 tofu _4 . _5)
-        (_0 _1 _2 _3 _4 tofu)
-        (_0 _1 _2 _3 _4 tofu _5 . _6))
-      (map seq (run 12 [l] (pmembero 'tofu l))))
+   (= '("[(tofu)]"
+        "[(tofu _0 . _1)]"
+        "[(_0 tofu)]"
+        "[(_0 tofu _1 . _2)]"
+        "[(_0 _1 tofu)]"
+        "[(_0 _1 tofu _2 . _3)]"
+        "[(_0 _1 _2 tofu)]"
+        "[(_0 _1 _2 tofu _3 . _4)]"
+        "[(_0 _1 _2 _3 tofu)]"
+        "[(_0 _1 _2 _3 tofu _4 . _5)]"
+        "[(_0 _1 _2 _3 _4 tofu)]"
+        "[(_0 _1 _2 _3 _4 tofu _5 . _6)]")
+      (map (comp str vector) (run 12 [l] (pmembero-3-86 'tofu l))))
    "frame 3-89")
 
   ;; Frame 3-100 -- Our conde doesn't have the same order as the book's

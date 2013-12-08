@@ -131,8 +131,7 @@ solutions"
               (resto l d)
               (pmembero-3-83 x d)))))
 
-;;; Frame 3-86
-(defn pmembero
+(defn pmembero-3-86
   "Succeeds if x is a member of proper list l, and produces all
 unique solutions"
   [x l]
@@ -143,7 +142,7 @@ unique solutions"
                          (resto l (llist a d))))
    (s# (fresh [d]
               (resto l d)
-              (pmembero x d)))))
+              (pmembero-3-86 x d)))))
 
 ;;; Frame 3-95
 (defn memberrevo
