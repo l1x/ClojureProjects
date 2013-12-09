@@ -201,3 +201,21 @@ removed."
               (firsto l a)
               (conso a res out)
               ))))
+
+;;; Frame 7-5
+(defn bit-nando [x y r]
+  (conde
+   ((== 0 x) (== 0 y) (== 1 r))
+   ((== 1 x) (== 0 y) (== 1 r))
+   ((== 0 x) (== 1 y) (== 1 r))
+   ((== 1 x) (== 1 y) (== 0 r))
+   (s# u#)
+   ))
+
+(defn bit-xoro [x y r]
+  (fresh [s t u]
+         (bit-nando x y s)
+         (bit-nando x s t)
+         (bit-nando s y u)
+         (bit-nando t u r))
+         )
