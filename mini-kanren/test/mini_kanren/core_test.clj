@@ -1322,34 +1322,35 @@
                    (rembero2 y (list 'a 'b y 'd z 'e) out))))
    "frame 4-31 (alternate 1)")
 
-  (test/is (= '([(b a d _0 e) a _0]
-                  [(a b d _0 e) b _0]
-                  [(a b d _0 e) _1 _0]
-                  [(a b d _0 e) d _0]
-                  [(a b _0 d e) _0 _0]
-                  [(a b e d _0) e _0]
-                  [(a b _0 d _1 e) _0 _1])
+  ;; The following exhibits the solutions for y and z.
+  (test/is (= '(  [(b a  d _0    e)   a _0]
+                  [(a b  d _0    e)   b _0]
+                  [(a b  d _0    e)  _1 _0]
+                  [(a b  d _0    e)   d _0]
+                  [(a b _0  d    e)  _0 _0]
+                  [(a b  e  d _0  )   e _0]
+                  [(a b _0  d _1 e)  _0 _1])
               (run* [out y z]
                     (rembero2 y (list 'a 'b y 'd z 'e) out)))
            "frame 4-31 (alternate 2)")
 
-  ;; Frame 4-49
   ;; This mystery is getting deeper; this result isn't anything like
   ;; the book's result.
   (test/is
-   (= '((d d))
-      (run* [r]
-            (fresh [y z]
-                   (rembero y (list y 'd z 'e) (list y 'd 'e))
-                   (== (list y z) r))))
-   "frame 4-")
+   (= '([(d d) d d])
+      (run* [r y z]
+            (rembero y
+                     (list y 'd z 'e)
+                     (list y 'd   'e))
+            (== (list y z) r)))
+   "frame 4-49")
 
   ;; Resolve this mystery by implementing our own rembero, called
   ;; rembero2, in the file utils.clj, according to the guidelines in
-  ;; Frame 4-24. TODO: examine the implementation of "rember" in
+  ;; Frame 4-24. TODO: examine the implementation of "rembero" in
   ;; clojure.core/logic.
   (test/is
-   (= '([( d  d)  d  d]
+   (= '(  [( d  d)  d  d]
           [( d  d)  d  d]
           [(_0 _0) _0 _0]
           [( e  e)  e  e]
@@ -1357,4 +1358,42 @@
       (run* [r y z]
             (rembero2 y (list y 'd z 'e) (list y 'd 'e))
             (== (list y z) r)))
-   "frame 4-"))
+   "frame 4-49")
+
+  (test/is
+   (=
+    (list (vector (llist 'b 'a 'd '_0 '_1)                  'a '_0 '_1)
+          (vector (llist 'a 'b 'd '_0 '_1)                  'b '_0 '_1)
+          (vector (llist 'a 'b 'd '_0 '_1)                 '_2 '_0 '_1)
+          (vector (llist 'a 'b 'd '_0 '_1)                  'd '_0 '_1)
+          (vector (llist 'a 'b '_0 'd '_1)                 '_0 '_0 '_1)
+          (vector (list  'a 'b '_0 'd '_1)                 '_0 '_1 '())
+          (vector (llist 'a 'b '_0 'd '_1 '_2)             '_0 '_1  (llist '_0 '_2))
+          (vector (list  'a 'b '_0 'd '_1 '_2)             '_0 '_1  (list  '_2))
+          (vector (llist 'a 'b '_0 'd '_1 '_2 '_3)         '_0 '_1  (llist '_2 '_0 '_3))
+          (vector (list  'a 'b '_0 'd '_1 '_2 '_3)         '_0 '_1  (list  '_2 '_3))
+          (vector (llist 'a 'b '_0 'd '_1 '_2 '_3 '_4)     '_0 '_1  (llist '_2 '_3 '_0 '_4))
+          (vector (list  'a 'b '_0 'd '_1 '_2 '_3 '_4)     '_0 '_1  (list  '_2 '_3 '_4))
+          (vector (llist 'a 'b '_0 'd '_1 '_2 '_3 '_4 '_5) '_0 '_1  (llist '_2 '_3 '_4 '_0 '_5))
+          )
+    (run 13 [out y z w]
+         (rembero2 y (llist 'a 'b y 'd z w) out)))
+   "frame 4-57")
+
+  (defn surpriseo [s]
+    (rembero2 s '(a b c) '(a b c)))
+
+  (test/is
+   (= '(d)
+      (run* [q] (== q 'd) (surpriseo q)))
+   "frame 4-69")
+
+  (test/is
+   (= '(_0)
+      (run* [q] (surpriseo q)))
+   "frame 4-70")
+  (test/is
+   (= '(b)
+    (run* [q] (== q 'b) (surpriseo q)))
+   "frame 4-72")
+  )
