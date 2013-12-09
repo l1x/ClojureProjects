@@ -1392,8 +1392,95 @@
    (= '(_0)
       (run* [q] (surpriseo q)))
    "frame 4-70")
-  (test/is
+
+(test/is
    (= '(b)
     (run* [q] (== q 'b) (surpriseo q)))
    "frame 4-72")
+  )
+
+;;;   ___ _              _             ___
+;;;  / __| |_  __ _ _ __| |_ ___ _ _  | __|
+;;; | (__| ' \/ _` | '_ \  _/ -_) '_| |__ \
+;;;  \___|_||_\__,_| .__/\__\___|_|   |___/
+;;;                |_|
+
+(test/deftest foo-test-05-1
+
+  (test/is
+   (= '((cake tastes yummy))
+      (run* [x] (appendo
+                 '(cake)
+                 '(tastes yummy)
+                 x)))
+   "frame 5-10")
+
+  (test/is
+   (= '((cake with ice _0 tastes yummy))
+      (run* [x]
+            (fresh [y]
+                   (appendo
+                    (list 'cake 'with 'ice y)
+                    '(tastes yummy)
+                    x))))
+   "frame 5-11")
+
+  (test/is
+   (= (list (llist 'cake 'with 'ice 'cream '_0))
+      (run* [x]
+            (fresh [y]
+                   (appendo
+                    (list 'cake 'with 'ice 'cream)
+                    y
+                    x))))
+   "frame 5-12")
+
+  (test/is
+   (= '((cake with ice d t))
+      (run 1 [x]
+           (fresh [y]
+                  (appendo
+                   (llist 'cake 'with 'ice y)
+                   '(d t)
+                   x))))
+   "frame 5-13")
+
+  (test/is
+   (= '(())
+      (run 1 [y]
+           (fresh [x]
+                  (appendo
+                   (llist 'cake 'with 'ice y)
+                   '(d t)
+                   x))))
+   "frame 5-13")
+
+  (test/is
+   (= '((cake with ice d t)
+        (cake with ice _0 d t)
+        (cake with ice _0 _1 d t)
+        (cake with ice _0 _1 _2 d t)
+        (cake with ice _0 _1 _2 _3 d t))
+      (run 5 [x]
+           (fresh [y]
+                  (appendo
+                   (llist 'cake 'with 'ice y)
+                   '(d t)
+                   x))))
+   "frame 5-16")
+
+  (test/is
+   (= '(()
+        (_0)
+        (_0 _1)
+        (_0 _1 _2)
+        (_0 _1 _2 _3))
+      (run 5 [y]
+           (fresh [x]
+                  (appendo
+                   (llist 'cake 'with 'ice y)
+                   '(d t)
+                   x))))
+   "frame 5-17")
+
   )
