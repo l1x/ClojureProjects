@@ -1483,4 +1483,29 @@
                    x))))
    "frame 5-17")
 
+  (test/is
+   (= '((cake with ice d t)
+        (cake with ice _0 d t _0)
+        (cake with ice _0 _1 d t _0 _1)
+        (cake with ice _0 _1 _2 d t _0 _1 _2)
+        (cake with ice _0 _1 _2 _3 d t _0 _1 _2 _3))
+      (run 5 [x]
+           (fresh [y]
+                  (appendo
+                   (llist 'cake 'with 'ice y)
+                   (llist 'd 't y)
+                   x))))
+   "frame 5-20")
+
+  (test/is
+   (= '(()
+        (cake)
+        (cake with)
+        (cake with ice)
+        (cake with ice d)
+        (cake with ice d t))
+      (run* [x]
+            (fresh [y]
+                   (appendo x y '(cake with ice d t)))))
+   "frame 5-23")
   )
