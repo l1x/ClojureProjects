@@ -37,3 +37,11 @@ Algorithms/dijkstra/.idea/workspace.xml
 *.iml
 
 mini-kanren/.nrepl-port
+
+monads/clojure-dot-net/midje-motivation/.lein-failures
+
+monads/clojure-dot-net/midje-motivation/.lein-repl-history
+
+monads/clojure-dot-net/midje-motivation/.nrepl-port
+
+monads/clojure-dot-net/midje-motivation/target/repl-port
