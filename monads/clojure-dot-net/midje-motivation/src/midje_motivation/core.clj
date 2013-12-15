@@ -1,16 +1,12 @@
 (ns midje_motivation.core
-  (:require [clojure.zip             :as zip    ]
-            clojure.string
-            clojure.pprint
-            [clojure.reflect         :as r      ]
-            [swiss-arrows.core       :refer :all]
-            )
+(:require [clojure.zip             :as zip    ]
+          clojure.string
+          clojure.pprint
+          [clojure.reflect         :as r      ]
+          [swiss-arrows.core       :refer :all]
+          [clojure.algo.monads     :refer :all]
+          )
   )
-
-(defn first-element [sequence default]
-  (if (empty? sequence)
-    default
-    (first sequence)))
 
 (defmacro pdump
   "Monitoring and debugging macro with semantics of 'identity'."
@@ -36,3 +32,6 @@
 
 (defn half-double [n]
   [(/ n 2) (* n 2)])
+
+(defn inc-int [n]
+  [(+ n 5) (+ n 10)])
