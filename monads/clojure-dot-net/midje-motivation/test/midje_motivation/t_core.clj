@@ -50,6 +50,15 @@
              (with-monad sequence-m
                ((m-lift 1 #(* % %)) '(1 2 3)))         => '(1 4 9)
              )
+
+       (fact "m-seq generates chains"
+             (with-monad sequence-m
+               (m-seq (replicate 2 '(a b c)))
+               => (for [x '(a b c), y '(a b c)] (list x y))
+               )
+             (with-monad maybe-m
+               (m-seq '(1 2 nil 4 5)) => nil)
+             )
        )
 
 
