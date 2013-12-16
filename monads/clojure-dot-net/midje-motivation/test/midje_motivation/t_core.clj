@@ -10,12 +10,48 @@
 ;;; repl. Every time you save either this file or the corresponding
 ;;; source file, all the tests will run again.
 
+;;; The following is adapted from www.clojure
+
 (facts "about half-double and inc-int"
        (fact (half-double 10)                     => [5 20]
              (inc-int      3)                     => [8 13])
        (fact (apply concat
                     (map inc-int
                          (half-double 8)))        => [9 14 21 26]))
+
+(facts "about clojure.algo.monads"
+       (fact "the identity monad binds like \"let\""
+             (domonad identity-m
+                      [a 1
+                       b (inc a)]
+                      (* a b))                         => 2)
+       (fact "the maybe monad propagates silently"
+             (domonad maybe-m
+                      [a 1
+                       b (inc a)]
+                      (* a b))                         => 2)
+       (fact "the maybe monad flows nils"
+             (domonad maybe-m
+                      [a nil
+                       b (inc a)]
+                      (* a b))                         => nil
+             (domonad maybe-m
+                      [a 1
+                       b nil]
+                      (* a b))                         => nil
+             )
+       (fact "the sequence monad stands in for \"for\""
+             (domonad sequence-m
+                      [a (range 5)
+                       b (range a)]
+                      (* a b))
+             => (for [a (range 5), b (range a)] (* a b)))
+       (fact "m-lift in the sequence is just map"
+             (with-monad sequence-m
+               ((m-lift 1 #(* % %)) '(1 2 3)))         => '(1 4 9)
+             )
+       )
+
 
 (facts "about `swiss-arrows"
        (fact "diamond wand pushes values into <> markers"
@@ -98,11 +134,51 @@
                  (->> vector (repeat 3))
                  (->  (* 2)  list)
                  (list 4)
-                 )            => '[([3] [3] [3]) (6) (3 4)]
+                 )             => '[([3] [3] [3]) (6) (3 4)]
              (-<:p (+ 1 2)
                  (->> vector (repeat 3))
                  (->  (* 2)  list)
                  (list 4)
-                 )            => '[([3] [3] [3]) (6) (3 4)]
+                 )             => '[([3] [3] [3]) (6) (3 4)]
+             (-<< (+ 1 2)
+                  (list 2 1)
+                  (list 5 7)
+                  (list 9 4))  => '[(2 1 3) (5 7 3) (9 4 3)]
+             (-<<:p (+ 1 2)
+                  (list 2 1)
+                  (list 5 7)
+                  (list 9 4))  => '[(2 1 3) (5 7 3) (9 4 3)]
+             (-<>< (+ 1 2)
+                  (list 2 1 <>)
+                  (list 5 <> 7)
+                  (list <> 9 4))  => '[(2 1 3) (5 3 7) (3 9 4)]
+             (-<><:p (+ 1 2)
+                  (list 2 1 <>)
+                  (list 5 <> 7)
+                  (list <> 9 4))  => '((2 1 3) (5 3 7) (3 9 4))
+             (-<>< (+ 1 2)
+                  (list 2 1 <>)
+                  (list 5 <> 7)
+                  (list 9 4))  => '[(2 1 3) (5 3 7) (3 9 4)]
+             (-<><:p (+ 1 2)
+                  (list 2 1 <>)
+                  (list 5 <> 7)
+                  (list 9 4))  => '((2 1 3) (5 3 7) (3 9 4))
+             (-<>>< (+ 1 2)
+                  (list 2 1 <>)
+                  (list 5 <> 7)
+                  (list <> 9 4))  => '[(2 1 3) (5 3 7) (3 9 4)]
+             (-<>><:p (+ 1 2)
+                  (list 2 1 <>)
+                  (list 5 <> 7)
+                  (list <> 9 4))  => '((2 1 3) (5 3 7) (3 9 4))
+             (-<>>< (+ 1 2)
+                  (list 2 1)
+                  (list 5 <> 7)
+                  (list <> 9 4))  => '[(2 1 3) (5 3 7) (3 9 4)]
+             (-<>><:p (+ 1 2)
+                  (list 2 1)
+                  (list 5 <> 7)
+                  (list <> 9 4))  => '((2 1 3) (5 3 7) (3 9 4))
              )
        )
