@@ -1,4 +1,4 @@
-% Created 2013-09-07 Sat 07:29
+% Created 2013-12-17 Tue 07:53
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -27,7 +27,7 @@
 \hypersetup{
   pdfkeywords={},
   pdfsubject={},
-  pdfcreator={Emacs 24.3.1 (Org mode 8.0.7)}}
+  pdfcreator={Emacs 24.3.1 (Org mode 8.0)}}
 \begin{document}
 
 \maketitle
@@ -51,7 +51,7 @@ source files. That gives us a fighting chance of keeping knowledge
 and source coherent.
 
 This file is named \emph{ex1.org}. It's an outline in plain text with
-rather obvious structure. Top-level headlines get a single star;
+obvious structure. Top-level headlines get a single star;
 second-level headlines get two stars, and so on; \LaTeX{} can be
 freely written anywhere; source-code examples abound to
 copy-and-paste, and text explaining how to build and run the source
@@ -64,11 +64,9 @@ generate source code, issue the emacs command
 \verb|org-babel-tangle|. To generate documentation, issue the emacs
 command \verb|org-latex-export-to-pdf|.
 
-If you don't want to use emacs, by all means use \emph{any} plain-text
-editor. We are working on a batch process via \emph{make} so that you can
-just clone the repo, make whatever edits you like, type \emph{make}, and
-have a complete PDF file and a complete directory full of source
-code.
+We are working on a batch process via \emph{make} so that you can just
+clone the repo, make whatever edits you like, type \emph{make}, and have
+a complete PDF file and a complete directory full of source code.
 \section{Tangle to Leiningen}
 \label{sec-2}
 Let's generate Leiningen projects.\footnote{\url{http://leiningen.org}}
@@ -78,10 +76,10 @@ it is simple, straightforward, and arguably the best way to use Java
 post-2010. As with any Java-based language, there is significant
 ``ceremony'' in setting up code to run. Files must be in certain
 directories that correspond to namespaces and packages, and the
-ever-finicky \emph{classpath} must be set up just right. This ceremony is
-often much more time-consuming than the code itself. Much of the
-value of the Clojure-Leiningen combination is that Leiningen
-automates almost all the ceremony.
+ever-finicky \emph{classpath} must be set up. This ceremony is often much
+more time-consuming than the code. Much of the value of the
+Clojure-Leiningen combination is that Leiningen automates almost all
+the ceremony.
 
 After \emph{tangling} this file, as directed in this section, you will
 have a Leiningen project. Go to the project directory (the one
@@ -115,7 +113,7 @@ ex1/test/ex1/core_test.clj
 \end{verbatim}
 We create the identical, base structure by typing
 \begin{verbatim}
-\verb+M-x org-babel-tangle+
+M-x org-babel-tangle
 \end{verbatim}
 and no more, in our org-mode buffer in emacs (or, eventually, by
 typing \emph{make} in the root directory, for non-users of emacs). Below,
@@ -124,7 +122,7 @@ structure.
 
 \subsection{Files in the Project Directory}
 \label{sec-2-1}
-In our example, the top-level directory doesn't have a name -- 
+In our example, the top-level directory doesn't have a name --
 put our \emph{org} file in that directory. The Leiningen project directory
 will have the same name as our \emph{org} file. Our \emph{org} file is named
 \verb+ex1.org+ and we want a directory tree rooted at \verb+ex1+
@@ -163,7 +161,7 @@ Next, we produce a \verb+README.md+ in \verb+markdown+ syntax for
 the entire project:
 \begin{verbatim}
 # ex1
-A Clojure library designed to do SOMETHING. 
+A Clojure library designed to do SOMETHING.
 ## Usage
 TODO
 ## License
@@ -180,7 +178,7 @@ tangling it out of the org file}, and then run
 M-x nrepl-jack-in
 \end{verbatim}
 in that buffer (see more in section
-\ref{sec:emacs-repl}). 
+\ref{sec:emacs-repl}).
 \begin{figure}[H]
 \label{project-file}
 \begin{verbatim}
@@ -202,7 +200,7 @@ Mimicking Leiningen's documentation subdirectory, it contains the
 single file \verb+intro.md+, again in \verb+markdown+ syntax.
 \begin{verbatim}
 # Introduction to ex1
-TODO: The project documentation is the .org file that produced 
+TODO: The project documentation is the .org file that produced
 this output, but it still pays to read
 http://jacobian.org/writing/great-documentation/what-to-write/
 \end{verbatim}
@@ -245,7 +243,7 @@ The following brings these libraries into our namespace:
 \begin{verbatim}
 (ns ex1.core
   (:use [clojure.data.zip.xml :only (attr text xml->)]
-        [dk.ative.docjure.spreadsheet] ) 
+        [dk.ative.docjure.spreadsheet] )
   (:require [clojure.xml :as xml]
             [clojure.zip :as zip]))
 \end{verbatim}
@@ -360,7 +358,7 @@ created \emph{via} \verb|docjure|. Here, we use Clojure's
 \begin{verbatim}
 (deftest docjure-test
   (testing "docjure read"
-    (is (= 
+    (is (=
 
       (->> (load-workbook "spreadsheet.xlsx")
            (select-sheet "Price List")
@@ -407,5 +405,5 @@ not copied out to the PDF file.
 \section{Conclusion}
 \label{sec-5}
 Fu is Fortune.
-% Emacs 24.3.1 (Org mode 8.0.7)
+% Emacs 24.3.1 (Org mode 8.0)
 \end{document}
