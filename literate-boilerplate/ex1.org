@@ -34,7 +34,7 @@ The following line generates a benign error
   freely written anywhere; source-code examples abound to
   copy-and-paste, and text explaining how to build and run the source
   is nearby.
-  
+
   You can edit the file with any plain-text editor. Emacs offers some
   automation in generating the typeset output, /ed1.pdf/, and the
   source code of the application right out of the /org/ file. To
@@ -91,7 +91,7 @@ ex1/test/ex1/core_test.clj
 #+END_SRC
   We create the identical, base structure by typing
 #+BEGIN_EXAMPLE
-  \verb+M-x org-babel-tangle+
+  M-x org-babel-tangle
 #+END_EXAMPLE
   and no more, in our org-mode buffer in emacs (or, eventually, by
   typing /make/ in the root directory, for non-users of emacs). Below,
@@ -99,7 +99,7 @@ ex1/test/ex1/core_test.clj
   structure.
 
 ** Files in the Project Directory
-   In our example, the top-level directory doesn't have a name -- 
+   In our example, the top-level directory doesn't have a name --
    put our /org/ file in that directory. The Leiningen project directory
    will have the same name as our /org/ file. Our /org/ file is named
    \verb+ex1.org+ and we want a directory tree rooted at \verb+ex1+
@@ -135,7 +135,7 @@ pom.xml.asc
    the entire project:
 #+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/README.md
 # ex1
-A Clojure library designed to do SOMETHING. 
+A Clojure library designed to do SOMETHING.
 ## Usage
 TODO
 ## License
@@ -150,7 +150,7 @@ tangling it out of the org file/, and then run
 M-x nrepl-jack-in
 #+END_EXAMPLE
 in that buffer (see more in section
-\ref{sec:emacs-repl}). 
+\ref{sec:emacs-repl}).
 #+BEGIN_SRC clojure :noweb yes :mkdirp yes :tangle ./ex1/project.clj :exports none
   <<project-file>>
 #+END_SRC
@@ -173,7 +173,7 @@ in that buffer (see more in section
   single file \verb+intro.md+, again in \verb+markdown+ syntax.
 #+BEGIN_SRC markdown :mkdirp yes :tangle ./ex1/doc/intro.md
 # Introduction to ex1
-TODO: The project documentation is the .org file that produced 
+TODO: The project documentation is the .org file that produced
 this output, but it still pays to read
 http://jacobian.org/writing/great-documentation/what-to-write/
 #+END_SRC
@@ -216,10 +216,10 @@ libraries \verb|clojure.zip| for tree navigation and
 \verb|clojure.data.zip.xml| and \verb|dk.ative.docjure.spreadsheet|.
 The following brings these libraries into our namespace:
 #+name: main-namespace
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (ns ex1.core
   (:use [clojure.data.zip.xml :only (attr text xml->)]
-        [dk.ative.docjure.spreadsheet] ) 
+        [dk.ative.docjure.spreadsheet] )
   (:require [clojure.xml :as xml]
             [clojure.zip :as zip]))
 #+END_SRC
@@ -233,7 +233,7 @@ a very modern, functional tree-navigation facility. These instances
 will test our ability to freely navigate the raw XML form of Excel
 spreadsheets:
 #+name: main-zippered
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (def xml (xml/parse "myfile.xml"))
 (def zippered (zip/xml-zip xml))
 #+END_SRC
@@ -278,7 +278,7 @@ As with the core source files, we include the built-in and downloaded
 libraries, but also the \verb|test framework| and the \verb|core|
 namespace, itself, so we can test the functions in the core.
 #+name: main-test-namespace
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (ns ex1.core-test
   (:use [clojure.data.zip.xml :only (attr text xml->)]
         [dk.ative.docjure.spreadsheet]
@@ -315,7 +315,7 @@ $\texttt{(\{:a 1\} :a)}$ is the same as the result of the function call
 $\texttt{(:a \{:a 1\})}$ ]#+name: docjure-test-namespace
 
 #+name: test-zippered
-#+BEGIN_SRC clojure :results silent 
+#+BEGIN_SRC clojure :results silent
 (deftest xml-zipper-test
   (testing "xml and zip on a trivial file."
     (are [a b] (= a b)
@@ -326,20 +326,20 @@ $\texttt{(:a \{:a 1\})}$ ]#+name: docjure-test-namespace
 Next, we ensure that we can faithfully read back the workbook we
 created /via/ \verb|docjure|. Here, we use Clojure's
 \verb|thread-last| macro to achieve fluent style:
-#+name: test-docjure-read 
-#+BEGIN_SRC clojure :results silent 
+#+name: test-docjure-read
+#+BEGIN_SRC clojure :results silent
 (deftest docjure-test
   (testing "docjure read"
-    (is (= 
+    (is (=
 
       (->> (load-workbook "spreadsheet.xlsx")
            (select-sheet "Price List")
            (select-columns {:A :name, :B :price}))
-      
+
       [{:name "Name"      , :price "Price"}, ; don't forget header row
        {:name "Foo Widget", :price 100.0  },
        {:name "Bar Widget", :price 200.0  }]
-      
+
       ))))
 #+END_SRC
 
@@ -353,7 +353,7 @@ take the following steps:
 4. Run code in the org-mode buffer with \verb|C-c C-c|; results of
    evaluation are placed right in the buffer for inspection; they are
    not copied out to the PDF file.
-  
+
 #+BEGIN_SRC clojure :tangle no
 [(xml-> zippered :track :name text)        ; ("Track one" "Track two")
  (xml-> zippered :track (attr :id))]       ; ("t1" "t2")
@@ -385,4 +385,3 @@ take the following steps:
 
 * Conclusion
   Fu is Fortune.
-  
