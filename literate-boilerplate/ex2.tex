@@ -1,4 +1,4 @@
-% Created 2013-12-22 Sun 06:21
+% Created 2013-12-22 Sun 06:57
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -21,7 +21,7 @@
 \usepackage{tikz-cd}
 \usetikzlibrary{matrix,arrows,positioning,scopes,chains}
 \tikzset{node distance=2cm, auto}
-\author{The Team of Fu}
+\author{Brian Beckman}
 \date{\today}
 \title{Literate Clojure}
 \hypersetup{
@@ -50,7 +50,7 @@ source code \emph{and} documentation spring from the same, plain-text
 source files. That gives us a fighting chance of keeping knowledge
 and source coherent.
 
-This file is named \emph{ex1.org}. It's an outline in plain text with
+This file is named \emph{ex2.org}. It's an outline in plain text with
 obvious structure. Top-level headlines get a single star;
 second-level headlines get two stars, and so on; \LaTeX{} can be
 freely written anywhere; source-code examples abound to
@@ -58,7 +58,7 @@ copy-and-paste, and text explaining how to build and run the source
 is nearby.
 
 You can edit the file with any plain-text editor. Emacs offers some
-automation in generating the typeset output, \emph{ed1.pdf}, and the
+automation in generating the typeset output, \emph{ed2.pdf}, and the
 source code of the application right out of the \emph{org} file. To
 generate source code, issue the emacs command
 \verb|org-babel-tangle|. To generate documentation, issue the emacs
@@ -72,7 +72,7 @@ a complete PDF file and a complete directory full of source code.
 Let's generate Leiningen projects.\footnote{\url{http://leiningen.org}}
 Leiningen is the easiest way to use Clojure.\footnote{\url{http://clojure.org}}
 Clojure is a 100\% Java-compatible functional programming language;
-it is simple, straightforward, and arguably the best way to use Java
+it is simple, straightforward, and arguably a great way to use Java
 post-2010. As with any Java-based language, there is significant
 ``ceremony'' in setting up code to run. Files must be in certain
 directories that correspond to namespaces and packages, and the
@@ -93,27 +93,27 @@ described in section \ref{sec:emacs-repl}.
 First, let's show the Leiningen project in detail. If you were to
 run the following command at a console prompt
 \begin{verbatim}
-$ lein new ex1
+$ lein new ex2
 \end{verbatim}
 you would get the following source tree:
 \begin{verbatim}
-ex1
-ex1/.gitignore
-ex1/doc
-ex1/doc/intro.md
-ex1/project.clj
-ex1/README.md
-ex1/resources
-ex1/src
-ex1/src/ex1
-ex1/src/ex1/core.clj
-ex1/test
-ex1/test/ex1
-ex1/test/ex1/core_test.clj
+ex2
+ex2/.gitignore
+ex2/doc
+ex2/doc/intro.md
+ex2/project.clj
+ex2/README.md
+ex2/resources
+ex2/src
+ex2/src/ex2
+ex2/src/ex2/core.clj
+ex2/test
+ex2/test/ex2
+ex2/test/ex2/core_test.clj
 \end{verbatim}
 We create the identical, base structure by typing
 \begin{verbatim}
-\verb+M-x org-babel-tangle+
+M-x org-babel-tangle
 \end{verbatim}
 and no more, in our org-mode buffer in emacs (or, eventually, by
 typing \emph{make} in the root directory, for non-users of emacs). Below,
@@ -125,10 +125,10 @@ structure.
 In our example, the top-level directory doesn't have a name --
 put our \emph{org} file in that directory. The Leiningen project directory
 will have the same name as our \emph{org} file. Our \emph{org} file is named
-\verb+ex1.org+ and we want a directory tree rooted at \verb+ex1+
+\verb+ex2.org+ and we want a directory tree rooted at \verb+ex2+
 exactly as above.
 
-Start with the contents of the project directory, \verb+ex1+. Each
+Start with the contents of the project directory, \verb+ex2+. Each
 org-mode babel source-code block will name a file path -- including
 sub-directories -- after a \verb+:tangle+ keyword on the
 \texttt{\#+BEGIN\_SRC} command of org-mode.
@@ -160,7 +160,7 @@ pom.xml.asc
 Next, we produce a \verb+README.md+ in \verb+markdown+ syntax for
 the entire project:
 \begin{verbatim}
-# ex1
+# ex2
 A Clojure library designed to do SOMETHING.
 ## Usage
 TODO
@@ -182,8 +182,8 @@ in that buffer (see more in section
 \begin{figure}[H]
 \label{project-file}
 \begin{verbatim}
-(defproject ex1 "0.1.0-SNAPSHOT"
-  :description "Project Fortune's Excel Processor"
+(defproject ex2 "0.1.0-SNAPSHOT"
+  :description "DocJure's Excel Processor"
   :url "http://example.com/TODO"
   :license {:name "TODO"
             :url "TODO"}
@@ -191,7 +191,7 @@ in that buffer (see more in section
                  [org.clojure/data.zip "0.1.1"]
                  [dk.ative/docjure     "1.6.0"]
                 ]
-  :repl-options {:init-ns ex1.core})
+  :repl-options {:init-ns ex2.core})
 \end{verbatim}
 \end{figure}
 \subsection{The Documentation Subdirectory}
@@ -199,7 +199,7 @@ in that buffer (see more in section
 Mimicking Leiningen's documentation subdirectory, it contains the
 single file \verb+intro.md+, again in \verb+markdown+ syntax.
 \begin{verbatim}
-# Introduction to ex1
+# Introduction to ex2
 TODO: The project documentation is the .org file that produced
 this output, but it still pays to read
 http://jacobian.org/writing/great-documentation/what-to-write/
@@ -208,7 +208,7 @@ http://jacobian.org/writing/great-documentation/what-to-write/
 \subsection{Core Source File}
 \label{sec-2-3}
 By convention, the core source files go in a subdirectory named
-\verb+./ex1/src/ex1+. This convention allows the Clojure namespaces
+\verb+./ex2/src/ex2+. This convention allows the Clojure namespaces
 to map to Java packages.
 
 The following is our core source file, explained in small pieces.
@@ -241,7 +241,7 @@ The following brings these libraries into our namespace:
 \begin{figure}[H]
 \label{main-namespace}
 \begin{verbatim}
-(ns ex1.core
+(ns ex2.core
   (:use [clojure.data.zip.xml :only (attr text xml->)]
         [dk.ative.docjure.spreadsheet] )
   (:require [clojure.xml :as xml]
@@ -293,7 +293,7 @@ Excel after running \verb|lein test| and verify that the
 \end{figure}
 \subsection{Core Unit-Test File}
 \label{sec-2-4}
-Unit-testing files go in a subdirectory named \verb+./ex1/test/ex1+.
+Unit-testing files go in a subdirectory named \verb+./ex2/test/ex2+.
 Again, the directory-naming convention enables valuable shortcuts
 from Leiningen.
 
@@ -303,14 +303,14 @@ namespace, itself, so we can test the functions in the core.
 \begin{figure}[H]
 \label{main-test-namespace}
 \begin{verbatim}
-(ns ex1.core-test
+(ns ex2.core-test
   (:use [clojure.data.zip.xml :only (attr text xml->)]
         [dk.ative.docjure.spreadsheet]
   )
   (:require [clojure.xml :as xml]
             [clojure.zip :as zip]
             [clojure.test :refer :all]
-            [ex1.core :refer :all]))
+            [ex2.core :refer :all]))
 \end{verbatim}
 \end{figure}
 
@@ -379,7 +379,39 @@ take the following steps:
 \begin{enumerate}
 \item Set up emacs and nRepl (TODO: explain; automate)
 \item Edit your init.el file as follows (TODO: details)
-\item Start nRepl while visiting the actual |project-clj| file.
+\end{enumerate}
+\begin{verbatim}
+;;; To load org-babel in Emacs, add this code to initialization
+(when (locate-file "ob" load-path load-suffixes)
+  (require 'ob)
+  (require 'ob-tangle)
+  (require 'ob-clojure)
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (clojure    . t))))
+;; Under nrepl.el + NREPL:
+;; Patch ob-clojure to work with nrepl
+(declare-function nrepl-send-string-sync "ext:nrepl" (code &optional ns))
+(defun org-babel-execute:clojure (body params)
+  "Execute a block of Clojure code with Babel."
+  (require 'nrepl)
+  (with-temp-buffer
+    (insert (org-babel-expand-body:clojure body params))
+    ((lambda (result)
+       (let ((result-params (cdr (assoc :result-params params))))
+         (if (or (member "scalar" result-params)
+                 (member "verbatim" result-params))
+             result
+           (condition-case nil (org-babel-script-escape result)
+             (error result)))))
+     (plist-get (nrepl-send-string-sync
+                 (buffer-substring-no-properties (point-min) (point-max))
+                 (cdr (assoc :package params)))
+                :value))))
+\end{verbatim}
+\begin{enumerate}
+\item Start nRepl while visiting the actual \verb|project-clj| file.
 \item Run code in the org-mode buffer with \verb|C-c C-c|; results of
 evaluation are placed right in the buffer for inspection; they are
 not copied out to the PDF file.
@@ -399,11 +431,8 @@ not copied out to the PDF file.
 \begin{verbatim}
 (run-all-tests)
 \end{verbatim}
-\section{References}
-\label{sec-4}
-
 \section{Conclusion}
-\label{sec-5}
+\label{sec-4}
 Fu is Fortune.
 % Emacs 24.3.1 (Org mode 8.0)
 \end{document}

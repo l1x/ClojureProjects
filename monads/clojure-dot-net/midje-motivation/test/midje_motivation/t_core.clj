@@ -46,7 +46,7 @@
                        b (range a)]
                       (* a b))
              => (for [a (range 5), b (range a)] (* a b)))
-       (fact "m-lift in the sequence is just map"
+       (fact "m-lift in the sequence monad is just map"
              (with-monad sequence-m
                ((m-lift 1 #(* % %)) '(1 2 3)))         => '(1 4 9)
              )
