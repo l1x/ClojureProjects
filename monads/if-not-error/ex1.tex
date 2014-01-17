@@ -1,4 +1,4 @@
-% Created 2013-09-10 Tue 06:53
+% Created 2014-01-15 Wed 11:38
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -27,7 +27,7 @@
 \hypersetup{
   pdfkeywords={},
   pdfsubject={},
-  pdfcreator={Emacs 24.2.1 (Org mode 8.0.7)}}
+  pdfcreator={Emacs 24.3.1 (Org mode 8.0)}}
 \begin{document}
 
 \maketitle
@@ -51,7 +51,7 @@ the abstract data flow of the solution.
 We find that fluent style is only available in Java if errors are
 propagated by exception. Because tht code for handling errors is in
 an independent \emph{catch} block, the non-error code path can be written
-without explicitly handling errors. 
+without explicitly handling errors.
 
 With functional programming in general and Clojure in particular, we
 can have fluent code without exceptions because we can delegate
@@ -90,7 +90,7 @@ data flow of our program resembles that in figure
       \& \\
 
       \node[process] (wscall1) {call web\\svc 1};
-      \& 
+      \&
       \& \node[process] (wscall2) {call web\\svc 2}; \\
 
       \node[process] (filter) {filter};
@@ -180,7 +180,7 @@ happens that we return \emph{this} from each method. We could create a
 new object in each transform, but it would not simplify the code and
 would not give any performance advantage (quite the opposite).
 Instead, we propagate values through instance variables, namely
-\emph{authToken}, \emph{databaseResults}, etc. 
+\emph{authToken}, \emph{databaseResults}, etc.
 \begin{verbatim}
 public class Computation {
     private String authToken;
@@ -485,7 +485,7 @@ public class Computation {
     public Computation combineResults(Computation other) {
         if (randomlyError()) { errorResult = "combine errored"; }
         result = "{[" + filteredWebServiceCallResults +
-            "," + otherWebServiceCallResults + "]}"; 
+            "," + otherWebServiceCallResults + "]}";
         return this;}
     public String getResult() {return result;}
     public static String computation() {
@@ -613,7 +613,7 @@ syntax for the one intermediate variable, as follows:
             authorize
             read-database
             )]
-    (-> db-results 
+    (-> db-results
         call-web-service
         filter-ws
         (combine (-> db-results
@@ -656,7 +656,7 @@ empty hash-map (denoted by the empty curly braces).
 
 Define a private symbol \emph{randomly-error} to be a function of no
 arguments that produces \emph{true} if a random double-precision number
-is less than $0.10$. 
+is less than $0.10$.
 
 \begin{figure}[H]
 \label{functional-helpers-3}
@@ -841,7 +841,7 @@ automated by our \emph{with-em-result} macro.
   [m-result (fn [value] value)
    m-bind   (fn [value f]
               (if-not (:error value)
-                (f value) 
+                (f value)
                 (m-result value)))
   ])
 \end{verbatim}
@@ -929,7 +929,7 @@ want the pass-through semantics of \emph{Maybe} but without the ignorance.
 
 Controlling complexity is the central problem of software
 engineering. Making code closer to specifications is essential, and
-that is the central theme of progress in programming languages. 
+that is the central theme of progress in programming languages.
 
 Many business processes are fundamentally data-flows. Modeling
 data-flows directly in our programming languages and applications is
@@ -960,5 +960,5 @@ errors-as-return-codes. Because function-parameters are immutable,
 functions are naturally re-entrant. Functional programming also
 sidesteps the temporal reasoning required for stateful-object
 programming, making code easier to test and debug.
-% Emacs 24.2.1 (Org mode 8.0.7)
+% Emacs 24.3.1 (Org mode 8.0)
 \end{document}
