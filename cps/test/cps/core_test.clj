@@ -9,3 +9,7 @@
 (deftest fib-test
   (testing "fib-cps"
     (is (= 55 (fib-cps 10 identity)))))
+
+(deftest trampoline-test
+  (is (= 0 (trampoline funa 42)))
+  (is (= 0 (trampoline funa 100000))))

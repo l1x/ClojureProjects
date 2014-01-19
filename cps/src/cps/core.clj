@@ -1,5 +1,7 @@
 (ns cps.core)
 
+;;; From http://www.slideshare.net/borgesleonardo/continuation-passing-style-and-macros-in-clojure-jan-2012
+
 (defn *-cps [x y k]
   (k (* x y)))
 
@@ -20,3 +22,17 @@
     (if (<= n 1)
       (k n)
       (recur (- n 1) cont))))
+
+;;; From http://pramode.net/clojure/2010/05/08/clojure-trampoline/
+
+(declare funa funb)
+
+(defn funa [n]
+  (if (= n 0)
+    0
+    #(funb (dec n))))
+
+(defn funb [n]
+  (if (= n 0)
+    0
+    #(funa (dec n))))
