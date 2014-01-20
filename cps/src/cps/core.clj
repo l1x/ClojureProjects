@@ -1,4 +1,5 @@
-(ns cps.core)
+(ns cps.core
+  (:require [clojure.algo.monads :refer :all]))
 
 
 ;;; See the unit-test file for exercises on these definitions.
@@ -90,3 +91,21 @@
   (if (= n 0N)
     (k 1N)
     #(facc (dec n) (fn [n-] (k (*' n n-))))))
+
+;;; From http://www.intensivesystems.net/tutorials/cont_m.html
+
+(defn func-a [x f] (f (inc x)))
+(defn func-b [x f] (f (* 2 x)))
+(defn func-c [x f] (f (dec x)))
+
+(defn fn6 [x cont-c]
+  (let [cont-b (fn [x] (func-c x cont-c))
+        cont-a (fn [x] (func-b x cont-b))]
+    (func-a x cont-a)))
+
+(defn mf-a [x] (fn [k] (func-a x k)))
+(defn mf-a [x] (fn [k] ((fn [y f] (f (inc y))) x k)))
+
+(defn mf-a [x] (fn [k] (k (inc x))))
+(defn mf-b [x] (fn [k] (k (* 2 x))))
+(defn mf-c [x] (fn [k] (k (dec x))))
