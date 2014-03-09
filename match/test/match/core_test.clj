@@ -18,10 +18,16 @@
                       [_     _     true ] 4
                       :else 5))))
     (is (= 1 (let [x true]
-               (match x
-                      true  1
-                      false 2
-                      :else 3)))))
+               (match x                 ; none may have brackets
+                      true  1           ; none...
+                      false 2           ; none...
+                      :else 3))))
+    (is (= 1 (let [x true]
+               (match [x]               ; or all must have brackets
+                      [true]  1         ; all...
+                      [false] 2         ; all...
+                      :else 3))))
+    )
 
   (testing "Binding"
     (is (= 2 (let [x 1
@@ -35,10 +41,29 @@
   ;; first-match or a bestmatch.
   (testing "Sequential types"
     (is (= :a2 (let [x [1 2 nil nil nil]]
-                 (match [x]
+                 (match [x]             ; all must have brackets, or
                         [([1]               :seq)] :a0
                         [([1 2]             :seq)] :a1
                         [([1 2 nil nil nil] :seq)] :a2
                         :else                      :a3))))
-    )
+    (is (= :a2 (let [x [1 2 nil nil nil]]
+                 (match x               ; none may have brackets
+                        ([1]               :seq) :a0
+                        ([1 2]             :seq) :a1
+                        ([1 2 nil nil nil] :seq) :a2
+                        :else                      :a3)))))
+
+  (testing "Vector types"
+    (is (= :a2 (let [x [1 2 3]]
+                 (match [x]             ; all must have brackets, or
+                        [[_ _ 2]] :a0
+                        [[1 1 3]] :a1
+                        [[1 2 3]] :a2
+                        :else     :a3))))
+    (is (= :a2 (let [x [1 2 3]]
+                 (match x               ; none may have brackets
+                        [_ _ 2] :a0
+                        [1 1 3] :a1
+                        [1 2 3] :a2
+                        :else   :a3)))))
     )
