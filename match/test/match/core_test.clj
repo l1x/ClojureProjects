@@ -66,5 +66,61 @@
                         [1 1 3] :a1
                         [1 2 3] :a2
                         :else   :a3)))))
-  ;; Test git remote change, again
+
+  (testing "Rest patterns"
+    (is (=  [:a1 [1 2]]
+            (let [x '(1 2)]
+              (match [x]
+                     [([l]     :seq)]  :a0
+                     [([& a]   :seq)] [:a1 [1 2]] ; first match
+                     [([l & r] :seq)] [:a2 r]
+                     :else             nil)
+                     ))))
+
+  (testing "Map patterns"
+    (is (= :a1
+           (let [x {:a 1 :b 1}]
+             (match [x]
+                    [{:a _ :b 2}]      :a0
+                    [{:a 1 :b 1}]      :a1
+                    [{:c 3 :d _ :e 4}] :a2
+                    :else              nil))))
+    (is (= :a1
+           (let [x {:a 1 :b 1}]
+             (match [x]
+                    [{:a _ :b 2}]      :a0
+                    [{:b 1 :a 1}]      :a1 ; maps are unordered
+                    [{:c 3 :d _ :e 4}] :a2
+                    :else              nil))))
+    (is (= :no-match
+           (let [x {:a 1 :b 1}]
+             (match [x]
+                    [{:c _}] :a0
+                    :else    :no-match))))
+    (is (= :a0
+           (let [x {:a 1 :b 2}]
+             (match [x]
+                    [({:a _ :b 2} :only [:a :b])] :a0
+                    [{:a 1 :c _}]                 :a1
+                    [{:c 3 :d _ :e 4}]            :a2
+                    :else                         nil))))
+    (is (= :a1
+           (let [x {:a 1 :b 2 :c 3}]
+             (match [x]
+                    [({:a _ :b 2} :only [:a :b])] :a0
+                    [{:a 1 :c _}]                 :a1
+                    [{:c 3 :d _ :e 4}]            :a2
+                    :else                         nil)))))
+  (testing "Or patterns"
+    (is (= :a1
+           (let [x 4   y 6   z 9]
+             (match [x y z]
+                    [(:or 1 2 3) _ _] :a0
+                    [4 (:or 5 6 7) _] :a1
+                    :else             nil)))))
+  (testing "Guards"
+    (is (= :a1
+           (match [1 2]
+                  [(_ :guard #(odd? %)) (_ :guard even?)] :a1
+                  [(_ :guard #(odd? %))  _              ] :a2))))
     )
