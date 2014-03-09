@@ -37,15 +37,32 @@
                       [a 2] a
                       :else nil)))))
 
-  ;; This appears to do an exact-match on a sequence, rather than a
-  ;; first-match or a bestmatch.
   (testing "Sequential types"
+
+    ;; Looks like patterns match directly against sequence types -- what
+    ;; is the effect of the :seq keyword?
+
+    (is (= :a2 (let [x [1 2 nil nil nil]]
+                 (match [x]
+                        [[1]              ] :a0
+                        [[1 2]            ] :a1
+                        [[1 2 nil nil nil]] :a2
+                        :else               :a3))))
+
+    (is (= :a2 (let [x [1 2 nil nil nil]]
+                 (match [x]
+                        [[1]              ]        :a0
+                        [[1 2]            ]        :a1
+                        [([1 2 nil nil nil] :seq)] :a2
+                        :else                      :a3))))
+
     (is (= :a2 (let [x [1 2 nil nil nil]]
                  (match [x]             ; all must have brackets, or
                         [([1]               :seq)] :a0
                         [([1 2]             :seq)] :a1
                         [([1 2 nil nil nil] :seq)] :a2
                         :else                      :a3))))
+
     (is (= :a2 (let [x [1 2 nil nil nil]]
                  (match x               ; none may have brackets
                         ([1]               :seq) :a0
