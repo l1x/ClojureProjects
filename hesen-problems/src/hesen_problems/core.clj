@@ -23,7 +23,7 @@
   "Fetch first optional value from function arguments preceded by &."
   [val default] (if val (first val) default))
 
-(defn reportx
+(defn report
   "Given subscribed collectors, produce results obtained so far."
   [subscribed-collectors]
   (pdump ((:reporter subscribed-collectors))))

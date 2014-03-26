@@ -1,8 +1,7 @@
 (ns hesen-problems.core-test
-  (:require [clojure.test :refer :all]
-            [rx.lang.clojure.interop :as rx]
-            [hesen-problems.core :refer :all
-             ])
+  (:use [clojure.test :exclude [report]])
+  (:require [rx.lang.clojure.interop :as rx]
+            [hesen-problems.core :refer :all])
   (:import [rx
              Observable
              Observer
@@ -20,7 +19,7 @@
       (is (= 600 (do (await-for 5000 a) @a))))))
 
 (deftest push-model-test
-  #_(testing "publish-subjects for push-model dataflow graph; subjects b
+  (testing "publish-subjects for push-model dataflow graph; subjects b
   and c push inputs to subject a"
     (let [b (PublishSubject/create)
           c (PublishSubject/create)
@@ -30,8 +29,8 @@
     (is (= (:onNext
             (-> (Observable/from [1 2 3])     ; an obl of length 3
                 (.take 2)                     ; an obl of length 2
-                hesen-problems.core/subscribe-collectors          ; waits for completion
-                hesen-problems.core/reportx))  ; produce results
+                subscribe-collectors          ; waits for completion
+                report))                      ; produce results
            [1 2]
            )))
   )
