@@ -99,7 +99,7 @@
 
 (defn subscribe-collectors
   "Subscribe asynchronous collectors to any observable; produce a map
-   containing a :subscription object for .unsubscribing and a :reporters
+   containing a :subscription object for .unsubscribing and a :reporter
    function for retrieving values from the collectors. Default wait-time
    is 1 second until timeout."
   [obl & optional-wait-time]

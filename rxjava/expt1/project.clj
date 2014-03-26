@@ -12,7 +12,7 @@
                  [org.clojure/data.json             "0.2.2"]
                  ;; [com.netflix.rxjava/rxjava-core    "0.9.1-SNAPSHOT"]
                  ;; [com.netflix.rxjava/rxjava-clojure "0.9.1-SNAPSHOT"]
-                 [com.netflix.rxjava/rxjava-clojure "0.12.0"]
+                 [com.netflix.rxjava/rxjava-clojure "0.17.0"]
                  [clojail                           "1.0.6"]
                  ]
   :repositories {"local" ~(str (.toURI (java.io.File. "maven_repository")))}

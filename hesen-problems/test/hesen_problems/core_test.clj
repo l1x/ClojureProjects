@@ -24,14 +24,22 @@
     (let [b (PublishSubject/create)
           c (PublishSubject/create)
           a (.zip b c (rx/fn [b c] (+ b c)))
-          ]))
+          r (subscribe-collectors a)
+          ]
+      (.onNext b 200)
+      (.onNext c 400)
+      (.onCompleted b)
+      (.onCompleted c)
+      (-> r
+          report
+          :onNext)))
   (testing "basic observable functionality"
-    (is (= (:onNext
-            (-> (Observable/from [1 2 3])     ; an obl of length 3
-                (.take 2)                     ; an obl of length 2
-                subscribe-collectors          ; waits for completion
-                report))                      ; produce results
-           [1 2]
+    (is (= [1 2]
+           (-> (Observable/from [1 2 3]) ; an obl of length 3
+               (.take 2)                 ; an obl of length 2
+               subscribe-collectors      ; waits for completion
+               report
+               :onNext)                 ; produce results
            )))
   )
 
