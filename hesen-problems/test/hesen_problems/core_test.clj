@@ -1,14 +1,40 @@
 (ns hesen-problems.core-test
   (:require [clojure.test :refer :all]
-            [hesen-problems.core :refer :all]))
+            [rx.lang.clojure.interop :as rx]
+            [hesen-problems.core :refer :all
+             ])
+  (:import [rx
+             Observable
+             Observer
+             subscriptions.Subscriptions
+             subjects.Subject
+             subjects.PublishSubject]))
 
-(deftest b-test
-  (testing "agents for a dataflow graph"
+(deftest pull-model-test
+  (testing "agents for a pull-model dataflow graph; agent a pulls inputs
+  from agents b and c"
     (let [a (agent 100)
           b (agent 200)
           c (agent 300)]
       (send a + @b @c)
       (is (= 600 (do (await-for 5000 a) @a))))))
+
+(deftest push-model-test
+  #_(testing "publish-subjects for push-model dataflow graph; subjects b
+  and c push inputs to subject a"
+    (let [b (PublishSubject/create)
+          c (PublishSubject/create)
+          a (.zip b c (rx/fn [b c] (+ b c)))
+          ]))
+  (testing "basic observable functionality"
+    (is (= (:onNext
+            (-> (Observable/from [1 2 3])     ; an obl of length 3
+                (.take 2)                     ; an obl of length 2
+                hesen-problems.core/subscribe-collectors          ; waits for completion
+                hesen-problems.core/reportx))  ; produce results
+           [1 2]
+           )))
+  )
 
 (deftest a-test
   (testing "chained function application"
