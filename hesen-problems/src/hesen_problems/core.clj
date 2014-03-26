@@ -1,4 +1,11 @@
 (ns hesen-problems.core
+  (:require [rx.lang.clojure.interop :as rx])
+  (:import  [rx
+             Observable
+             Observer
+             subscriptions.Subscriptions
+             subjects.Subject
+             subjects.PublishSubject])
   (:gen-class))
 
 

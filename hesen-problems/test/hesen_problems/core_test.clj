@@ -8,8 +8,7 @@
           b (agent 200)
           c (agent 300)]
       (send a + @b @c)
-      (Thread/sleep 10)
-      (is (= 600 @a)))))
+      (is (= 600 (do (await-for 5000 a) @a))))))
 
 (deftest a-test
   (testing "chained function application"
