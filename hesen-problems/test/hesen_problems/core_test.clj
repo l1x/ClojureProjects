@@ -33,6 +33,7 @@
       (-> r
           report
           :onNext)))
+
   (testing "basic observable functionality"
     (is (= [1 2]
            (-> (Observable/from [1 2 3]) ; an obl of length 3
