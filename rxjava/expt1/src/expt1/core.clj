@@ -15,7 +15,7 @@
 ;;; If you're using Leiningen from a terminal, type "lein repl" in the
 ;;; project directory (the directory containing the file "project.clj").
 
-;;; With emqcs, the most important thing to learn is "Paredit."  It
+;;; With emacs, the most important thing to learn is "Paredit."  It
 ;;; takes most of the pain out of parentheses and nesting.  There is a
 ;;; lot of info about it on the web (see http://emacsrocks.com/e14.html
 ;;; particularly), and the help is good.  The two biggies are
@@ -23,12 +23,15 @@
 ;;; Ctrl-h, k, Ctrl-Shift-) and paredit-splice-sexp (Ctrl-h, k, Meta-s).
 ;;; Take the time to learn them.  Slurp has three friends:
 ;;; paredit-forward-barf-sexp (Ctrl-h, k, Ctrl-Shift-} ) and the
-;;; backwards versions of slurp and barf.  They're next most important.
+;;; backwards versions of slurp and barf.  They're next most
+;;; important. Finally, you'll want to learn paredit-wrap-round Ctrl-h,
+;;; k, Shift-Meta-(.
 
 ;;; Re-indent deranged code by putting point at the beginning of the
 ;;; code and typing Ctrl-Alt-Q.  Move around at the expression level by
-;;; Ctrl-Alt-F (forward) and Ctrl-Alt-B (backward); Ctrl-Alt-D
-;;; (down a level) and Ctrl-Alt-U (up a level).
+;;; Ctrl-Alt-F (forward) and Ctrl-Alt-B (backward); Ctrl-Alt-D (down a
+;;; level) and Ctrl-Alt-U (up a level). Ctrl-Alt-Space at the beginning
+;;; of an open paren will select the entire subtree.
 
 ;;; Here are the namespaces we use; compare this list with the
 ;;; :dependencies in the project.clj file, which specifies the libraries
@@ -64,17 +67,54 @@
    site too much"
   true)
 
+;;; First up is an example of metaprogramming: code that rewrites code. A
+;;; principle advantage of lisps in general and Clojure in particular is that
+;;; the text of your program is just more data you can manipulate. Because
+;;; code is just more data, we can rewrite code at compile time or at
+;;; runtime. Pdump just prints an unevaluated expression, its value, and then
+;;; produces the value, just as if we had called "identity" on the value. Right
+;;; away, we have an example of something that's hard to do -- really hard --
+;;; in non-lisps. To access, let alone manipulate, the text of code, you would
+;;; need, typically, an object model for the entire language, reflection, a
+;;; decompiler, and more. Often, people can't afford the time and trouble to
+;;; do all that and they just write strings manually that contain the
+;;; unevaluated code, as in
+;;;
+;;;     printf("1 + 2 ~~> ", 1 + 2);
+;;;
+;;; But here we can do it once-and-for all with a "macro." Macros, in general,
+;;; receive their arguments as unevaluated data, and then have special
+;;; operators to insinuate (a.k.a. "interpolate") these expressions into loci
+;;; where they will get evaluated.
+
 (defmacro pdump
   "Monitoring and debugging macro with semantics of 'identity'."
   [x]
+  ;; Local variables with hash "#" after their names are guaranteed fresh;
+  ;; they won't collide with any variables in the insinuated
+  ;; expressions.
+  ;;
+  ;; The result of a macro is usually a backticked expression. Backtick is
+  ;; "syntax-quote," similar to quasiquote in Scheme. It specifies the CODE,
+  ;; as data in list brackets (parentheses) that you want to replace a call of
+  ;; pdump. Its meaning here is "Please replace (pdump whatever) with the
+  ;; quoted code, after various insinuations marked with tildes and at-signs."
+
+  ;; First, we bind ("assign") the value of the expression x to a fresh
+  ;; variable x#.
+
   `(let [x# (try ~x (catch Exception e# (str e#)))]
      (do (println "----------------")
+         ;; First, print the given expression quoted, i.e., unevaluated.
          (clojure.pprint/pprint '~x)
+         ;; Then print a funny arrow that means "evaluates-to" or "becomes":
          (println "~~>")
+         ;; Finally, print the value of the expression.
          (clojure.pprint/pprint x#)
          x#)))
 
-;;; We need a 'catch-less' variant to run inside the jail:
+;;; We need a 'catch-less' variant to run inside the jail (sandbox)
+;;; because the sandbox doesn't allow catches.
 
 (defmacro catchless-pdump
   "Monitoring and debugging macro with semantics of 'identity', for use
@@ -104,9 +144,9 @@
    is 1 second until timeout."
   [obl & optional-wait-time]
   (let [wait-time (or-default optional-wait-time 1000)
-        onNextCollector      (agent []) ; seq of all values sent
+        onNextCollector      (agent [])  ; seq of all values sent
         onErrorCollector     (atom  nil) ; only need one value
-        onCompletedCollector (promise)] ; can wait on another thread
+        onCompletedCollector (promise)]  ; can wait on another thread
     (let [collect-next
           (rx/action [item] (send onNextCollector
                                   (fn [state] (conj state item))))
@@ -155,22 +195,69 @@
 ;;; |___/_||_|_| |_|_||_|_\_\_|_||_\__, |
 ;;;                                |___/
 
-;;; How to shrink a collection:
+;;; How to shrink a collection; first, for a collection entirely in memory:
 
 (pdump
  (take 2 [1 2 3]))
 
-;;; Nicer (fluent, chaining) syntax using "shove" macros (this one
-;;; shoves predecessors into last position of successors because most
-;;; Clojure higher-order operators take collection arguments in last
-;;; position and produce collections of the same kind).
+;;; "Map" is a way to transform values in a collection; it doesn't shrink the
+;;; collection, but we introduce "coordinate-free" programming here: you don't
+;;; need loop indices, so off-by-one errors are much harder to write.
+
+(pdump
+ (map (fn [x] (* x x))
+      (take 2 [1 2 3])))
+
+;;; If we want our lambda expression to refer to variables from the
+;;; environment, we must be careful.
+
+(pdump
+ (let [x 42]
+   (map (fn [x] (* x x))
+        (take 2 [1 2 3]))))
+
+;;; The mistake is kind of obvious in this little example, but much
+;;; harder to spot if the lambda is big or deep. The local variable
+;;; shadows the variable we want from outside. We can manually rename
+;;; it:
+
+(pdump
+ (let [x 42]
+   (map (fn [y] (* y x))
+        (take 2 [1 2 3]))))
+
+;;; but now we risk shadowing a "y" we might want. Better is to use
+;;; fresh variables, just as with macros:
+
+(pdump
+ (let [x 42]
+   (map (fn [x#] (* x# x))
+        (take 2 [1 2 3]))))
+
+;;; This is safe, but a little heavy for most circumstances where we can
+;;; "lexically see" the non-parameters (a.k.a. "free variables"). That's
+;;; why "lexical scoping" is the norm nowadays (it wasn't always so, and
+;;; there are notable exceptions like "this" in JavaScript). We note it
+;;; here just in passing.
+
+;;; Nicer (fluent, chaining) syntax using "shove" or "thrush" macros
+;;; (this one shoves predecessors into last position of successors
+;;; because most Clojure higher-order operators for in-memory
+;;; collections take collection arguments in last position and produce
+;;; collections of kind "sequence.").
 
 (->> [1 2 3]
      (take 2)
+     (map (fn [x] (* x x)))
      pdump)
+
+;;; The following shows how easy it is to insert new ops in a transform
+;;; chain.
 
 (->> [1 2 3]
      (filter even?)
+     (take 2)                           ; "take" is robust on short colls
+     (map (fn [x] (* x x)))
      pdump)
 
 ;;;  _   _                                         _           _ _ _
@@ -193,7 +280,7 @@
 ;;; |_|           |___/                            |___/
 
 ;;; COORDINATE-FREE PROGRAMMING: replace index-loops with higher-order
-;;; operators that take function arguments (lambda expressions or
+;;; operators -- operators that take function arguments (lambda expressions or
 ;;; closures).  The functions operate individually on the values in the
 ;;; collection.  Replace expressions like
 ;;;
@@ -205,24 +292,33 @@
 ;;;     array.map(element => println(element))
 ;;;
 ;;; Replace the oordinate-FULL expression array[i] with the
-;;; coordinate-free expression "element," a parameter iteratively
-;;; *bound* to the values in the collection (the array).  The lambda
-;;; expression is a "callback" invoked by the higher-order operator
-;;; "map."  "Map" is called "higher-order" because it is a function that
-;;; takes functions as arguments.
+;;; coordinate-free expression depending on the fresh variable
+;;; "element," a parameter iteratively *bound* to the values in the
+;;; collection (the array).  The lambda expression is a "callback"
+;;; invoked by the higher-order operator "map."  "Map" is called
+;;; "higher-order" because it is a function that takes functions as
+;;; arguments.
 ;;;
-;;; Once coordinates are gone, there is nothing in the expression to say
-;;; where the value came from.  Thus, the expression can, in principle,
-;;; be used over any collection independently of the "coordinate
-;;; system", i.e., PRIMARY KEY, used to index the values.
+;;; Once coordinates are gone, there is nothing intrinsic to or explicit
+;;; in the expression to say where the value came from: it can come from
+;;; memory or from an asynchronous, distributed stream.  Thus, the
+;;; expression can, in principle, be used over any collection
+;;; independently of the "coordinate system", i.e., the PRIMARY KEY,
+;;; used to index the values.
 ;;;
 ;;; We can easily shift from a space coordinate system to a time
 ;;; coordinate system without changing the "business logic" underneath,
 ;;; often without changing the code at all (Dave Ray from netflix has a
-;;; short video on this).
+;;; short video on this). Here, we will endure the minor change from ->>
+;;; (thread into last slot always) for space coordinates to -> (thread
+;;; into first slot always) for time coordinates. See also rplevy's
+;;; "swiss arrows" that let you thread into an explicit box, <>,
+;;; separately for each expression in a chain.
 ;;;
+;;; ****************************************************************
 ;;; Abstraction away from coordinates or indices is the principal
 ;;; abstraction of functional -- and therefore reactive -- programming.
+;;; ****************************************************************
 ;;;
 
 (-> (Observable/from [1 2 3])          ; an obl of length 3
@@ -230,10 +326,79 @@
     subscribe-collectors               ; waits for completion
     report)                            ; produce results
 
+;;; In space, we transform collections-in-memory into
+;;; collections-in-memory; in time, we transform collections-in-time
+;;; into collections-in-time. Collections in memory, in Clojure, are
+;;; lists, vectors, maps, sets, lazy-sequences, and more. Generically,
+;;; Clojure calls them "sequences" because they all implement an ISeq
+;;; interface. Collection in time, in Rx and rxJava, are "observables."
+;;; Outside Clojure specifically, the term "sequence" refers to any
+;;; collection, over any coordinate system, space or time or primary
+;;; key, that is ordered with duplicates allowed. In the rest of this
+;;; document, we use the term "sequence" to mean a Clojure sequence: a
+;;; collection distributed in space (memory) and the term "observable,"
+;;; or "obl" for short, to mean a Clojure / Rx / rxJava collection
+;;; distributed over time, synchronously or asynchronously, and the term
+;;; "collection" when we don't distinguish the two.
+
+;;; The following separates out the intermediate observables so that we
+;;; can observe them separately.
+
+(let [xs (Observable/from [1 2 3])
+      ys (-> xs (.take 2))
+      xscs (subscribe-collectors xs)
+      yscs (subscribe-collectors ys)]
+  (report xscs)
+  (report yscs)
+  )
+
+;;; We can do all the stuff we did before with (Clojure) sequences
+
 (-> (Observable/from [1 2 3])
-    (.filter (rx/fn* even?))
+    (.map (rx/fn [x] (* x x)))
+    (.take 2)
     subscribe-collectors
     report)
+
+;;; Notice we (somewhat stupidly) put the map before the take. A
+;;; miniature "query optimizer," as a small macro, can move all maps
+;;; after takes because the values not taken are not observable (unless
+;;; an explicit observer is subscribed, a circumstance the macro can
+;;; easily detect). I won't write the macro here, merely noting that the
+;;; final result does not depend on the order of appearance of the map
+;;; and the take, and that
+;;; ****************************************************************
+;;; it's reasonably easy to write sophisticated query optimizers in
+;;; small macros.
+;;; ****************************************************************
+
+(-> (Observable/from [1 2 3])
+    (.take 2)
+    (.map (rx/fn [x] (* x x)))
+    subscribe-collectors
+    report)
+
+
+(-> (Observable/from [1 2 3])
+    (.filter (rx/fn* even?))
+    (.take 2)
+    (.map (rx/fn [x] (* x x)))
+    subscribe-collectors
+    report)
+
+;;; Here we wrap the "lexical environment," i.e., the "let", around the
+;;; entire chain since the arrow blindly insinuates values in the first
+;;; positions of all its forms, mangling the "let." That's a principal
+;;; motivation for swiss arrows, which let you insinuate values wherever
+;;; you want them. But that is a refinement for another time and place.
+
+(let [x 42]
+  (-> (Observable/from [1 2 3])
+      (.filter (rx/fn* even?))
+      (.take 2)
+      (.map (rx/fn [x#] (* x x#)))
+      subscribe-collectors
+      report))
 
 ;;; The '->' operator shoves its predecessor into the FIRST position of
 ;;; its successor because most rxjava operators take collection
@@ -243,11 +408,12 @@
 
 ;;; Clojure's sequence operators, like "take", work for infinite, lazy
 ;;; sequences.  These are an intermediate step between sequences fully
-;;; realized in memory and sequences that produce values over time.
+;;; realized in memory and sequences that produce values forever over
+;;; time.
 
-;;; Lazy sequences produce values over time, driven by internal forces.
-;;; Observables produce values over time, driven by anything, including
-;;; external forces.
+;;; Lazy sequences produce values over time, driven by internal forces
+;;; in the particular Clojure session.  Observables produce values over
+;;; time, driven by anything, including external forces.
 
 (->> (repeat 42)
      (take 2)
@@ -255,20 +421,21 @@
 
 ;;; Observables can produce infinite sequences, but it's harder to
 ;;; demonstrate in examples.  Don't call "Observable/from" on an
-;;; infinite lazy sequence; it realizes the whole thing.
+;;; infinite lazy sequence; it realizes the whole thing and never
+;;; finishes.
 
-(-> (Observable/from (take 100 (repeat 42)))
+(-> (Observable/from (take 10 (repeat 42)))
     (.take 2)
     subscribe-collectors
     report)
 
 ;;; Filter out odd numbers and keep the first two of that intermediate
 ;;; result.  Write the predicate function-argument of the higher-order
-;;; "filter" operator as an anonymous "rxjava" function.  Since java
+;;; "filter" operator as an anonymous "rxjava" function.  Because java
 ;;; doesn't (yet) have first-class anonymous functions, we must declare
 ;;; it with an rx/fn rather than with the standard, Clojure "fn."  (This
-;;; is a gargoyle that I hope will go away soon because it limits our
-;;; claim that EXACTLY the same code can run iteratively as reactively).
+;;; is a gargoyle that I hope will go away because it limits our claim
+;;; that EXACTLY the same code can run over space and over time).
 
 (-> (Observable/from [1 2 3 4 5 6])
     (.filter (rx/fn [n] (== 0 (mod n 2)))) ; same as "even?"
@@ -299,15 +466,19 @@
 ;;;  \___|_| \___/\_/\_/|_|_||_\__, |
 ;;;                            |___/
 
-;;; Filtering removes values.  Mapping transforms values.  How do we
-;;; make a collection bigger?
+;;; Filtering removes values, potentially shrinking a collection.
+;;; Mapping transforms values, not changing the length of a collection.
+;;; How do we make a collection bigger?
 
-;;; Let's transform each number x into a vector of numbers, adding x to
-;;; some familiar constants, then flattening the results exactly once.
+;;; Let's transform each number x into a collection of numbers, adding x
+;;; to some familiar constants, then flattening the results exactly
+;;; once.
 
 ;;; Most methods that lengthen sequences rely on mapMany, called
 ;;; "SelectMany" in many Rx documents (.e.g., http://bit.ly/18Bot23) and
 ;;; is similar to Clojure's "mapcat", up to order of parameters.
+
+;;; First, the space version:
 
 (->> [1 2 3]
      (take 2)
@@ -322,6 +493,8 @@
              [42 43 44])))
      pdump)
 
+;;; Now, the time version:
+
 (-> (Observable/from [1 2 3])
     (.take 2)
     ;; With an observervable, mapMany's function argument must produce
@@ -334,13 +507,17 @@
     subscribe-collectors
     report)
 
+;;; Note, the name of "mapMany" has changed since rxJava 0.12, the
+;;; version used here. We'll have to research the new name when we
+;;; upgrade rxJava versions.
+
 ;;;  ___ _       _                  _
 ;;; / __| |_ _ _(_)_ _  __ _   _ __| |__ _ _  _ ___
 ;;; \__ \  _| '_| | ' \/ _` | | '_ \ / _` | || (_-<
 ;;; |___/\__|_| |_|_||_\__, | | .__/_\__,_|\_, /__/
 ;;;                    |___/  |_|          |__/
 
-;;; Shortening first.
+;;; Shortening first, both space and time versions.
 
 (->> ["one" "two" "three"]
      (take 2)
@@ -368,7 +545,9 @@
       (mapcat string-explode)))
 
 (-> (Observable/from ["one" "two" "three"])
-    (.mapMany (rx/fn [string] (Observable/from (string-explode string))))
+    (.mapMany
+     (rx/fn [string]
+       (Observable/from (string-explode string))))
     subscribe-collectors
     report)
 
@@ -379,7 +558,7 @@
 ;;;                                 |_|
 
 ;;; Clean up the repeated, ugly (Observable/from ...) calls into a
-;;; composition, but we can't (comp Observable/from ...) since it's a
+;;; composition, but we can't (comp Observable/from ...) because it's a
 ;;; Java method and does not implement Clojure IFn.  Fix this by
 ;;; wrapping it in a function:
 
@@ -412,10 +591,10 @@
 
     (.reduce #{} (rx/fn* conj))
 
-    ;; We now have an observable containing a hash-set of unique
+    ;; We now have an observable containing just one hash-set of unique
     ;; characters.  Because Clojure hash-sets are automatically
     ;; seq'able, promote the hash-set back into an obl of chars as
-    ;; follows:
+    ;; follows.  We show below what happens if we forget the "mapMany."
 
     (.mapMany (rx/fn* from-seq))
 
@@ -423,6 +602,27 @@
     ;; sequence before producing its values.  "Distinct" can't work on
     ;; a non-finite obl sequence.
 
+    subscribe-collectors
+    report)
+
+;;; We can show what happens if we forget the "mapMany" by trying to
+;;; take 2 from the obl produced by "reduce:"
+
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
+    (.reduce #{} (rx/fn* conj))
+    (.take 2)
+    subscribe-collectors
+    report)
+
+;;; We get the whole set; it's been "imploded" by reduce! "MapMany"
+;;; explodes the results back into an observable of single values:
+
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
+    (.reduce #{} (rx/fn* conj))
+    (.mapMany (rx/fn* from-seq))
+    (.take 2)
     subscribe-collectors
     report)
 
@@ -439,9 +639,20 @@
     subscribe-collectors
     report)
 
+(-> (from-seq ["one" "two" "three"])
+    (.mapMany (rx/fn* (comp from-seq string-explode)))
+    distinct
+    (.take 2)
+    subscribe-collectors
+    report)
+
 ;;; Distinct is "unstable" in the sense that it reorders its input.
 ;;; EXERCISE: a stable implementation.  HINT: use the set to check
 ;;; uniqueness and build a vector or list to keep order.
+
+;;; You should be getting an intuition at this point that "mapcat" and
+;;; "mapMany" are deeply fundamental. Indeed they are, and you have
+;;; intuited one of the main concepts behind the dreaded "monads."
 
 ;;;     _ _                    _            _
 ;;;  __| (_)__ _ _ _ ___ _____(_)___ _ _   (_)
@@ -458,8 +669,9 @@
 ;;; "Return" lifts a value into a collection of length 1 so that the
 ;;; collection can be composed with others via the standard query
 ;;; operators.  (Theory point: this and "mapMany" are the two primitive
-;;; operators in the library, and almost all the others can be built in
-;;; terms of them.  History point: "return" is admittedly a lousy name.)
+;;; operators in the library, completing the dire monads, and almost all
+;;; the others can be built in terms of them.  History point: "return"
+;;; is admittedly a lousy name.)
 
 (defn return
   "Put item into an observable for composability via mapMany."
@@ -472,6 +684,7 @@
  ["one" "two" "three"]
  (mapcat string-explode)
  (mapcat vector)                       ; acts like "identity" here
+ pdump
  )
 
 (-> (from-seq ["one" "two" "three"])
@@ -664,7 +877,7 @@
 
      (-> obr .onCompleted)
 
-     ;; Return a no-op subscription.  Since this observable does not
+     ;; Return a no-op subscription.  Because this observable does not
      ;; return from its subscription call until it sends all messages
      ;; and completes, the thread receiving the "subscription" can't
      ;; unsubscribe until the observable completes, at which time there
@@ -770,7 +983,7 @@
                  (doseq [name names]
                    (-> obr
                        (.onNext
-                        (html/html-resource
+                       (html/html-resource
                          (java.net.URL.
                           (str "https://en.wikipedia.org/wiki/" name))))))
                  (catch Exception e (-> obr (.onError e))))

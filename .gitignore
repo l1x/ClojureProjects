@@ -9,6 +9,8 @@ targets/
 .lein-*/
 .env/
 
+.nrepl-port
+
 .lein-deps-sum
 *~
 \#*
