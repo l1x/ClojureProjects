@@ -725,7 +725,8 @@
 
     ;; We now have a fully realized, non-lazy, singleton observable
     ;; containing a sequence containing representatives of runs of
-    ;; non-distinct characters.  Flatten it out exatly once:
+    ;; non-distinct characters.  Explode it back into characters and
+    ;; flatten it out exatly once:
 
     (.mapMany (rx/fn* from-seq))
 
@@ -793,6 +794,8 @@
      subscribe-collectors
      report)
 
+;;; In a real application, we would do many more unit tests.
+
 ;;;  ___               _          _
 ;;; | _ \___ _ __  ___| |_ ___ __| |
 ;;; |   / -_) '  \/ _ \  _/ -_) _` |
@@ -820,7 +823,7 @@
         es (read-string obl)
         qs (map read-string queries)
         ]
-    (sb `(-> ~es ~@qs subscribe-collectors catchless-pdump ))))
+    (sb `(-> ~es ~@qs subscribe-collectors))))
 
 ;;; Symbols must be fully qualified (no implicit namespaces) in the
 ;;; sandbox.
@@ -837,6 +840,19 @@
                 ]
        ]
    ((:reporter (run-jailed-queries obl queries)))))
+
+
+(pdump
+ (let [sb (sandbox secure-tester)]
+   (sb '(-> (expt1.core/from-seq ["onnnnne" "tttwo" "thhrrrrree"])
+            (.mapMany
+             (rx.lang.clojure.interop/fn*
+              (comp expt1.core/from-seq
+                    expt1.core/string-explode)))
+            expt1.core/distinct-until-changed
+            expt1.core/subscribe-collectors
+            expt1.core/report))))
+
 
 ;;;  _  _     _    __ _ _            _         _            _   _
 ;;; | \| |___| |_ / _| (_)_ _____ __| |___ _ _(_)_ _____ __| | (_)
