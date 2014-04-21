@@ -815,32 +815,11 @@
 ;;;   permission java.security.AllPermission;
 ;;; };
 ;;;
-;;; Cannot inject a 'catch' into the sandbox; hence the catchless-dump.
 
-(defn run-jailed-queries
-  [obl queries]
-  (let [sb (sandbox secure-tester)
-        es (read-string obl)
-        qs (map read-string queries)
-        ]
-    (sb `(-> ~es ~@qs subscribe-collectors))))
+;;; If you just need to quote things, send 'em in:
 
 ;;; Symbols must be fully qualified (no implicit namespaces) in the
 ;;; sandbox.
-
-(pdump
- (let [obl "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
-       queries [
-                "(.mapMany
-                   (rx.lang.clojure.interop/fn*
-                     (comp expt1.core/from-seq
-                           expt1.core/string-explode)))"
-
-                "expt1.core/distinct-until-changed"
-                ]
-       ]
-   ((:reporter (run-jailed-queries obl queries)))))
-
 
 (pdump
  (let [sb (sandbox secure-tester)]
@@ -852,6 +831,28 @@
             expt1.core/distinct-until-changed
             expt1.core/subscribe-collectors
             expt1.core/report))))
+
+;;; If you need to serialize them, just put them in strings, then read
+;;; them, then eval them:
+
+(defn run-jailed-queries
+  [obl queries]
+  (let [sb (sandbox secure-tester)
+        es (read-string obl)
+        qs (map read-string queries)
+        ]
+    (sb `(-> ~es ~@qs subscribe-collectors))))
+
+(let [obl "(expt1.core/from-seq [\"onnnnne\" \"tttwo\" \"thhrrrrree\"])"
+      queries [ "(.mapMany
+                   (rx.lang.clojure.interop/fn*
+                     (comp expt1.core/from-seq
+                           expt1.core/string-explode)))"
+
+                , "expt1.core/distinct-until-changed"
+                  ]
+      ]
+  (report (run-jailed-queries obl queries)))
 
 
 ;;;  _  _     _    __ _ _            _         _            _   _
@@ -871,18 +872,21 @@
 ;;;  \___/|_.__/__/\___|_|  \_/\__,_|_.__/_\___|
 ;;;
 
-;;; An observable has a -- IS A -- "subscribe" method, which is a
-;;; function of an observer.  When you read "subscribe," think
-;;; "for-each."  When called, the subscribe method subscribes the
+;;; An observable has only a -- therefore IS A -- "subscribe" method,
+;;; which is a function of an observer.  When you read "subscribe,"
+;;; think "for-each."  When called, the subscribe method subscribes the
 ;;; observer to the observations (a.k.a. "messages," "events,"
 ;;; "notifications"): the values produced by the observable.
 
 (defn synchronous-observable
-  "Convert a Clojure sequence into custom Observable whose 'subscribe'
+  "Convert a Clojure sequence into a custom Observable whose 'subscribe'
    method does not return until the observable completes, that is, a
    'blocking' observable."
   [the-seq]
   (Observable/create
+
+   ;; This is 'subscribe:' a function of an observer:
+
    (rx/fn [obr]
 
      ;; Just call the observer's "onNext" handler until exhausted.
@@ -895,7 +899,7 @@
 
      ;; Return a no-op subscription.  Because this observable does not
      ;; return from its subscription call until it sends all messages
-     ;; and completes, the thread receiving the "subscription" can't
+     ;; and completes, the thread receiving the subscription can't
      ;; unsubscribe until the observable completes, at which time there
      ;; is no point in unsubscribing.  We say that this observable
      ;; "blocks."  The returned subscription is pro-forma only.
@@ -910,7 +914,9 @@
   [g]
   (fn [x y] (g y x)))
 
-;;; Test the synchronous observable:
+;;; Test the synchronous observable; as an aside, this illustrates
+;;; Clojure destructuring -- a nice way to bind multiple parameters at
+;;; once to values appearing in bits of structure of the input:
 
 (-> (synchronous-observable (range 50)) ; produces 0, 1, 2, ..., 50
     (.map    (rx/fn* #(str "SynchronousValue_" %)))
@@ -1721,10 +1727,11 @@
                   (.map (rx/fn [x] (+ 100 x)))
                   (.filter (rx/fn* even?))
                   (.mapMany (rx/fn [obn]
-                              (Observable/create (rx/fn [obr]
-                                                   (.onNext obr obn)
-                                                   (.onNext obr (* obn obn))
-                                                   (.onCompleted obr))))))
+                              (Observable/create
+                               (rx/fn [obr]
+                                 (.onNext obr obn)
+                                 (.onNext obr (* obn obn))
+                                 (.onCompleted obr))))))
          result (subscribe-collectors obl2)]
 
      (.onNext obl1 42)
