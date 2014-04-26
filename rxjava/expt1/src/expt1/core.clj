@@ -72,13 +72,13 @@
 ;;; the text of your program is just more data you can manipulate. Because
 ;;; code is just more data, we can rewrite code at compile time or at
 ;;; runtime. Pdump just prints an unevaluated expression, its value, and then
-;;; produces the value, just as if we had called "identity" on the value. Right
-;;; away, we have an example of something that's hard to do -- really hard --
-;;; in non-lisps. To access, let alone manipulate, the text of code, you would
-;;; need, typically, an object model for the entire language, reflection, a
-;;; decompiler, and more. Often, people can't afford the time and trouble to
-;;; do all that and they just write strings manually that contain the
-;;; unevaluated code, as in
+;;; produces the value, just as if we had called "identity" on the
+;;; value. Right away, we have an example of something that's hard to do --
+;;; really hard -- in non-lisps. To access, let alone manipulate, the text of
+;;; code, you would need, typically, an object model for the entire language,
+;;; reflection, a decompiler, and more. Often, people can't afford the time
+;;; and trouble to do all that and they just write strings manually that
+;;; contain the unevaluated code, as in
 ;;;
 ;;;     printf("1 + 2 ~~> ", 1 + 2);
 ;;;
