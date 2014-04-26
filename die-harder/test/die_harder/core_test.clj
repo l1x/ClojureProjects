@@ -2,6 +2,37 @@
   (:require [clojure.test :refer :all]
             [die-harder.core :refer :all]))
 
+(def mjis (make-jugs [3 5]))
+
+(deftest immutable-pour-test
+  (= 0 (-> mjis (pour-from-other 0 1))))
+
+(deftest immutables-test
+  (testing "jugs, immutable version"
+    (is (= 3 (:capacity (get-jug mjis 0))))
+    (is (= 5 (:capacity (get-jug mjis 1))))
+    (is (= [0 0] (map :amount mjis)))
+    (is (= 3 (-> mjis
+                 (fill-jug 0)
+                 (get-jug 0)
+                 :amount)))
+    (is (= 0 (-> mjis
+                 (fill-jug 0)
+                 (empty-jug 0)
+                 (get-jug 0)
+                 :amount)))
+    (is (= 4 (-> mjis
+                 (fill-jug 1)
+                 (pour-from-other 0 1)
+                 (empty-jug 0)
+                 (pour-from-other 0 1)
+                 (fill-jug 1)
+                 (pour-from-other 0 1)
+                 (get-jug 1)
+                 :amount
+                 )))
+    ))
+
 (def mjs (make-jug-refs [3 5]))
 
 (defn get-amount [i]
@@ -11,8 +42,8 @@
   (is (= i (get-amount 0)))
   (is (= j (get-amount 1))))
 
-(deftest a-test
-  (testing "jugs initialization"
+(deftest mutables-test
+  (testing "jugs, mutable ref version"
     (is (= 3 (-> mjs (get-jug-ref 0) deref :capacity)))
     (is (= 5 (-> mjs (get-jug-ref 1) deref :capacity)))
 

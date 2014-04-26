@@ -1,6 +1,60 @@
 (ns die-harder.core
   (:require clojure.pprint))
 
+(defmacro pdump
+  "Monitoring and debugging macro with semantics of 'identity'."
+  [x]
+  `(let [x# (try ~x (catch Exception e# (str e#)))]
+     (do (println "----------------")
+         (clojure.pprint/pprint '~x)
+         (println "~~>")
+         (clojure.pprint/pprint x#)
+         x#)))
+
+(defn make-jugs  [capacities]
+  (->>
+   capacities
+   (map-indexed (fn [i c] {:id i :capacity c :amount 0}))
+   vec))
+
+(defn get-jug [jugs i]
+  (let [mj (jugs i)]
+    (if (not= i (:id mj))
+      (-> (str "data corrupted: " mj " should have id " i ".")
+          Exception.
+          throw))
+    mj))
+
+(defn fill-jug  [jugs i]
+  (let [mj (get-jug jugs i)]
+    (assoc jugs i
+           (->> (:capacity mj)
+                (assoc mj :amount)))
+    ))
+
+(defn empty-jug  [jugs i]
+  (let [mj (get-jug jugs i)]
+    (assoc jugs i
+           (->> 0
+                (assoc mj :amount)))
+    ))
+
+(defn pour-from-other  [jugs i other]
+  (let [this             (get-jug jugs i                      )
+        that             (get-jug jugs other                  )
+        this-amount      (:amount   this                      )
+        that-amount      (:amount   that                      )
+        this-capacity    (:capacity this                      )
+        available-source that-amount
+        available-space  (- this-capacity this-amount         )
+        amount-to-pour   (min available-space available-source)]
+    (-> jugs
+        (assoc i     (->> (+ this-amount amount-to-pour)
+                          (assoc this :amount)))
+        (assoc other (->> (- that-amount amount-to-pour)
+                          (assoc that :amount))))
+    ))
+
 ;;; Mutable Ref variation (discouraged, but may be necessary due to perf)
 
 (defn make-jug-refs  [capacities]
