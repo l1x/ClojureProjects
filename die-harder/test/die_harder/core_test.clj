@@ -29,7 +29,7 @@
     (is (tree-symmetric? t1))
     ))
 
-(defn nu-q [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
+(defn queue [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
 (def  pp             clojure.pprint/pprint)
 (defn- or-default
   "Fetch first optional value from function arguments preceded by &."
@@ -38,7 +38,7 @@
 (defn bfs-eager [tree-vector & visitor-]
   (let [visitor (or-default visitor- identity)]
    (loop [ret   []
-          queue (nu-q tree-vector)]
+          queue (queue tree-vector)]
      (if (seq queue)
        (let [[node & children] (peek queue)]
          (visitor node)
@@ -54,7 +54,7 @@
          (let [[node & children] (peek queue)]
            (cons node
                  (step (into (pop queue) children)))))))
-    (nu-q tree-vector))))
+    (queue tree-vector))))
 
 (deftest utilities-test
   (let [t0     [1 [2 [4] [5]] [3 [6]]]
@@ -141,3 +141,21 @@
         (fill-jug-ref mjs 1)    (are-amounts 2 5)
         (pour-from-ref mjs 0 1) (are-amounts 3 4)
         )))
+
+;;; Junkyard
+
+#_(ns my.data)
+
+#_(defrecord Employee [name surname])
+
+; Namescape 2 in "my/queries.clj", where a defrecord is used
+#_(ns my.queries
+  (:require my.data)
+  (:import [my.data Employee]))
+
+#_(do
+  "Employees named Albert:"
+  (filter #(= "Albert" (.name %))
+    [(Employee. "Albert" "Smith")
+     (Employee. "John" "Maynard")
+     (Employee. "Albert" "Cheng")]))

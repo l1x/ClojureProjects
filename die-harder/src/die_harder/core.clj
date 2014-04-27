@@ -95,17 +95,36 @@
 (defn execute-move [jugs move]
   (eval `(-> ~jugs ~move)))
 
-(defn try-move
-  [jugs
-   moves
-   states
-   target]
-  (let [move  (peek moves)
-        trial (execute-move jugs move)]
-    (if (detect-win trial)
-      [true trial]
-      (map
-       (all-moves jugs move)))))
+(defn check-put [a-set a-member]
+  (let [in? (contains? a-set a-member)]
+    (if (not in?)
+      [false (conj a-set a-member)]
+      [true  a-set])
+    ))
+
+(defn- queue [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
+(def ^:private pp clojure.pprint/pprint)
+
+(defn try-moves [state moves target seen iters]
+  (if (or (not moves) (> iters 100)) nil
+      (let [trials (map (fn [move] {:state (execute-move (:state state) move)
+                                   :trace (conj (:trace state) move)})
+                        moves)
+            ]
+        (let [wins (filter (fn [trial] (detect-win (:state trial) target))
+                           trials)]
+          (if wins wins
+              (let [unseen-trials
+                    (filter (fn [trial] (contains? seen (:state trial)))
+                            trials)
+                    new-seen (map (partial conj seen) (map :state trials))]
+                (map try-moves
+                     unseen-trials
+                     (map all-moves unseen-trials
+                          (map (fn [trial] (-> trial :trace pop)) unseen-trials))
+                     (repeat (count unseen-trials) target)
+                     (repeat (count unseen-trials) new-seen)
+                     (repeat (count unseen-trials) (inc iters)))))))))
 
 ;;; Mutable-Ref variation (discouraged, but may be necessary due to perf)
 
@@ -150,19 +169,3 @@
          amount-to-pour   (min available-space available-source)]
      (ref-set this (assoc @this :amount (+ this-amount amount-to-pour)))
      (ref-set that (assoc @that :amount (- that-amount amount-to-pour))))))
-
-#_(ns my.data)
-
-#_(defrecord Employee [name surname])
-
-; Namescape 2 in "my/queries.clj", where a defrecord is used
-#_(ns my.queries
-  (:require my.data)
-  (:import [my.data Employee]))
-
-#_(do
-  "Employees named Albert:"
-  (filter #(= "Albert" (.name %))
-    [(Employee. "Albert" "Smith")
-     (Employee. "John" "Maynard")
-     (Employee. "Albert" "Cheng")]))
