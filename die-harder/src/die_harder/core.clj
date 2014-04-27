@@ -95,36 +95,25 @@
 (defn execute-move [jugs move]
   (eval `(-> ~jugs ~move)))
 
-(defn check-put [a-set a-member]
-  (let [in? (contains? a-set a-member)]
-    (if (not in?)
-      [false (conj a-set a-member)]
-      [true  a-set])
-    ))
-
-(defn- queue [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
-(def ^:private pp clojure.pprint/pprint)
-
 (defn try-moves [state moves target seen iters]
   (if (or (not moves) (> iters 100)) nil
-      (let [trials (map (fn [move] {:state (execute-move (:state state) move)
-                                   :trace (conj (:trace state) move)})
-                        moves)
+      (let [trials
+            (->> moves
+                 (map (fn [move] {:state (execute-move (:state state) move)
+                                 :trace (conj (:trace state) move)}))
+                 (filter #(not (contains? seen (:state %)))))
+            wins (filter #(detect-win (:state %) target) trials)
             ]
-        (let [wins (filter (fn [trial] (detect-win (:state trial) target))
-                           trials)]
-          (if wins wins
-              (let [unseen-trials
-                    (filter (fn [trial] (contains? seen (:state trial)))
-                            trials)
-                    new-seen (map (partial conj seen) (map :state trials))]
-                (map try-moves
-                     unseen-trials
-                     (map all-moves unseen-trials
-                          (map (fn [trial] (-> trial :trace pop)) unseen-trials))
-                     (repeat (count unseen-trials) target)
-                     (repeat (count unseen-trials) new-seen)
-                     (repeat (count unseen-trials) (inc iters)))))))))
+        (if (not (empty? wins)) wins
+            (let [new-seen   (reduce conj seen (map :state trials))
+                  last-moves (map #(-> % :trace peek) trials)
+                  k          (count trials)]
+              (mapcat try-moves
+                   trials
+                   (map all-moves trials last-moves)
+                   (repeat k target)
+                   (repeat k new-seen)
+                   (repeat k (inc iters))))))))
 
 ;;; Mutable-Ref variation (discouraged, but may be necessary due to perf)
 

@@ -159,3 +159,13 @@
     [(Employee. "Albert" "Smith")
      (Employee. "John" "Maynard")
      (Employee. "Albert" "Cheng")]))
+
+#_(defn check-put [a-set a-member]
+  (let [in? (contains? a-set a-member)]
+    (if (not in?)
+      [false (conj a-set a-member)]
+      [true  a-set])
+    ))
+
+#_(defn- queue [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
+#_(def ^:private pp clojure.pprint/pprint)
