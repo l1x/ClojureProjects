@@ -40,13 +40,13 @@
     ))
 
 (defn pour-from  [jugs i other-j]
-  (let [this             (get-jug jugs i                      )
-        that             (get-jug jugs other-j                )
-        this-amount      (:amount   this                      )
-        that-amount      (:amount   that                      )
-        this-capacity    (:capacity this                      )
+  (let [this             (get-jug   jugs i       )
+        that             (get-jug   jugs other-j )
+        this-amount      (:amount   this         )
+        that-amount      (:amount   that         )
+        this-capacity    (:capacity this         )
         available-source that-amount
-        available-space  (- this-capacity this-amount         )
+        available-space  (- this-capacity this-amount)
         amount-to-pour   (min available-space available-source)]
     (-> jugs
         (assoc i       (->> (+ this-amount amount-to-pour)
@@ -54,12 +54,6 @@
         (assoc other-j (->> (- that-amount amount-to-pour)
                             (assoc that :amount))))
     ))
-
-(defn rand-int-excluding [n i]
-  (loop [k (rand-int n)]
-            (if (== k i)
-              (recur (rand-int n))
-              k)))
 
 (defn range-excluding [n i]
   (->> (range n)
@@ -84,19 +78,11 @@
   (== target
       (apply + (map :amount jugs))))
 
-(defn random-move [jugs]
-  (let [n (count jugs)
-        i (rand-int n)
-        j (rand-int-excluding n i)]
-    (rand-nth `((fill-jug ~i)
-                (spill-jug ~i)
-                (pour-from ~i ~j)))))
-
 (defn execute-move [jugs move]
   (eval `(-> ~jugs ~move)))
 
-(defn try-moves [state moves target seen iters]
-  (if (or (not moves) (> iters 100)) nil
+(defn try-moves [state moves target seen iters max-iters]
+  (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
             (->> moves
                  (map (fn [move] {:state (execute-move (:state state) move)
@@ -107,13 +93,16 @@
         (if (not (empty? wins)) wins
             (let [new-seen   (reduce conj seen (map :state trials))
                   last-moves (map #(-> % :trace peek) trials)
-                  k          (count trials)]
-              (mapcat try-moves
-                   trials
-                   (map all-moves trials last-moves)
-                   (repeat k target)
-                   (repeat k new-seen)
-                   (repeat k (inc iters))))))))
+                  k          (count trials)
+                  ii         (inc iters)]
+              (lazy-seq
+               (mapcat try-moves
+                       trials
+                       (map all-moves (map :state trials) last-moves)
+                       (repeat k target)
+                       (repeat k new-seen)
+                       (repeat k ii)
+                       (repeat k max-iters))))))))
 
 ;;; Mutable-Ref variation (discouraged, but may be necessary due to perf)
 

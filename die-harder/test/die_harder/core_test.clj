@@ -169,3 +169,17 @@
 
 #_(defn- queue [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
 #_(def ^:private pp clojure.pprint/pprint)
+
+#_(defn random-move [jugs]
+  (let [n (count jugs)
+        i (rand-int n)
+        j (rand-int-excluding n i)]
+    (rand-nth `((fill-jug ~i)
+                (spill-jug ~i)
+                (pour-from ~i ~j)))))
+
+#_(defn rand-int-excluding [n i]
+  (loop [k (rand-int n)]
+            (if (== k i)
+              (recur (rand-int n))
+              k)))
