@@ -18,20 +18,40 @@
                  :amount)))
     (is (= 0 (-> mjis
                  (fill-jug 0)
-                 (empty-jug 0)
+                 (spill-jug 0)
                  (get-jug 0)
                  :amount)))
     (is (= 4 (-> mjis
                  (fill-jug 1)
                  (pour-from-other 0 1)
-                 (empty-jug 0)
+                 (spill-jug 0)
                  (pour-from-other 0 1)
                  (fill-jug 1)
                  (pour-from-other 0 1)
                  (get-jug 1)
                  :amount
                  )))
-    ))
+    (is (= '(die-harder.core/fill-jug 42) (gen-fill 42)))
+    (is (= {:id 1, :capacity 5, :amount 4}
+           (reduce execute-move
+                   mjis
+                   '((fill-jug 1)
+                     (pour-from-other 0 1)
+                     (spill-jug 0)
+                     (pour-from-other 0 1)
+                     (fill-jug 1)
+                     (pour-from-other 0 1)
+                     (get-jug 1)))))
+    (is (detect-win (reduce execute-move
+                            mjis
+                            '((fill-jug 1)
+                              (pour-from-other 0 1)
+                              (spill-jug 0)
+                              (pour-from-other 0 1)
+                              (fill-jug 1)
+                              (pour-from-other 0 1)
+                              (spill-jug 0)))
+                    4))))
 
 (def mjs (make-jug-refs [3 5]))
 
@@ -56,9 +76,9 @@
     (is (= 1 1))
 
     (do (fill-jug-ref mjs 1)             (are-amounts 3 5)
-        (empty-jug-ref mjs 0)            (are-amounts 0 5)
+        (spill-jug-ref mjs 0)            (are-amounts 0 5)
         (pour-in-from-other-ref mjs 0 1) (are-amounts 3 2)
-        (empty-jug-ref mjs 0)            (are-amounts 0 2)
+        (spill-jug-ref mjs 0)            (are-amounts 0 2)
         (pour-in-from-other-ref mjs 0 1) (are-amounts 2 0)
         (fill-jug-ref mjs 1)             (are-amounts 2 5)
         (pour-in-from-other-ref mjs 0 1) (are-amounts 3 4)

@@ -32,16 +32,16 @@
                 (assoc mj :amount)))
     ))
 
-(defn empty-jug  [jugs i]
+(defn spill-jug  [jugs i]
   (let [mj (get-jug jugs i)]
     (assoc jugs i
            (->> 0
                 (assoc mj :amount)))
     ))
 
-(defn pour-from-other  [jugs i other]
+(defn pour-from  [jugs i other-j]
   (let [this             (get-jug jugs i                      )
-        that             (get-jug jugs other                  )
+        that             (get-jug jugs other-j                )
         this-amount      (:amount   this                      )
         that-amount      (:amount   that                      )
         this-capacity    (:capacity this                      )
@@ -49,13 +49,61 @@
         available-space  (- this-capacity this-amount         )
         amount-to-pour   (min available-space available-source)]
     (-> jugs
-        (assoc i     (->> (+ this-amount amount-to-pour)
-                          (assoc this :amount)))
-        (assoc other (->> (- that-amount amount-to-pour)
-                          (assoc that :amount))))
+        (assoc i       (->> (+ this-amount amount-to-pour)
+                            (assoc this :amount)))
+        (assoc other-j (->> (- that-amount amount-to-pour)
+                            (assoc that :amount))))
     ))
 
-;;; Mutable Ref variation (discouraged, but may be necessary due to perf)
+(defn rand-int-excluding [n i]
+  (loop [k (rand-int n)]
+            (if (== k i)
+              (recur (rand-int n))
+              k)))
+
+(defn range-excluding [n i]
+  (->> (range n)
+       (filter #(not= i %))))
+
+(defn gen-fill  [i]   `(fill-jug  ~i))
+(defn gen-spill [i]   `(spill-jug ~i))
+(defn gen-pours [n i] (map (fn [j] `(pour-from ~i ~j))
+                           (range-excluding n i)))
+
+(defn all-moves [jugs last-move]
+  (let [n   (count jugs)
+        all (range n   )]
+    (filter
+     #(not= % last-move)
+     (concat (map gen-fill  all)
+             (map gen-spill all)
+             (mapcat #(gen-pours n %) all)
+             ))))
+
+(defn detect-win [jugs target]
+  (== target
+      (apply + (map :amount jugs))))
+
+(defn random-move [jugs]
+  (let [n (count jugs)
+        i (rand-int n)
+        j (rand-int-excluding n i)]
+    (rand-nth `((fill-jug ~i)
+                (spill-jug ~i)
+                (pour-from ~i ~j)))))
+
+(defn execute-move [jugs move]
+  (eval `(-> ~jugs ~move)))
+
+(defn try-move [jugs moves-vector move target]
+  (let [trial (execute-move jugs move)]
+    (if (detect-win trial)
+      [true trial]
+      (map
+
+       (all-moves jugs move)))))
+
+;;; Mutable-Ref variation (discouraged, but may be necessary due to perf)
 
 (defn make-jug-refs  [capacities]
   (->>
@@ -80,7 +128,7 @@
   (let [mj (get-jug-ref jugs i)]
     (dosync (ref-set mj (assoc @mj attr new-value))))  )
 
-(defn empty-jug-ref  [jugs i]
+(defn spill-jug-ref  [jugs i]
   (set-jug-ref-attribute   jugs i :amount 0))
 
 (defn get-jug-ref-attribute  [jugs i attr]
