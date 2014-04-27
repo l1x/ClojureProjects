@@ -4,6 +4,11 @@
 
 (def mjis (make-jugs [3 5]))
 
+(deftest utilities-test
+  (let [t0 [1 [2 [4] [5]] [3 [6]]]]
+   (is (= [1 2 3 4 5 6]
+          (bfs-eager t0)))))
+
 (deftest immutable-pour-test
   (= 0 (-> mjis (pour-from-other 0 1))))
 
