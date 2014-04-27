@@ -4,13 +4,66 @@
 
 (def mjis (make-jugs [3 5]))
 
+;;; Another trick for bfs'ing.
+
+(defn node-values   [nodes]  (map    first nodes))
+(defn node-children [nodes]  (mapcat next  nodes))
+(defn node-bfs      [nodes]
+  (if (not (empty? nodes))
+    (cons (node-values nodes)
+          (node-bfs (node-children nodes)))))
+
+(defn tree-symmetric? [tree]
+  (every?
+   (fn [pal] (= pal (reverse pal)))
+   (node-bfs (list tree))))
+
+(deftest tree-tests
+  (let [t1 [1 [2 [3] [4]] [2 [4] [3]]]]
+    (is (= (node-values    (vector t1))  [1]))
+    (is (= (node-children  (vector t1))  [[2 [3] [4]] [2 [4] [3]]]))
+    (is (= (node-bfs       (vector t1))  [[1] [2 2] [3 4 4 3]]))
+    (is (= (node-values    (list   t1))  [1]))
+    (is (= (node-children  (list   t1))  [[2 [3] [4]] [2 [4] [3]]]))
+    (is (= (node-bfs       (list   t1))  [[1] [2 2] [3 4 4 3]]))
+    (is (tree-symmetric? t1))
+    ))
+
+(defn nu-q [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
+(def  pp             clojure.pprint/pprint)
+(defn- or-default
+  "Fetch first optional value from function arguments preceded by &."
+  [val default] (if val (first val) default))
+
+(defn bfs-eager [tree-vector & visitor-]
+  (let [visitor (or-default visitor- identity)]
+   (loop [ret   []
+          queue (nu-q tree-vector)]
+     (if (seq queue)
+       (let [[node & children] (peek queue)]
+         (visitor node)
+         (recur (conj ret node)
+                (into (pop queue) children)))
+       ret))))
+
+(defn bfs-lazy [tree-vector & visitor-]
+  (let [vistor (or-default visitor- identity)]
+   ((fn step [queue]
+      (lazy-seq
+       (when (seq queue)
+         (let [[node & children] (peek queue)]
+           (cons node
+                 (step (into (pop queue) children)))))))
+    (nu-q tree-vector))))
+
 (deftest utilities-test
-  (let [t0 [1 [2 [4] [5]] [3 [6]]]]
-   (is (= [1 2 3 4 5 6]
-          (bfs-eager t0)))))
+  (let [t0     [1 [2 [4] [5]] [3 [6]]]
+        answer (sort (flatten t0))]
+   (is (= answer  (bfs-eager t0)))
+   (is (= answer  (bfs-lazy  t0)))))
 
 (deftest immutable-pour-test
-  (= 0 (-> mjis (pour-from-other 0 1))))
+  (= 0 (-> mjis (pour-from 0 1))))
 
 (deftest immutables-test
   (testing "jugs, immutable version"
@@ -28,11 +81,11 @@
                  :amount)))
     (is (= 4 (-> mjis
                  (fill-jug 1)
-                 (pour-from-other 0 1)
+                 (pour-from 0 1)
                  (spill-jug 0)
-                 (pour-from-other 0 1)
+                 (pour-from 0 1)
                  (fill-jug 1)
-                 (pour-from-other 0 1)
+                 (pour-from 0 1)
                  (get-jug 1)
                  :amount
                  )))
@@ -41,20 +94,20 @@
            (reduce execute-move
                    mjis
                    '((fill-jug 1)
-                     (pour-from-other 0 1)
+                     (pour-from 0 1)
                      (spill-jug 0)
-                     (pour-from-other 0 1)
+                     (pour-from 0 1)
                      (fill-jug 1)
-                     (pour-from-other 0 1)
+                     (pour-from 0 1)
                      (get-jug 1)))))
     (is (detect-win (reduce execute-move
                             mjis
                             '((fill-jug 1)
-                              (pour-from-other 0 1)
+                              (pour-from 0 1)
                               (spill-jug 0)
-                              (pour-from-other 0 1)
+                              (pour-from 0 1)
                               (fill-jug 1)
-                              (pour-from-other 0 1)
+                              (pour-from 0 1)
                               (spill-jug 0)))
                     4))))
 
@@ -80,11 +133,11 @@
 
     (is (= 1 1))
 
-    (do (fill-jug-ref mjs 1)             (are-amounts 3 5)
-        (spill-jug-ref mjs 0)            (are-amounts 0 5)
-        (pour-in-from-other-ref mjs 0 1) (are-amounts 3 2)
-        (spill-jug-ref mjs 0)            (are-amounts 0 2)
-        (pour-in-from-other-ref mjs 0 1) (are-amounts 2 0)
-        (fill-jug-ref mjs 1)             (are-amounts 2 5)
-        (pour-in-from-other-ref mjs 0 1) (are-amounts 3 4)
+    (do (fill-jug-ref mjs 1)    (are-amounts 3 5)
+        (spill-jug-ref mjs 0)   (are-amounts 0 5)
+        (pour-from-ref mjs 0 1) (are-amounts 3 2)
+        (spill-jug-ref mjs 0)   (are-amounts 0 2)
+        (pour-from-ref mjs 0 1) (are-amounts 2 0)
+        (fill-jug-ref mjs 1)    (are-amounts 2 5)
+        (pour-from-ref mjs 0 1) (are-amounts 3 4)
         )))

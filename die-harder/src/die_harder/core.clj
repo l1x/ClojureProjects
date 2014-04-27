@@ -95,38 +95,12 @@
 (defn execute-move [jugs move]
   (eval `(-> ~jugs ~move)))
 
-(defn nu-q [& stuff] (into clojure.lang.PersistentQueue/EMPTY stuff))
-(def  pp             clojure.pprint/pprint)
-(defn- or-default
-  "Fetch first optional value from function arguments preceded by &."
-  [val default] (if val (first val) default))
-
-(defn bfs-eager [tree & visitor-]
-  (let [visitor (or-default visitor- identity)]
-   (loop
-       [ret [],
-        queue (nu-q tree)]
-     (if (seq queue)
-       (let [[node & children] (peek queue)]
-         (visitor node)
-         (recur (conj ret node) (into (pop queue) children)))
-       ret))))
-
-(defn bfs-lazy [tree]
-  ((fn step [queue]
-     (lazy-seq
-      (when (seq queue)
-        (let [[node & children] (peek queue)]
-          (cons node
-                (step (into (pop queue) children)))))))
-   (conj clojure.lang.PersistentQueue/EMPTY tree)))
-
 (defn try-move
   [jugs
-   move-q
-   states-seen
+   moves
+   states
    target]
-  (let [move  (peek move-q)
+  (let [move  (peek moves)
         trial (execute-move jugs move)]
     (if (detect-win trial)
       [true trial]
@@ -164,7 +138,7 @@
 (defn get-jug-ref-attribute  [jugs i attr]
   (-> jugs (get-jug-ref i) deref attr))
 
-(defn pour-in-from-other-ref  [jugs i other]
+(defn pour-from-ref  [jugs i other]
   (dosync
    (let [this             (get-jug-ref jugs i                  )
          that             (get-jug-ref jugs other              )
