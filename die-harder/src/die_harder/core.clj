@@ -11,35 +11,64 @@
          (clojure.pprint/pprint x#)
          x#)))
 
-(defn make-jugs  [capacities]
+(defn make-jugs
+  "Makes a vector of jug states given a vector of integer
+capacities. Each jug state is a map of an id, integer capacity, and
+integer amount, which must be non-negative and less than or equal to
+capacity."
+  [capacities]
   (->>
    capacities
    (map-indexed (fn [i c] {:id i :capacity c :amount 0}))
    vec))
 
-(defn get-jug [jugs i]
+(defn except
+  "Throws an Exception with the given string message."
+  [s]
+   (-> s Exception. throw))
+
+(defn get-jug
+  "Retrieves the i-th jug state from a vector of jugs, checking
+invariants along the way. "
+  [jugs i]
   (let [mj (jugs i)]
-    (if (not= i (:id mj))
-      (-> (str "data corrupted: " mj " should have id " i ".")
-          Exception.
-          throw))
+    (when (not= i (:id mj))
+      (except (str "data corrupted: " mj " should have id " i ".")))
+    (let [c (:capacity mj)
+          a (:amount   mj)]
+      (when (< a 0)
+        (except (str "amount negative: " mj ".")))
+      (when (> a c)
+        (except (str "amount greater than capacity: " mj "."))))
     mj))
 
-(defn fill-jug  [jugs i]
+(defn fill-jug
+  "Fills the i-th jug in a vector of jug states to capacity,
+irrespective of current amount."
+  [jugs i]
   (let [mj (get-jug jugs i)]
     (assoc jugs i
            (->> (:capacity mj)
                 (assoc mj :amount)))
     ))
 
-(defn spill-jug  [jugs i]
+(defn spill-jug
+  "Spills the i-th jug of a vector of jug states, reducing its current
+amount to 0."
+  [jugs i]
   (let [mj (get-jug jugs i)]
     (assoc jugs i
            (->> 0
                 (assoc mj :amount)))
     ))
 
-(defn pour-from  [jugs i other-j]
+(defn pour-from
+  "Pours a quantity into the i-th jug in a vector of jug states from
+another, distinct j-th jug. The quantity may fill the i-the jug or empty
+the j-th jug, or both."
+  [jugs i other-j]
+  (when (== i other-j)
+    (except (str "cannot pour from a jug into itself: " i ".")))
   (let [this             (get-jug   jugs i       )
         that             (get-jug   jugs other-j )
         this-amount      (:amount   this         )
@@ -55,16 +84,30 @@
                             (assoc that :amount))))
     ))
 
-(defn range-excluding [n i]
+(defn range-excluding
+  "Produces a sequence of the integers from 0 through n-1, excluding i."
+  [n i]
   (->> (range n)
        (filter #(not= i %))))
 
-(defn gen-fill  [i]   `(fill-jug  ~i))
-(defn gen-spill [i]   `(spill-jug ~i))
-(defn gen-pours [n i] (map (fn [j] `(pour-from ~i ~j))
-                           (range-excluding n i)))
+(defn gen-fill
+  "Generates a fill instruction for jug i."
+  [i]   `(fill-jug  ~i))
 
-(defn all-moves [jugs last-move]
+(defn gen-spill
+  "Generates a spill instruction for jug i."
+  [i]   `(spill-jug ~i))
+
+(defn gen-pours
+  "Generates all legal pour instructions into jug i from other jugs in a
+vector of jug states of length n."
+  [n i] (map (fn [j] `(pour-from ~i ~j))
+             (range-excluding n i)))
+
+(defn all-moves
+  "Generates a squences of all moves, excluding repeats of the last
+instruction given."
+  [jugs last-move]
   (let [n   (count jugs)
         all (range n   )]
     (filter
@@ -74,7 +117,10 @@
              (mapcat #(gen-pours n %) all)
              ))))
 
-(defn detect-win [jugs target]
+(defn detect-win
+  "Determines whether a vector of jug states satisfies the required
+target amount in-toto."
+  [jugs target]
   (== target
       (apply + (map :amount jugs))))
 
