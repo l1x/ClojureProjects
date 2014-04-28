@@ -2,6 +2,7 @@
   (:require [clojure.pprint]
             [taoensso.timbre :as timbre])
   )
+(timbre/refer-timbre) ; Provides useful Timbre aliases in this ns
 
 (defmacro pdump
   "Monitoring and debugging macro with semantics of 'identity'."
@@ -13,7 +14,7 @@
          (clojure.pprint/pprint x#)
          x#)))
 
-(defn make-jugs
+(defnp make-jugs
   "Makes a vector of jug states given a vector of integer
 capacities. Each jug state is a map of an id, integer capacity, and
 integer amount, which must be non-negative and less than or equal to
@@ -24,12 +25,12 @@ capacity."
    (map-indexed (fn [i c] {:id i :capacity c :amount 0}))
    vec))
 
-(defn except
+(defnp except
   "Throws an Exception with the given string message."
   [s]
    (-> s Exception. throw))
 
-(defn get-jug
+(defnp get-jug
   "Retrieves the i-th jug state from a vector of jugs, checking
 invariants along the way. "
   [jugs i]
@@ -44,7 +45,7 @@ invariants along the way. "
         (except (str "amount greater than capacity: " mj "."))))
     mj))
 
-(defn fill-jug
+(defnp fill-jug
   "Fills the i-th jug in a vector of jug states to capacity,
 irrespective of current amount."
   [jugs i]
@@ -54,7 +55,7 @@ irrespective of current amount."
                 (assoc mj :amount)))
     ))
 
-(defn spill-jug
+(defnp spill-jug
   "Spills the i-th jug of a vector of jug states, reducing its current
 amount to 0."
   [jugs i]
@@ -64,7 +65,7 @@ amount to 0."
                 (assoc mj :amount)))
     ))
 
-(defn pour-from
+(defnp pour-from
   "Pours a quantity into the i-th jug in a vector of jug states from
 another, distinct j-th jug. The quantity may fill the i-the jug or empty
 the j-th jug, or both."
@@ -86,27 +87,27 @@ the j-th jug, or both."
                             (assoc that :amount))))
     ))
 
-(defn range-excluding
+(defnp range-excluding
   "Produces a sequence of the integers from 0 through n-1, excluding i."
   [n i]
   (->> (range n)
        (filter #(not= i %))))
 
-(defn gen-fill
+(defnp gen-fill
   "Generates a fill instruction for jug i."
   [i]   `(fill-jug  ~i))
 
-(defn gen-spill
+(defnp gen-spill
   "Generates a spill instruction for jug i."
   [i]   `(spill-jug ~i))
 
-(defn gen-pours
+(defnp gen-pours
   "Generates all legal pour instructions into jug i from other jugs in a
 vector of jug states of length n."
   [n i] (map (fn [j] `(pour-from ~i ~j))
              (range-excluding n i)))
 
-(defn all-moves
+(defnp all-moves
   "Generates a squences of all moves, excluding repeats of the last
 instruction given."
   [jugs last-move]
@@ -119,17 +120,17 @@ instruction given."
              (mapcat #(gen-pours n %) all)
              ))))
 
-(defn detect-win
+(defnp detect-win
   "Determines whether a vector of jug states satisfies the required
 target amount in-toto."
   [jugs target]
   (== target
       (apply + (map :amount jugs))))
 
-(defn execute-move [jugs move]
+(defnp execute-move [jugs move]
   (eval `(-> ~jugs ~move)))
 
-(defn filter-trivial-moves
+(defnp filter-trivial-moves
   "A state is a vector of jugs. Moves are instructions to fill or spill
 a jug, by vector index, or an instruction to pour into a jug from
 another. A trivial move obtains when the source of a pour is empty, when
@@ -158,7 +159,7 @@ jug."
          )))
    moves))
 
-(defn try-moves [state moves target seen iters max-iters]
+(defnp try-moves [state moves target seen iters max-iters]
   (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
             (->> moves
@@ -184,7 +185,7 @@ jug."
                        (repeat k ii)
                        (repeat k max-iters))))))))
 
-(defn try-non-trivial-moves [state moves target seen iters max-iters]
+(defnp try-non-trivial-moves [state moves target seen iters max-iters]
   (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
             (->> moves

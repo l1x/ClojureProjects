@@ -9,6 +9,8 @@
 
 ;;; Another trick for bfs'ing.
 
+(info "running tests.")
+
 (defn node-values   [nodes]  (map    first nodes))
 (defn node-children [nodes]  (mapcat next  nodes))
 (defn node-bfs      [nodes]
@@ -130,6 +132,22 @@
       (is (= (take 4 (apply try-non-trivial-moves args))
              (take 4 (apply try-moves             args)))))))
 
+(defn with-trivials-vesus-no-trivials
+  []
+  (let [args [{:state (make-jugs [3 5 7]), :trace []}
+                ['(die-harder.core/fill-jug 0)]
+                (inc (rand-int 15))
+                #{}
+                1
+                10]]
+    (= (take 4 (p :non-trivials  (apply try-non-trivial-moves args)))
+       (take 4 (p :with-trivials (apply try-moves             args))))
+    ))
+
+(profile :info :Arithmetic (dotimes [n 10] (with-trivials-vesus-no-trivials)))
+
+;;; Mutables section
+
 (def mjs (make-jug-refs [3 5]))
 
 (defn get-amount [i]
@@ -152,13 +170,13 @@
 
     (is (= 1 1))
 
-    (do (fill-jug-ref mjs 1)    (are-amounts 3 5)
-        (spill-jug-ref mjs 0)   (are-amounts 0 5)
-        (pour-from-ref mjs 0 1) (are-amounts 3 2)
-        (spill-jug-ref mjs 0)   (are-amounts 0 2)
-        (pour-from-ref mjs 0 1) (are-amounts 2 0)
-        (fill-jug-ref mjs 1)    (are-amounts 2 5)
-        (pour-from-ref mjs 0 1) (are-amounts 3 4)
+    (do (fill-jug-ref  mjs 1)    (are-amounts 3 5)
+        (spill-jug-ref mjs 0)    (are-amounts 0 5)
+        (pour-from-ref mjs 0 1)  (are-amounts 3 2)
+        (spill-jug-ref mjs 0)    (are-amounts 0 2)
+        (pour-from-ref mjs 0 1)  (are-amounts 2 0)
+        (fill-jug-ref  mjs 1)    (are-amounts 2 5)
+        (pour-from-ref mjs 0 1)  (are-amounts 3 4)
         )))
 
 ;;; Junkyard
