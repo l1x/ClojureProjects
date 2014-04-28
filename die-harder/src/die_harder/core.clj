@@ -1,5 +1,7 @@
 (ns die-harder.core
-  (:require clojure.pprint))
+  (:require [clojure.pprint]
+            [taoensso.timbre :as timbre])
+  )
 
 (defmacro pdump
   "Monitoring and debugging macro with semantics of 'identity'."

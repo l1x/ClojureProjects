@@ -1,6 +1,9 @@
 (ns die-harder.core-test
-  (:require [clojure.test :refer :all]
-            [die-harder.core :refer :all]))
+  (:require [clojure.test :refer :all :exclude [report]]
+            [taoensso.timbre :as timbre]
+            [die-harder.core :refer :all]
+            ))
+(timbre/refer-timbre) ; Provides useful Timbre aliases in this ns
 
 (def mjis (make-jugs [3 5]))
 
@@ -93,25 +96,25 @@
     (is (= {:id 1, :capacity 5, :amount 4}
            (reduce execute-move
                    mjis
-                   '((fill-jug 1)
-                     (pour-from 0 1)
-                     (spill-jug 0)
-                     (pour-from 0 1)
-                     (fill-jug 1)
-                     (pour-from 0 1)
-                     (get-jug 1)))))
+                   '((die-harder.core/fill-jug 1)
+                     (die-harder.core/pour-from 0 1)
+                     (die-harder.core/spill-jug 0)
+                     (die-harder.core/pour-from 0 1)
+                     (die-harder.core/fill-jug 1)
+                     (die-harder.core/pour-from 0 1)
+                     (die-harder.core/get-jug 1)))))
     (is (detect-win (reduce execute-move
                             mjis
-                            '((fill-jug 1)
-                              (pour-from 0 1)
-                              (spill-jug 0)
-                              (pour-from 0 1)
-                              (fill-jug 1)
-                              (pour-from 0 1)
-                              (spill-jug 0)))
+                            '((die-harder.core/fill-jug 1)
+                              (die-harder.core/pour-from 0 1)
+                              (die-harder.core/spill-jug 0)
+                              (die-harder.core/pour-from 0 1)
+                              (die-harder.core/fill-jug 1)
+                              (die-harder.core/pour-from 0 1)
+                              (die-harder.core/spill-jug 0)))
                     4))
     (let [args [{:state (make-jugs [3 5]), :trace []}
-                ['(fill-jug 0)]
+                ['(die-harder.core/fill-jug 0)]
                 (inc (rand-int 8))
                 #{}
                 1
@@ -119,7 +122,7 @@
       (is (= (apply try-non-trivial-moves args)
              (apply try-moves             args))))
     (let [args [{:state (make-jugs [3 5 7]), :trace []}
-                ['(fill-jug 0)]
+                ['(die-harder.core/fill-jug 0)]
                 (inc (rand-int 15))
                 #{}
                 1
