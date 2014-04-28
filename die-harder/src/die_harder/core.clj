@@ -81,6 +81,19 @@
 (defn execute-move [jugs move]
   (eval `(-> ~jugs ~move)))
 
+(defn filter-trivial-moves
+  "A state is a vector of jugs. Moves are instructions to fill or spill
+a jug, by vector index, or an instruction to pour into a jug from
+another. A trivial move obtains when the source of a pour is empty."
+  [state moves]
+  (filter
+   (fn [move]
+     (or (not= 'die-harder.core/pour-from (first move))
+         (let [source-i   (nth move 2)
+               source-amt (:amount (state source-i))]
+           (not (== 0 source-amt)))))
+   moves))
+
 (defn try-moves [state moves target seen iters max-iters]
   (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
@@ -91,14 +104,27 @@
             wins (filter #(detect-win (:state %) target) trials)
             ]
         (if (not (empty? wins)) wins
-            (let [new-seen   (reduce conj seen (map :state trials))
-                  last-moves (map #(-> % :trace peek) trials)
-                  k          (count trials)
-                  ii         (inc iters)]
+            (let [new-seen    (reduce conj seen (map :state trials))
+                  last-moves  (map #(-> % :trace peek) trials)
+                  k           (count trials)
+                  ii          (inc iters)
+                  just-states (map :state trials)
+                  new-movess  (map all-moves (map :state trials) last-moves)
+                  ;; It turns out not to be faster to remove the
+                  ;; non-trivial moves, though the results are the same
+                  ;; including them.
+                  ;;
+                  non-trivial-movess
+                  (map filter-trivial-moves just-states new-movess)
+                  ]
+              ;; (if (not (= (map count new-movess) (map count non-trivial-movess)))
+              ;;   (println {:saved (- (apply + (map count new-movess))
+              ;;                       (apply + (map count non-trivial-movess)))}))
               (lazy-seq
                (mapcat try-moves
                        trials
-                       (map all-moves (map :state trials) last-moves)
+                       ; new-movess
+                       non-trivial-movess
                        (repeat k target)
                        (repeat k new-seen)
                        (repeat k ii)
