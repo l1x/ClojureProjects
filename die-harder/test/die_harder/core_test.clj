@@ -109,7 +109,15 @@
                               (fill-jug 1)
                               (pour-from 0 1)
                               (spill-jug 0)))
-                    4))))
+                    4))
+    (let [args [{:state (make-jugs [3 5]), :trace []}
+                ['(fill-jug 0)]
+                4
+                #{}
+                1
+                10]]
+      (is (= (apply try-non-trivial-moves args)
+             (apply try-moves             args))))))
 
 (def mjs (make-jug-refs [3 5]))
 

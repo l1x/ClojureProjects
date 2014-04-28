@@ -130,14 +130,30 @@ target amount in-toto."
 (defn filter-trivial-moves
   "A state is a vector of jugs. Moves are instructions to fill or spill
 a jug, by vector index, or an instruction to pour into a jug from
-another. A trivial move obtains when the source of a pour is empty."
+another. A trivial move obtains when the source of a pour is empty, when
+a spill ir proposed for an empty jug, or a fill is proposed for a full
+jug."
   [state moves]
   (filter
    (fn [move]
-     (or (not= 'die-harder.core/pour-from (first move))
-         (let [source-i   (nth move 2)
-               source-amt (:amount (state source-i))]
-           (not (== 0 source-amt)))))
+     (let [instruction (first move)]
+       (condp = instruction
+         'die-harder.core/pour-from
+         (let [source-j   (nth move 2)
+               source-amt (:amount (state source-j))]
+           (not (== 0 source-amt)))
+
+         'die-harder.core/fill-jug
+         (let [i (nth move 1)
+               a (:amount   (state i))
+               c (:capacity (state i))]
+           (not (== a c)))
+
+         'die-harder.core/spill-jug
+         (let [i (nth move 1)
+               a (:amount   (state i))]
+           (not (== 0 a)))
+         )))
    moves))
 
 (defn try-moves [state moves target seen iters max-iters]
@@ -156,10 +172,32 @@ another. A trivial move obtains when the source of a pour is empty."
                   ii          (inc iters)
                   just-states (map :state trials)
                   new-movess  (map all-moves (map :state trials) last-moves)
-                  ;; It turns out not to be faster to remove the
-                  ;; non-trivial moves, though the results are the same
-                  ;; including them.
-                  ;;
+                  ]
+              (lazy-seq
+               (mapcat try-moves
+                       trials
+                       new-movess
+                       (repeat k target)
+                       (repeat k new-seen)
+                       (repeat k ii)
+                       (repeat k max-iters))))))))
+
+(defn try-non-trivial-moves [state moves target seen iters max-iters]
+  (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
+      (let [trials
+            (->> moves
+                 (map (fn [move] {:state (execute-move (:state state) move)
+                                 :trace (conj (:trace state) move)}))
+                 (filter #(not (contains? seen (:state %)))))
+            wins (filter #(detect-win (:state %) target) trials)
+            ]
+        (if (not (empty? wins)) wins
+            (let [new-seen    (reduce conj seen (map :state trials))
+                  last-moves  (map #(-> % :trace peek) trials)
+                  k           (count trials)
+                  ii          (inc iters)
+                  just-states (map :state trials)
+                  new-movess  (map all-moves (map :state trials) last-moves)
                   non-trivial-movess
                   (map filter-trivial-moves just-states new-movess)
                   ]
@@ -169,7 +207,6 @@ another. A trivial move obtains when the source of a pour is empty."
               (lazy-seq
                (mapcat try-moves
                        trials
-                       ; new-movess
                        non-trivial-movess
                        (repeat k target)
                        (repeat k new-seen)
