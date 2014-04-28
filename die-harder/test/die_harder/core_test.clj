@@ -112,12 +112,20 @@
                     4))
     (let [args [{:state (make-jugs [3 5]), :trace []}
                 ['(fill-jug 0)]
-                4
+                (inc (rand-int 8))
                 #{}
                 1
                 10]]
       (is (= (apply try-non-trivial-moves args)
-             (apply try-moves             args))))))
+             (apply try-moves             args))))
+    (let [args [{:state (make-jugs [3 5 7]), :trace []}
+                ['(fill-jug 0)]
+                (inc (rand-int 15))
+                #{}
+                1
+                10]]
+      (is (= (take 4 (apply try-non-trivial-moves args))
+             (take 4 (apply try-moves             args)))))))
 
 (def mjs (make-jug-refs [3 5]))
 

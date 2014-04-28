@@ -205,7 +205,7 @@ jug."
               ;;   (println {:saved (- (apply + (map count new-movess))
               ;;                       (apply + (map count non-trivial-movess)))}))
               (lazy-seq
-               (mapcat try-moves
+               (mapcat try-non-trivial-moves
                        trials
                        non-trivial-movess
                        (repeat k target)
