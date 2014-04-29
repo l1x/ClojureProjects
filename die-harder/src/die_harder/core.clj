@@ -249,7 +249,7 @@ empty jug, or filling a full jug."
 
 (defnp play-game [capacities target & strategy-]
   (if (or (> target (apply + capacities))
-          (not (divides? (apply gcd capacities) target))) nil
+          (not (divides? (apply gcd capacities) target))) '()
       (let [strategy (or-default strategy- try-moves)]
         (strategy
          {:states (make-jugs capacities), :trace []}

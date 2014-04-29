@@ -114,9 +114,9 @@
 ;;    die_harder.core_test$get_amount.invoke (core_test.clj:178)
 ;;    die_harder.core_test/fn (core_test.clj:156)
 
-
-(defn get-amount [states]
-  (->> states :states (map :amount) (apply +)))
+;; If this function is named "get-amount," I get the exception above.
+(defn get-total [a-map]
+  (->> a-map :states (map :amount) (apply +)))
 
 (deftest immutables-test
   (testing "jugs, immutable version"
@@ -165,9 +165,9 @@
                     4))
     (test-games [3 5])
     (test-games [3 5 7])
-    (is (nil? (play-game [3 6] 4)))
-    (is (= 2 (->> (play-game [3 6 8] 2) first :states (map :amount) (apply +))))
-    (is (= 3 (->> (play-game [3 6] 3)   first :states (map :amount) (apply +))))
+    (is (empty? (play-game [3 6] 4)))
+    (is (= 2 (->> (play-game [3 6 8] 2) first get-total)))
+    (is (= 3 (->> (play-game [3 6] 3)   first get-total)))
 ))
 
 (defn with-trivials-vesus-no-trivials
