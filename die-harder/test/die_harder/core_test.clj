@@ -116,15 +116,17 @@
                               (die-harder.core/pour-from 0 1)
                               (die-harder.core/spill-jug 0)))
                     4))
-    (let [args [{:states (make-jugs [3 5]), :trace []}
-                ['(die-harder.core/fill-jug 0)]
-                (inc (rand-int 8))
-                #{}
-                1
-                10]]
-      (is (= (apply try-non-trivial-moves args)
-             (apply try-moves             args))))
-    (let [args [{:states (make-jugs [3 5 7]), :trace []}
+    (is (= (let [capacities [3 5]
+                 target (rand-int (inc (apply + capacities)))]
+             (play-game capacities target)
+             (play-game capacities target try-non-trivial-moves))))
+
+    (is (= (let [capacities [3 5 7]
+                 target (rand-int (inc (apply + capacities)))]
+             (play-game capacities target)
+             (play-game capacities target try-non-trivial-moves))))
+
+#_(let [args [{:states (make-jugs [3 5 7]), :trace []}
                 ['(die-harder.core/fill-jug 0)]
                 (inc (rand-int 15))
                 #{}
@@ -145,7 +147,7 @@
        (take 4 (p :with-trivials (apply try-moves             args))))
     ))
 
-(profile :info :Arithmetic (dotimes [n 10] (with-trivials-vesus-no-trivials)))
+#_(profile :info :Arithmetic (dotimes [n 10] (with-trivials-vesus-no-trivials)))
 
 ;;; Mutables section
 

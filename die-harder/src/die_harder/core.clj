@@ -163,7 +163,7 @@ jug."
       (let [trials
             (->> moves
                  (map (fn [move] {:states (execute-move (:states states) move)
-                                 :trace (conj (:trace states) move)}))
+                                 :trace  (conj (:trace states) move)}))
                  (filter #(not (contains? seen (:states %)))))
             wins (filter #(detect-win (:states %) target) trials)
             ]
@@ -190,7 +190,7 @@ jug."
       (let [trials
             (->> moves
                  (map (fn [move] {:states (execute-move (:states states) move)
-                                 :trace (conj (:trace states) move)}))
+                                 :trace  (conj (:trace states) move)}))
                  (filter #(not (contains? seen (:states %)))))
             wins (filter #(detect-win (:states %) target) trials)
             ]
@@ -215,6 +215,19 @@ jug."
                        (repeat k new-seen)
                        (repeat k ii)
                        (repeat k max-iters))))))))
+
+(defn- or-default
+  "Fetch first optional value from function arguments preceded by &."
+  [val default] (if val (first val) default))
+
+(defnp play-game [capacities target & strategy-]
+  (let [strategy (or-default strategy- try-moves)]
+    (strategy
+     {:states (make-jugs capacities), :trace []}
+     ['(die-harder.core/fill-jug 0)]
+     target
+     #{}, 1, 10
+     )))
 
 ;;; Mutable-Ref variation (discouraged, but may be necessary due to perf)
 
