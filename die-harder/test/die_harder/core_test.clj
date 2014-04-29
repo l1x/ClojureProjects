@@ -101,20 +101,6 @@
            (play-game capacities target)
            (play-game capacities target try-non-trivial-moves)))))
 
-;; TODO: investigate: (->> (play-game [3 6 8] 2) first get-amount)
-;; generates the following:
-;;
-;; ERROR in (immutables-test) (APersistentVector.java:265)
-;; jugs, immutable version
-;; expected: (= 3 (->> (play-game [3 6] 3) first get-amount))
-;;   actual: java.lang.IllegalArgumentException: Key must be integer
-;; at clojure.lang.APersistentVector.invoke (APersistentVector.java:265)
-;;    die_harder.core$get_jug_ref.invoke (core.clj:271)
-;;    die_harder.core$get_jug_ref_attribute.invoke (core.clj:288)
-;;    die_harder.core_test$get_amount.invoke (core_test.clj:178)
-;;    die_harder.core_test/fn (core_test.clj:156)
-
-;; If this function is named "get-amount," I get the exception above.
 (defn get-total [a-map]
   (->> a-map :states (map :amount) (apply +)))
 
@@ -188,12 +174,12 @@
 
 (def mjs (make-jug-refs [3 5]))
 
-(defn get-amount [i]
+(defn get-jug-amount [i]
   (-> mjs (get-jug-ref-attribute i :amount)))
 
 (defn are-amounts [i j]
-  (is (= i (get-amount 0)))
-  (is (= j (get-amount 1))))
+  (is (= i (get-jug-amount 0)))
+  (is (= j (get-jug-amount 1))))
 
 (deftest mutables-test
   (testing "jugs, mutable ref version"
@@ -203,8 +189,8 @@
     (is (= 3 (-> mjs (get-jug-ref-attribute 0 :capacity))))
     (is (= 5 (-> mjs (get-jug-ref-attribute 1 :capacity))))
 
-    (is (= 3 (do (fill-jug-ref mjs 0) (get-amount 0))))
-    (is (= 3 (get-amount 0)))
+    (is (= 3 (do (fill-jug-ref mjs 0) (get-jug-amount 0))))
+    (is (= 3 (get-jug-amount 0)))
 
     (is (= 1 1))
 
