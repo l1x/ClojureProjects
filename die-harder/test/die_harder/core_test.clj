@@ -72,17 +72,17 @@
 
 (deftest immutables-test
   (testing "jugs, immutable version"
-    (is (= 3 (:capacity (get-jug mjis 0))))
-    (is (= 5 (:capacity (get-jug mjis 1))))
+    (is (= 3 (:capacity (mjis 0))))
+    (is (= 5 (:capacity (mjis 1))))
     (is (= [0 0] (map :amount mjis)))
     (is (= 3 (-> mjis
                  (fill-jug 0)
-                 (get-jug 0)
+                 (get 0)
                  :amount)))
     (is (= 0 (-> mjis
                  (fill-jug 0)
                  (spill-jug 0)
-                 (get-jug 0)
+                 (get 0)
                  :amount)))
     (is (= 4 (-> mjis
                  (fill-jug 1)
@@ -91,7 +91,7 @@
                  (pour-from 0 1)
                  (fill-jug 1)
                  (pour-from 0 1)
-                 (get-jug 1)
+                 (get 1)
                  :amount
                  )))
     (is (= '(die-harder.core/fill-jug 42) (gen-fill 42)))
@@ -104,7 +104,7 @@
                      (die-harder.core/pour-from 0 1)
                      (die-harder.core/fill-jug 1)
                      (die-harder.core/pour-from 0 1)
-                     (die-harder.core/get-jug 1)))))
+                     (get 1)))))
     (is (detect-win (reduce execute-move
                             mjis
                             '((die-harder.core/fill-jug 1)
