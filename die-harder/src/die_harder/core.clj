@@ -1,6 +1,6 @@
 (ns die-harder.core
   (:require [clojure.pprint]
-            [taoensso.timbre :as timbre]))
+            [taoensso.timbre :as timbre :exclude [assert]]))
 
 (timbre/refer-timbre) ; Provides useful Timbre aliases in this ns
 
@@ -19,19 +19,33 @@
   [s]
    (-> s Exception. throw))
 
+(defn- or-default
+  "Fetch first optional value from function arguments preceded by &."
+  [val default] (if val (first val) default))
+
+(defnp ^:private
+  assert
+  "Throws an exception if the given Boolean is false."
+  [bool & msg-]
+  (when-not bool (except (or-default msg- ""))))
+
+(defnp ^:private
+  assert-not
+  "Throws an exception if the given Boolean is true."
+  [bool & msg-]
+  (when bool (except (or-default msg- ""))))
+
 (defnp get-jug
   "Retrieves the i-th jug state from a vector of jugs, checking
 invariants along the way. "
   [jugs i]
   (let [mj (jugs i)]
-    (when (not= i (:id mj))
-      (except (str "data corrupted: " mj " should have id " i ".")))
+    (assert (== i (:id mj))
+            (str "data corrupted: " mj " should have id " i "."))
     (let [c (:capacity mj)
           a (:amount   mj)]
-      (when (< a 0)
-        (except (str "amount negative: " mj ".")))
-      (when (> a c)
-        (except (str "amount greater than capacity: " mj "."))))
+      (assert-not (< a 0) (str "amount negative: " mj "."))
+      (assert-not (> a c) (str "amount greater than capacity: " mj ".")))
     mj))
 
 
@@ -69,8 +83,8 @@ current amount to 0."
 from another, distinct j-th jug state. The quantity may fill the i-th
 jug or empty the j-th jug, or both."
   [jugs i j]
-  (when (== i j)
-    (except (str "cannot pour from a jug into itself: " i ".")))
+  (assert-not (== i j)
+              (str "cannot pour from a jug into itself: " i "."))
   (let [jug-i            (get-jug   jugs i)
         jug-j            (get-jug   jugs j)
         jug-i-amount     (:amount   jug-i )
@@ -129,11 +143,10 @@ target amount in-toto."
   (eval `(-> ~jugs ~move)))
 
 (defnp filter-trivial-moves
-  "A state is a vector of jugs. Moves are instructions to fill or spill
-a jug, by vector index, or an instruction to pour into a jug from
-another. A trivial move obtains when the source of a pour is empty, when
-a spill ir proposed for an empty jug, or a fill is proposed for a full
-jug."
+  "Given \"states,\" a vector of jugs states; and \"moves,\" a sequence
+of instructions to fill, spill, or pour, filters trivial moves out. A
+move is trivial when the source of a pour is empty, when spilling an
+empty jug, or filling a full jug."
   [state moves]
   (filter
    (fn [move]
@@ -159,7 +172,7 @@ jug."
 
 (defnp try-moves
   [states moves target seen iters max-iters]
-  (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
+  (if (or (not moves) (> iters max-iters)) nil
       (let [trials
             (->> moves
                  (map (fn [move] {:states (execute-move (:states states) move)
@@ -173,7 +186,7 @@ jug."
                   k           (count trials)
                   ii          (inc iters)
                   just-states (map :states trials)
-                  new-movess  (map all-moves (map :states trials) last-moves)
+                  new-movess  (map all-moves just-states last-moves)
                   ]
               (lazy-seq
                (mapcat try-moves
@@ -200,9 +213,9 @@ jug."
                   k           (count trials)
                   ii          (inc iters)
                   just-states (map :states trials)
-                  new-movess  (map all-moves (map :states trials) last-moves)
+                  new-movess  (map all-moves just-states last-moves)
                   non-trivial-movess
-                  (map filter-trivial-moves just-states new-movess)
+                              (map filter-trivial-moves just-states new-movess)
                   ]
               ;; (if (not (= (map count new-movess) (map count non-trivial-movess)))
               ;;   (println {:saved (- (apply + (map count new-movess))
@@ -216,18 +229,34 @@ jug."
                        (repeat k ii)
                        (repeat k max-iters))))))))
 
-(defn- or-default
-  "Fetch first optional value from function arguments preceded by &."
-  [val default] (if val (first val) default))
+(defnp divides? [a b] (== 0 (mod b a)))
+
+(defn integer-power [a b]
+  (assert (and (pos? a) (not (neg? b))))
+  (letfn [(helper [a b n]
+            (if (zero? b) n (recur a (dec b) (* n a))))]
+    (helper a b 1)))
+
+(defn gcd
+  ([a b]
+     (assert (and (not= 0 a) (not= 0 b)))
+     (if (> a b)
+       (recur b a)
+       (if (divides? a b)
+         a
+         (recur (rem b a) a))))
+  ([a b & more] (reduce gcd a (cons b more))))
 
 (defnp play-game [capacities target & strategy-]
-  (let [strategy (or-default strategy- try-moves)]
-    (strategy
-     {:states (make-jugs capacities), :trace []}
-     ['(die-harder.core/fill-jug 0)]
-     target
-     #{}, 1, 10
-     )))
+  (if (or (> target (apply + capacities))
+          (not (divides? target (apply gcd capacities)))) nil
+      (let [strategy (or-default strategy- try-moves)]
+        (strategy
+         {:states (make-jugs capacities), :trace []}
+         ['(die-harder.core/fill-jug 0)]
+         target
+         #{}, 1, 10
+         ))))
 
 ;;; Mutable-Ref variation (discouraged, but may be necessary due to perf)
 
@@ -240,10 +269,8 @@ jug."
 
 (defn get-jug-ref  [jugs i]
   (let [mj (jugs i)]
-    (if (not= i (:id  @mj))
-      (-> (str "data corrupted: " @mj " should have id " i ".")
-          Exception.
-          throw))
+    (assert (== i (:id  @mj))
+            (str "data corrupted: " @mj " should have id " i "."))
     mj))
 
 (defn fill-jug-ref  [jugs i]

@@ -62,11 +62,36 @@
                  (step (into (pop queue) children)))))))
     (queue tree-vector))))
 
-(deftest utilities-test
+(deftest trees-test
   (let [t0     [1 [2 [4] [5]] [3 [6]]]
         answer (sort (flatten t0))]
-   (is (= answer  (bfs-eager t0)))
-   (is (= answer  (bfs-lazy  t0)))))
+    (is (= answer  (bfs-eager t0)))
+    (is (= answer  (bfs-lazy  t0)))))
+
+;; Immutables die-hard
+
+(deftest utilities-test
+  (let []
+    (is (thrown? Exception (gcd 0 0)))
+    (is (thrown? Exception (gcd 0 42)))
+    (is (thrown? Exception (gcd 42 0)))
+    (is (thrown? ArithmeticException (divides? 0 0)))
+    (is (thrown? ArithmeticException (divides? 0 42)))
+    (is (divides?  2  4))
+    (is (divides?  2 -4))
+    (is (divides? -2 -4))
+    (is (divides? -2  4))
+    (is (not (divides?  2  47)))
+    (is (not (divides?  2 -47)))
+    (is (not (divides? -2 -47)))
+    (is (not (divides? -2  47)))
+    (is (= 100 (integer-power 10 2)))
+    (is (= 100 (gcd (integer-power 10 2)
+                    (integer-power 10 3))))
+    (is (= 1 (gcd 3 5)))
+    (is (= 1 (gcd 3 5 7)))
+    (is (= 5 (gcd 5 15)))
+    (is (= 5 (gcd 5 15 45)))))
 
 (deftest immutable-pour-test
   (= 0 (-> mjis (pour-from 0 1))))
