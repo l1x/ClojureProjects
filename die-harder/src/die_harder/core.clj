@@ -14,6 +14,27 @@
          (clojure.pprint/pprint x#)
          x#)))
 
+(defnp except
+  "Throws an Exception with the given string message."
+  [s]
+   (-> s Exception. throw))
+
+(defnp get-jug
+  "Retrieves the i-th jug state from a vector of jugs, checking
+invariants along the way. "
+  [jugs i]
+  (let [mj (jugs i)]
+    (when (not= i (:id mj))
+      (except (str "data corrupted: " mj " should have id " i ".")))
+    (let [c (:capacity mj)
+          a (:amount   mj)]
+      (when (< a 0)
+        (except (str "amount negative: " mj ".")))
+      (when (> a c)
+        (except (str "amount greater than capacity: " mj "."))))
+    mj))
+
+
 (defnp make-jugs
   "Makes a vector of jug states given a vector of integer
 capacities. Each JUG STATE is a map of an id, integer capacity, and
@@ -29,7 +50,7 @@ capacity: {:id 1, :capacity 5, :amount 0}"
   "Fills the i-th jug state in a vector of jug states to capacity,
 irrespective of current amount."
   [jugs i]
-  (let [mj (jugs i)]
+  (let [mj (get-jug jugs i)]
     (assoc jugs i
            (->> (:capacity mj)
                 (assoc mj :amount)))))
@@ -38,7 +59,7 @@ irrespective of current amount."
   "Spills the i-th jug state of a vector of jug states, reducing its
 current amount to 0."
   [jugs i]
-  (let [mj (jugs i)]
+  (let [mj (get-jug jugs i)]
     (assoc jugs i
            (->> 0
                 (assoc mj :amount)))))
@@ -48,11 +69,11 @@ current amount to 0."
 from another, distinct j-th jug state. The quantity may fill the i-th
 jug or empty the j-th jug, or both."
   [jugs i j]
-  (let [jug-i            (jugs i         )
-        jug-j            (jugs j         )
-        jug-i-amount     (:amount   jug-i)
-        jug-j-amount     (:amount   jug-j)
-        jug-i-capacity   (:capacity jug-i)
+  (let [jug-i            (get-jug   jugs i)
+        jug-j            (get-jug   jugs j)
+        jug-i-amount     (:amount   jug-i )
+        jug-j-amount     (:amount   jug-j )
+        jug-i-capacity   (:capacity jug-i )
         available-source jug-j-amount
         available-space  (- jug-i-capacity jug-i-amount)
         amount-to-pour   (min available-space available-source)]
@@ -135,7 +156,6 @@ jug."
    moves))
 
 (defnp try-moves
-  ""
   [states moves target seen iters max-iters]
   (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
