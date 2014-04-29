@@ -101,6 +101,23 @@
            (play-game capacities target)
            (play-game capacities target try-non-trivial-moves)))))
 
+;; TODO: investigate: (->> (play-game [3 6 8] 2) first get-amount)
+;; generates the following:
+;;
+;; ERROR in (immutables-test) (APersistentVector.java:265)
+;; jugs, immutable version
+;; expected: (= 3 (->> (play-game [3 6] 3) first get-amount))
+;;   actual: java.lang.IllegalArgumentException: Key must be integer
+;; at clojure.lang.APersistentVector.invoke (APersistentVector.java:265)
+;;    die_harder.core$get_jug_ref.invoke (core.clj:271)
+;;    die_harder.core$get_jug_ref_attribute.invoke (core.clj:288)
+;;    die_harder.core_test$get_amount.invoke (core_test.clj:178)
+;;    die_harder.core_test/fn (core_test.clj:156)
+
+
+(defn get-amount [states]
+  (->> states :states (map :amount) (apply +)))
+
 (deftest immutables-test
   (testing "jugs, immutable version"
     (is (= 3 (:capacity (mjis 0))))
@@ -148,7 +165,9 @@
                     4))
     (test-games [3 5])
     (test-games [3 5 7])
-
+    (is (nil? (play-game [3 6] 4)))
+    (is (= 2 (->> (play-game [3 6 8] 2) first :states (map :amount) (apply +))))
+    (is (= 3 (->> (play-game [3 6] 3)   first :states (map :amount) (apply +))))
 ))
 
 (defn with-trivials-vesus-no-trivials
