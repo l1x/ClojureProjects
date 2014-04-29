@@ -71,6 +71,11 @@
 (deftest immutable-pour-test
   (= 0 (-> mjis (pour-from 0 1))))
 
+(defn- test-games [capacities]
+  (is (= (let [target (rand-int (inc (apply + capacities)))]
+           (play-game capacities target)
+           (play-game capacities target try-non-trivial-moves)))))
+
 (deftest immutables-test
   (testing "jugs, immutable version"
     (is (= 3 (:capacity (mjis 0))))
@@ -116,24 +121,10 @@
                               (die-harder.core/pour-from 0 1)
                               (die-harder.core/spill-jug 0)))
                     4))
-    (is (= (let [capacities [3 5]
-                 target (rand-int (inc (apply + capacities)))]
-             (play-game capacities target)
-             (play-game capacities target try-non-trivial-moves))))
+    (test-games [3 5])
+    (test-games [3 5 7])
 
-    (is (= (let [capacities [3 5 7]
-                 target (rand-int (inc (apply + capacities)))]
-             (play-game capacities target)
-             (play-game capacities target try-non-trivial-moves))))
-
-#_(let [args [{:states (make-jugs [3 5 7]), :trace []}
-                ['(die-harder.core/fill-jug 0)]
-                (inc (rand-int 15))
-                #{}
-                1
-                10]]
-      (is (= (take 4 (apply try-non-trivial-moves args))
-             (take 4 (apply try-moves             args)))))))
+))
 
 (defn with-trivials-vesus-no-trivials
   []
