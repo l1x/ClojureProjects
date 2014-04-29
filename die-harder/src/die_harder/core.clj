@@ -69,6 +69,8 @@ current amount to 0."
 from another, distinct j-th jug state. The quantity may fill the i-th
 jug or empty the j-th jug, or both."
   [jugs i j]
+  (when (== i j)
+    (except (str "cannot pour from a jug into itself: " i ".")))
   (let [jug-i            (get-jug   jugs i)
         jug-j            (get-jug   jugs j)
         jug-i-amount     (:amount   jug-i )
@@ -160,18 +162,18 @@ jug."
   (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
             (->> moves
-                 (map (fn [move] {:state (execute-move (:state states) move)
+                 (map (fn [move] {:states (execute-move (:states states) move)
                                  :trace (conj (:trace states) move)}))
-                 (filter #(not (contains? seen (:state %)))))
-            wins (filter #(detect-win (:state %) target) trials)
+                 (filter #(not (contains? seen (:states %)))))
+            wins (filter #(detect-win (:states %) target) trials)
             ]
         (if (not (empty? wins)) wins
-            (let [new-seen    (reduce conj seen (map :state trials))
+            (let [new-seen    (reduce conj seen (map :states trials))
                   last-moves  (map #(-> % :trace peek) trials)
                   k           (count trials)
                   ii          (inc iters)
-                  just-states (map :state trials)
-                  new-movess  (map all-moves (map :state trials) last-moves)
+                  just-states (map :states trials)
+                  new-movess  (map all-moves (map :states trials) last-moves)
                   ]
               (lazy-seq
                (mapcat try-moves
@@ -187,18 +189,18 @@ jug."
   (if (or (not moves) (> iters max-iters)) nil ; {:moves moves :iters iters}
       (let [trials
             (->> moves
-                 (map (fn [move] {:state (execute-move (:state states) move)
+                 (map (fn [move] {:states (execute-move (:states states) move)
                                  :trace (conj (:trace states) move)}))
-                 (filter #(not (contains? seen (:state %)))))
-            wins (filter #(detect-win (:state %) target) trials)
+                 (filter #(not (contains? seen (:states %)))))
+            wins (filter #(detect-win (:states %) target) trials)
             ]
         (if (not (empty? wins)) wins
-            (let [new-seen    (reduce conj seen (map :state trials))
+            (let [new-seen    (reduce conj seen (map :states trials))
                   last-moves  (map #(-> % :trace peek) trials)
                   k           (count trials)
                   ii          (inc iters)
-                  just-states (map :state trials)
-                  new-movess  (map all-moves (map :state trials) last-moves)
+                  just-states (map :states trials)
+                  new-movess  (map all-moves (map :states trials) last-moves)
                   non-trivial-movess
                   (map filter-trivial-moves just-states new-movess)
                   ]

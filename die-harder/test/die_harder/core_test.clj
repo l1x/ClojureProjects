@@ -78,45 +78,45 @@
     (is (= [0 0] (map :amount mjis)))
     (is (= 3 (-> mjis
                  (fill-jug 0)
-                 (get-jug 0)
+                 (get-jug  0)
                  :amount)))
     (is (= 0 (-> mjis
-                 (fill-jug 0)
+                 (fill-jug  0)
                  (spill-jug 0)
-                 (get-jug 0)
+                 (get-jug   0)
                  :amount)))
     (is (= 4 (-> mjis
-                 (fill-jug 1)
+                 (fill-jug  1)
                  (pour-from 0 1)
                  (spill-jug 0)
                  (pour-from 0 1)
-                 (fill-jug 1)
+                 (fill-jug  1)
                  (pour-from 0 1)
-                 (get-jug 1)
+                 (get-jug   1)
                  :amount
                  )))
     (is (= '(die-harder.core/fill-jug 42) (gen-fill 42)))
     (is (= {:id 1, :capacity 5, :amount 4}
            (reduce execute-move
                    mjis
-                   '((die-harder.core/fill-jug 1)
+                   '((die-harder.core/fill-jug  1)
                      (die-harder.core/pour-from 0 1)
                      (die-harder.core/spill-jug 0)
                      (die-harder.core/pour-from 0 1)
-                     (die-harder.core/fill-jug 1)
+                     (die-harder.core/fill-jug  1)
                      (die-harder.core/pour-from 0 1)
-                     (die-harder.core/get-jug 1)))))
+                     (die-harder.core/get-jug  1)))))
     (is (detect-win (reduce execute-move
                             mjis
-                            '((die-harder.core/fill-jug 1)
+                            '((die-harder.core/fill-jug  1)
                               (die-harder.core/pour-from 0 1)
                               (die-harder.core/spill-jug 0)
                               (die-harder.core/pour-from 0 1)
-                              (die-harder.core/fill-jug 1)
+                              (die-harder.core/fill-jug  1)
                               (die-harder.core/pour-from 0 1)
                               (die-harder.core/spill-jug 0)))
                     4))
-    (let [args [{:state (make-jugs [3 5]), :trace []}
+    (let [args [{:states (make-jugs [3 5]), :trace []}
                 ['(die-harder.core/fill-jug 0)]
                 (inc (rand-int 8))
                 #{}
@@ -124,7 +124,7 @@
                 10]]
       (is (= (apply try-non-trivial-moves args)
              (apply try-moves             args))))
-    (let [args [{:state (make-jugs [3 5 7]), :trace []}
+    (let [args [{:states (make-jugs [3 5 7]), :trace []}
                 ['(die-harder.core/fill-jug 0)]
                 (inc (rand-int 15))
                 #{}
@@ -135,7 +135,7 @@
 
 (defn with-trivials-vesus-no-trivials
   []
-  (let [args [{:state (make-jugs [3 5 7]), :trace []}
+  (let [args [{:states (make-jugs [3 5 7]), :trace []}
                 ['(die-harder.core/fill-jug 0)]
                 (inc (rand-int 15))
                 #{}
