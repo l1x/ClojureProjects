@@ -21,4 +21,19 @@
                                        :D  35
                                        :F  77
                                        :E  84
-                                       :C 119})}))))
+                                       :C 119})}))
+    (is (contains? #{:A :C :D :E :F}
+                   (first (sample-walker 1 loaded-die))))
+    (is (reduce
+         #(and %1 %2)
+         true
+         (map #(contains? #{:A :C :D :E :F} %)
+              (sample-walker 1000 loaded-die))))
+
+    (is (reduce
+         #(and %1 %2)
+         true
+         (map #(contains? #{:A :C :D :E :F} %)
+              (sample-linearly 1000 loaded-die))))
+    )
+  )
