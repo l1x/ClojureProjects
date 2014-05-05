@@ -3,19 +3,37 @@
   (:require [clojure.math.numeric-tower :as mathEx]))
 
 ;;; This is the form of data returned by "frequencies,"
-(def loaded-die {:A 37, :B 0, :C 17, :D 5, :E 12, :F 11 :G 42})
+(def loaded-die {:A 37, :B 0, :C 17, :D 5, :E 12, :F 11 :G 44})
 
-(defn total [frqs] (apply + (map second frqs)))
+(defn total
+  "The sum of frequencies in a distribution, which is a sequence of
+pairs of outcomes and frequencies."
+  [frqs] (apply + (map second frqs)))
 
-(defn N           [frqs] (count frqs))
-(defn S           [frqs] (total frqs))
-(defn L           [frqs] (mathEx/lcm (N frqs) (S frqs)))
-(defn H           [frqs] (/ (L frqs) (N frqs)))
-(defn beef-factor [frqs] (/ (L frqs) (S frqs)))
-(defn beefed      [frqs] (map #(vector
+(defn N
+  "The number of outcomes in a distribution."
+  [frqs] (count frqs))
+
+(defn S
+  "The total of the frequencies in a distribution."
+  [frqs] (total frqs))
+
+(defn L
+  "A new total of augmented frequencies after redistribution."
+  [frqs] (mathEx/lcm (N frqs) (S frqs)))
+
+(defn H
+  "The heights of bins after redistribution."
+  [frqs] (/ (L frqs) (N frqs)))
+
+(defn augmentation-factor [frqs] (/ (L frqs) (S frqs)))
+
+(defn augmented      [frqs] (map #(vector
                                 (first %)
-                                (* (second %) (beef-factor frqs)))
+                                (* (second %) (augmentation-factor frqs)))
                               frqs))
+
+;;; Preprocessing
 
 (defn fill-shortest [target [filled frqs]]
   (let [sorted   (sort-by second frqs)
@@ -53,20 +71,25 @@
          (range n))))
 
 (defn -main [] (pprint
-                {"loaded-die" loaded-die
-                 ,"count" (N loaded-die)
-                 ,"total" (S loaded-die)
-                 ,"gcd count total" (mathEx/gcd (N loaded-die) (S loaded-die))
-                 ,"beefed-up total" (L loaded-die)
-                 ,"target height:" (H loaded-die)
-                 ,"beefed-up heights" (beefed loaded-die)
-                 ,"total beefed-up heights" (total (beefed loaded-die))
-                 ,"tallest and shortest" (fill-shortest (H loaded-die) [[] (beefed loaded-die)])
-                 ,"redistributed" (redistribute (H loaded-die) (beefed loaded-die))
-                 ,"sample 10000"
-                 (time
-                  (frequencies
-                   (sample (* 10000 (S loaded-die))
-                           (redistribute (H loaded-die)
-                                         (beefed loaded-die)))))
-                 }))
+                (let [redis (augmented loaded-die)
+                      h     (H loaded-die)
+                      n     (N loaded-die)
+                      s     (S loaded-die)
+                      l     (L loaded-die)]
+                 {"loaded-die" loaded-die
+                  ,"original count"  n
+                  ,"original total"  s
+                  ,"gcd count total" (mathEx/gcd n s)
+                  ,"lcm count total" l
+                  ,"target height:"  h
+                  ,"target total:"   (* h n)
+                  ,"augmented heights" redis
+                  ,"total augmented heights" (total redis)
+                  ,"tallest and shortest" (fill-shortest h [[] redis])
+                  ,"redistributed" (redistribute h redis)
+                  ,"sample 10000"
+                  (time
+                   (frequencies
+                    (sample (* 10000 s)
+                            (redistribute h redis))))
+                  })))
