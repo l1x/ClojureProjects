@@ -126,8 +126,14 @@ searching; this is O(N)-space, O(N)-time. "
 ;;; new bin contains at least one count of its original "home"
 ;;; outcome. To redistribute the counts, they must be proportionally
 ;;; increased so that the new total is disvisible both by N, so that the
-;;; new bins will all contain the same total amounts; and by S, the sum
-;;; of the original counts, so that that the old counts
+;;; new bins will all contain the same per-bin totals; and by S, the sum
+;;; of the original counts, so that that the new total count is a
+;;; multiple of the old total count and proportions are preserved
+;;; exactly. The first step in redistribution is to multiply each
+;;; original frequency by lcm(N,S)/S. Then sort the bins, fill the
+;;; shortest from the tallest (this is always possible), remove the
+;;; newly filled bin from the process, and repeat until all bins are
+;;; filled to equal heights with no more than two colors.
 
 (defn N
   "The number of outcomes in a distribution."
