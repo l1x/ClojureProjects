@@ -32,6 +32,14 @@
          (map #(contains? outcomes %)
               (sample-walker 1000 loaded-die))))))
 
+(deftest run-length-test
+  (testing "Sampling a given distribution by a run-length array.")
+  (is (reduce
+       #(and %1 %2)
+       true
+       (map #(contains? outcomes %)
+            (sample-run-length-array 1000 loaded-die)))))
+
 (deftest linear-test
   (testing "Sampling a given distribution by linear search.")
   (is (reduce

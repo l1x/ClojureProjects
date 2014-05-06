@@ -6,16 +6,17 @@
 ;;;
 ;;; Generate random music on piano white keys by sampling a given
 ;;; distribution of notes. Outcomes are the N=7 characters from 'A' to
-;;; 'G' with proportions P = (5, 8, 13, 0, 6, 4, 3). Generate characters
-;;; randomly and statistically in those proportions. Show that your
-;;; solution has the given statistics. You may use a uniformly
+;;; 'G' with proportions P = (37, 0, 17, 5, 12, 11, 44). Generate
+;;; characters randomly and statistically in those proportions. Show
+;;; that your solution has the given statistics. You may use a uniformly
 ;;; distributed floating-point, [0, 1) pseudo-random number generator
 ;;; such as Unix "rand." Your randoms need not be cryptographically
 ;;; strong.
 ;;;
-;;; Your code should handle the general case where the number of
-;;; outcomes is N and the given proportions are large integers. The
-;;; above is just one concrete example.
+;;; Your code should handle the general case where the outcomes are
+;;; arbitrary types, the number of outcomes is N and the given
+;;; proportions are large integers. The above is just one concrete
+;;; instance of the general problem.
 ;;;
 ;;; Characterize the space and time complexity of your solution in
 ;;; "big-O" terms. If you divide your solution into preprocessing and
@@ -23,22 +24,8 @@
 ;;; production phase and may assume unbounded resources for
 ;;; preprocessing.
 ;;;
-;;; There are many solutions to this problem with a wide variety of
+;;; There are several solutions to this problem with a variety of
 ;;; complexities.
-
-;;; Here is a very short solution that linearly searches the cumulative
-;;; probability distribution implied by the given probability
-;;; distribution function.
-
-(defmacro pdump
-  "Monitoring and debugging macro with semantics of 'identity'."
-  [x]
-  `(let [x# (try ~x (catch Exception e# (str e#)))]
-     (do (println "----------------")
-         (clojure.pprint/pprint '~x)
-         (println "~~>")
-         (clojure.pprint/pprint x#)
-         x#)))
 
 (def outcome
   "Get the outcome from a outcome-frequency pair."
@@ -63,16 +50,28 @@ as Unix 'rand.'"
              (* mac)
              int))
 
+(defn sample-run-length-array
+  "Produce n samples of the vector of outcome-frequency pairs by
+sampling an auxiliary array of outcomes that contains numbers of copies
+of each outcome proportional to the frequencies in the given
+distribution; this solution is O(S)-space, where S is the sum of all the
+frequencies, and O(1)-time."
+  [n frqs-]
+  (let [aux (vec (mapcat (fn [[outcome frequency]]
+                           (repeat frequency outcome))
+                         frqs-))
+        s   (count aux)]
+    (repeatedly n (fn [] (aux (rand-int2 s))))))
+
 (defn sample-logarithmically
   "Produce n samples of the outcome-frequency vector by binary
 searching the cumulative distribution function; this is O(N)-space,
 O(log N)-time. "
   [n frqs-]
   (let [frqs (filter (comp pos? frequency) frqs-)
-        cdf  (vec (reductions (fn [results pair]
-                                [(outcome pair)
-                                 (+ (frequency results)
-                                    (frequency pair))])
+        cdf  (vec (reductions (fn [results [outcome freq]]
+                                [outcome
+                                 (+ (frequency results) freq)])
                               (first frqs)
                               (rest frqs)))
         sum  (total frqs)
@@ -81,21 +80,21 @@ O(log N)-time. "
     (map (fn [target]
            (loop [l 0, h (dec len)]
              (let [i (mid l h), v (frequency (cdf i)), o (outcome (cdf i))]
-#_(clojure.pprint/pprint {:l l :h h :i i :t target :cdf cdf :v v :o o})
                (if (>= l h) o
                    (cond
+
                     (>= target v)
-                    (let [nx (cdf (inc i))
-                          nv (frequency nx)
-                          no (outcome   nx)]
-#_(clojure.pprint/pprint {:nx nx :nv nv :no no})
+                    (let [nx (cdf (inc i)), nv (frequency nx), no (outcome   nx)]
                       (if (< target nv) no
                           (recur (inc i) h)))
 
                     (< target v)
-                    (recur l i)
-                    )))))
+                    (recur l i))))))
          (repeatedly n (fn [] (rand-int2 sum))))))
+
+;;; Here is a very short solution that linearly searches the cumulative
+;;; probability distribution implied by the given probability
+;;; distribution function.
 
 (defn sample-linearly
   "Produce n samples of the outcome-frequency vector by linear
@@ -222,6 +221,17 @@ preprocessing aside, this is O(N)-space, O(1)-time."
 ;;; nice printed result of an experiment.
 
 (def loaded-die [[:A 37] [:B 0] [:C 17] [:D 5] [:E 12] [:F 11] [:G 44]])
+(def loaded-die
+  (map (fn [c] [((comp keyword str) c)
+               (rand-int 2000)])
+       (seq "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")))
+
+(defmacro mytime [sampler-fn]
+  `(let [start# (. java.lang.System (clojure.core/nanoTime))
+         result# (frequencies (~sampler-fn (* 20 (S loaded-die)) loaded-die))
+         end# (. java.lang.System (clojure.core/nanoTime))]
+     {(keyword '~sampler-fn) (take 7 (sort-by frequency > result#))
+      :time (str "Elapsed time: " (/ (- end# start#) 1000000.0) " msec.")}))
 
 (defn -main [] (pprint
                 (let [redis (augmented loaded-die)
@@ -229,7 +239,7 @@ preprocessing aside, this is O(N)-space, O(1)-time."
                       n     (N loaded-die)
                       s     (S loaded-die)
                       l     (L loaded-die)]
-                  {"original distribution" loaded-die
+                  #_{ "original distribution" loaded-die
                    ,"original count"  n
                    ,"original total"  s
                    ,"gcd count total" (mathEx/gcd n s)
@@ -240,18 +250,12 @@ preprocessing aside, this is O(N)-space, O(1)-time."
                    ,"total augmented heights" (total redis)
                    ,"tallest and shortest" (fill-shortest h [] redis)
                    ,"redistributed" (redistribute h redis)
-                   ,"sample-walker 10000"
-                   (time
-                    (frequencies
-                     (sample-walker (* 10000 s)
-                                    loaded-die)))
-                   ,"sample-linearly 10000"
-                   (time
-                    (frequencies
-                     (sample-linearly (* 10000 s)
-                                      loaded-die)))
-                   ,"sample-logarithmically 10000"
-                   (time
-                    (frequencies
-                     (sample-logarithmically (* 10000 s)
-                                      loaded-die)))})))
+                   ,"sample-walker" (mytime sample-walker)
+                   ,"sample-linearly" (mytime sample-linearly)
+                   ,"sample-logarithmically" (mytime sample-logarithmically)
+                   ,"sample-run-length-array" (mytime sample-run-length-array)
+                   }
+                  [(mytime sample-walker)
+                   (mytime sample-linearly)
+                   (mytime sample-logarithmically)
+                   (mytime sample-run-length-array)])))
