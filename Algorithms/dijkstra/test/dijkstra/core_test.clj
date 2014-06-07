@@ -1,7 +1,7 @@
 (ns dijkstra.core-test
   (:require [clojure.test    :refer :all]
             [dijkstra.core   :refer :all]
-            [midje.sweet     :refer :all]
+            ;; [midje.sweet     :refer :all]
             [criterium.core  :as crit]
             [clojure.java.io :as io])
   (:import  [dijkstra.core DirectedGraph UndirectedGraph]))
