@@ -34,10 +34,10 @@
   ;; Apply a function named "explore" to some initial arguments.
   ;; Explore takes two structures, "explored" and "frontier," and
   ;; produces a lazy sequence of triples of destination vertex, total
-  ;; cost, and path (sequence of vertices).
-  ;; 
+  ;; cost to the destination, and path (sequence of vertices).
+  ;;
   ;; "Explored" is a map of vertices and the sequence of vertices that
-  ;; led up to them.
+  ;; led up to them (? with costs ?)
   ;;
   ;; "Frontier" is a map of successors to cost-predecessor pairs. For
   ;; instance, a frontier like this
@@ -54,7 +54,7 @@
      (lazy-seq
       (if (empty? frontier)
         nil
-        (let [;; "frontier" has the form
+        (let [ ;; "frontier" has the form
               ;; '{' <item>:( <succ> '[' <cost> <predec> ']' ) ... '}'
               ;; Min-key finds the item in the frontier with the
               ;; minimum cost, and the next line destructures the item
@@ -103,7 +103,7 @@
           (cons [v total-cost path]
                 (explore explored frontier))))))
    {}                                   ; initial val of explored
-   { start [0] }))                      ; initial val of frontier
+   { start [0]}))                      ; initial val of frontier
 
 (defn shortest-paths-log-linear [g start]
   ((fn explore [explored frontier]

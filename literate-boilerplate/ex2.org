@@ -47,7 +47,8 @@ The following line generates a benign error
   a complete PDF file and a complete directory full of source code.
 
 * Tangle to Leiningen
-  Let's generate Leiningen projects.[fn::http://leiningen.org]
+  Let's generate Leiningen projects foo.[fn::http://leiningen.org; ``brew
+  install Leiningen'' on a mac]
   Leiningen is the easiest way to use Clojure.[fn::http://clojure.org]
   Clojure is a 100\% Java-compatible functional programming language;
   it is simple, straightforward, and arguably a great way to use Java
