@@ -1,4 +1,4 @@
-;;; for light-table rather than for leiningen
+;;; for light-table rather than for leiningen --
 
 (hash-map :a 1 :b 2)
 (into {} {:a 1, :b 2})
